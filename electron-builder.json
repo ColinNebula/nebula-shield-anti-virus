@@ -10,12 +10,9 @@
     "!build/**/*.map",
     "public/electron.js",
     "public/favicon.ico",
-    "node_modules/**/*",
     "package.json"
   ],
-  "asarUnpack": [
-    "build/**/*"
-  ],
+  "asarUnpack": [],
   "extraResources": [
     {
       "from": "backend",
@@ -39,8 +36,9 @@
         "arch": ["x64"]
       }
     ],
-    "icon": "public/favicon.ico",
-    "verifyUpdateCodeSignature": false
+    "verifyUpdateCodeSignature": false,
+    "signAndEditExecutable": false,
+    "forceCodeSigning": false
   },
   "nsis": {
     "oneClick": false,
