@@ -1,0 +1,40 @@
+<svg viewBox="0 0 192 192" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="shieldGradient192" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#4f46e5;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#7c3aed;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#1e40af;stop-opacity:1" />
+    </linearGradient>
+    <filter id="shadow">
+      <feDropShadow dx="2" dy="2" stdDeviation="3" flood-opacity="0.3"/>
+    </filter>
+  </defs>
+  
+  <!-- Main shield shape -->
+  <path d="M96 20 C67 20, 38 38, 38 66 L38 106 C38 134, 67 166, 96 172 C125 166, 154 134, 154 106 L154 66 C154 38, 125 20, 96 20 Z" 
+        fill="url(#shieldGradient192)" 
+        filter="url(#shadow)"/>
+  
+  <!-- Inner shield detail -->
+  <path d="M96 30 C72 30, 48 45, 48 66 L48 102 C48 126, 72 150, 96 156 C120 150, 144 126, 144 102 L144 66 C144 45, 120 30, 96 30 Z" 
+        fill="none" 
+        stroke="#ffffff" 
+        stroke-width="2" 
+        opacity="0.3"/>
+  
+  <!-- Central security symbol -->
+  <circle cx="96" cy="86" r="24" fill="none" stroke="#ffffff" stroke-width="3" opacity="0.8"/>
+  
+  <!-- Lock symbol -->
+  <rect x="84" y="96" width="24" height="18" rx="2" fill="#ffffff" opacity="0.9"/>
+  <path d="M90 96 L90 84 C90 78, 93 72, 96 72 C99 72, 102 78, 102 84 L102 96" 
+        fill="none" 
+        stroke="#ffffff" 
+        stroke-width="3" 
+        opacity="0.9"/>
+  
+  <!-- Small decorative elements -->
+  <circle cx="60" cy="50" r="3" fill="#00d9ff" opacity="0.6"/>
+  <circle cx="130" cy="60" r="2" fill="#00d9ff" opacity="0.5"/>
+  <circle cx="140" cy="130" r="2.5" fill="#00d9ff" opacity="0.4"/>
+</svg>

@@ -1,0 +1,38 @@
+{
+  "server": {
+    "port": 8080,
+    "host": "127.0.0.1",
+    "cors_enabled": true
+  },
+  "scanner": {
+    "max_file_size_mb": 100,
+    "scan_timeout_seconds": 300,
+    "thread_count": 4,
+    "deep_scan_enabled": true
+  },
+  "quarantine": {
+    "enabled": true,
+    "max_size_mb": 1000,
+    "auto_delete_days": 30
+  },
+  "database": {
+    "path": "data/nebula_shield.db",
+    "backup_enabled": true,
+    "backup_interval_hours": 24
+  },
+  "logging": {
+    "level": "INFO",
+    "file": "data/nebula_shield.log",
+    "max_size_mb": 50
+  },
+  "signatures": {
+    "database_path": "data/signatures.db",
+    "auto_update": false,
+    "update_interval_hours": 6
+  },
+  "protection": {
+    "real_time_enabled": true,
+    "downloads_dir": "C:\\Users\\Public\\Downloads",
+    "temp_dir": "C:\\Windows\\Temp"
+  }
+}

@@ -1,0 +1,357 @@
+{
+  "version": "2025.01.15",
+  "signature_count": 50,
+  "last_updated": "2025-01-15T00:00:00Z",
+  "signatures": [
+    {
+      "name": "EICAR-Test-File",
+      "pattern": "58354f21502540415028485b345c505a58353428503e29377d2443432953544e444152442d414e544956495255532d544553542d46494c45212448",
+      "type": "virus",
+      "severity": 1.0,
+      "description": "EICAR Standard Anti-Virus Test File"
+    },
+    {
+      "name": "WannaCry.Ransomware",
+      "pattern": "4d5a90000300000004000000ffff0000b800000000000000400000000000000000000000000000000000000000000000000000000000000000000000f00000000e1fba0e00b409cd21b8014ccd21546869732070726f6772616d2063616e6e6f742062652072756e20696e20444f53206d6f64652e",
+      "type": "ransomware",
+      "severity": 1.0,
+      "description": "WannaCry ransomware executable signature"
+    },
+    {
+      "name": "Emotet.Trojan.Variant1",
+      "pattern": "558bec83ec4056578b7d0833f68b4508894dfc85c0",
+      "type": "trojan",
+      "severity": 0.95,
+      "description": "Emotet banking trojan variant"
+    },
+    {
+      "name": "TrickBot.Loader",
+      "pattern": "e8000000005d81ed00000000",
+      "type": "trojan",
+      "severity": 0.95,
+      "description": "TrickBot malware loader"
+    },
+    {
+      "name": "Zeus.Trojan",
+      "pattern": "558bec51535657eb106a00e8",
+      "type": "trojan",
+      "severity": 0.9,
+      "description": "Zeus banking trojan"
+    },
+    {
+      "name": "Petya.Ransomware",
+      "pattern": "4d5a90000300000004000000ffff0000b8000000000000004000000000000000",
+      "type": "ransomware",
+      "severity": 1.0,
+      "description": "Petya/NotPetya ransomware"
+    },
+    {
+      "name": "Ryuk.Ransomware",
+      "pattern": "525955004e4f5f4d4f52455f52414e534f4d",
+      "type": "ransomware",
+      "severity": 1.0,
+      "description": "Ryuk ransomware variant"
+    },
+    {
+      "name": "CryptoLocker.Variant",
+      "pattern": "4372797074654466696c6557",
+      "type": "ransomware",
+      "severity": 0.95,
+      "description": "CryptoLocker ransomware family"
+    },
+    {
+      "name": "Mirai.Botnet.IoT",
+      "pattern": "2f62696e2f627573796278207461626c65",
+      "type": "worm",
+      "severity": 0.85,
+      "description": "Mirai IoT botnet malware"
+    },
+    {
+      "name": "Conficker.Worm",
+      "pattern": "558becb90a000000",
+      "type": "worm",
+      "severity": 0.8,
+      "description": "Conficker network worm"
+    },
+    {
+      "name": "Keylogger.Generic",
+      "pattern": "476574417379636e634b6579537461746500",
+      "type": "spyware",
+      "severity": 0.9,
+      "description": "Generic keylogger signature"
+    },
+    {
+      "name": "AgentTesla.Spyware",
+      "pattern": "4167656e7454657374",
+      "type": "spyware",
+      "severity": 0.9,
+      "description": "Agent Tesla keylogger and spyware"
+    },
+    {
+      "name": "DarkComet.RAT",
+      "pattern": "4461726b436f6d6574",
+      "type": "trojan",
+      "severity": 0.95,
+      "description": "DarkComet Remote Access Trojan"
+    },
+    {
+      "name": "NjRAT.Backdoor",
+      "pattern": "6e6a524154",
+      "type": "backdoor",
+      "severity": 0.9,
+      "description": "njRAT backdoor trojan"
+    },
+    {
+      "name": "Gh0st.RAT",
+      "pattern": "4768307374",
+      "type": "backdoor",
+      "severity": 0.9,
+      "description": "Gh0st Remote Access Trojan"
+    },
+    {
+      "name": "Rootkit.ZeroAccess",
+      "pattern": "5a65726f416363657373",
+      "type": "rootkit",
+      "severity": 1.0,
+      "description": "ZeroAccess rootkit"
+    },
+    {
+      "name": "Rootkit.TDSS",
+      "pattern": "544453532e73797300",
+      "type": "rootkit",
+      "severity": 0.95,
+      "description": "TDL4/TDSS rootkit"
+    },
+    {
+      "name": "Necurs.Rootkit",
+      "pattern": "4e6563757273",
+      "type": "rootkit",
+      "severity": 0.95,
+      "description": "Necurs rootkit driver"
+    },
+    {
+      "name": "Adware.Gator",
+      "pattern": "4761746f72",
+      "type": "adware",
+      "severity": 0.6,
+      "description": "Gator adware"
+    },
+    {
+      "name": "Adware.BrowserModifier",
+      "pattern": "42726f777365724d6f6469666965722e646c6c",
+      "type": "adware",
+      "severity": 0.5,
+      "description": "Browser modifier adware"
+    },
+    {
+      "name": "Locky.Ransomware",
+      "pattern": "4c4f434b5920",
+      "type": "ransomware",
+      "severity": 1.0,
+      "description": "Locky ransomware"
+    },
+    {
+      "name": "Cerber.Ransomware",
+      "pattern": "43455242455220",
+      "type": "ransomware",
+      "severity": 1.0,
+      "description": "Cerber ransomware"
+    },
+    {
+      "name": "Reveton.Ransomware",
+      "pattern": "526576657475726e",
+      "type": "ransomware",
+      "severity": 0.9,
+      "description": "Reveton police ransomware"
+    },
+    {
+      "name": "Dridex.Banking.Trojan",
+      "pattern": "447269646578",
+      "type": "trojan",
+      "severity": 0.9,
+      "description": "Dridex banking trojan"
+    },
+    {
+      "name": "Formbook.Infostealer",
+      "pattern": "466f726d626f6f6b",
+      "type": "spyware",
+      "severity": 0.9,
+      "description": "Formbook information stealer"
+    },
+    {
+      "name": "Raccoon.Stealer",
+      "pattern": "526163636f6f6e5374656561",
+      "type": "spyware",
+      "severity": 0.85,
+      "description": "Raccoon Stealer malware"
+    },
+    {
+      "name": "RedLine.Stealer",
+      "pattern": "5265644c696e655374656561",
+      "type": "spyware",
+      "severity": 0.9,
+      "description": "RedLine information stealer"
+    },
+    {
+      "name": "Cobalt.Strike.Beacon",
+      "pattern": "636f62616c747374",
+      "type": "backdoor",
+      "severity": 0.95,
+      "description": "Cobalt Strike beacon payload"
+    },
+    {
+      "name": "Metasploit.Meterpreter",
+      "pattern": "4d65746572707265746572",
+      "type": "backdoor",
+      "severity": 0.9,
+      "description": "Metasploit Meterpreter payload"
+    },
+    {
+      "name": "PowerShell.Empire",
+      "pattern": "506f7765725368656c6c456d70697265",
+      "type": "backdoor",
+      "severity": 0.85,
+      "description": "PowerShell Empire framework"
+    },
+    {
+      "name": "LokiBot.Infostealer",
+      "pattern": "4c6f6b69426f74",
+      "type": "spyware",
+      "severity": 0.9,
+      "description": "LokiBot information stealer"
+    },
+    {
+      "name": "AZORult.Stealer",
+      "pattern": "415a4f52756c74",
+      "type": "spyware",
+      "severity": 0.85,
+      "description": "AZORult information stealer"
+    },
+    {
+      "name": "Remcos.RAT",
+      "pattern": "52656d636f73",
+      "type": "backdoor",
+      "severity": 0.9,
+      "description": "Remcos Remote Access Trojan"
+    },
+    {
+      "name": "NanoCore.RAT",
+      "pattern": "4e616e6f436f7265",
+      "type": "backdoor",
+      "severity": 0.9,
+      "description": "NanoCore RAT"
+    },
+    {
+      "name": "QuasarRAT",
+      "pattern": "5175617361725241",
+      "type": "backdoor",
+      "severity": 0.85,
+      "description": "Quasar Remote Administration Tool"
+    },
+    {
+      "name": "BitCoinMiner.Generic",
+      "pattern": "7374726174756d2b746370",
+      "type": "malware",
+      "severity": 0.7,
+      "description": "Generic cryptocurrency miner"
+    },
+    {
+      "name": "XMRig.Miner",
+      "pattern": "584d5269672043505520",
+      "type": "malware",
+      "severity": 0.75,
+      "description": "XMRig Monero miner"
+    },
+    {
+      "name": "Sality.Virus",
+      "pattern": "53616c697479",
+      "type": "virus",
+      "severity": 0.85,
+      "description": "Sality polymorphic virus"
+    },
+    {
+      "name": "Virut.Virus",
+      "pattern": "5669727574",
+      "type": "virus",
+      "severity": 0.85,
+      "description": "Virut file infector virus"
+    },
+    {
+      "name": "Ramnit.Worm",
+      "pattern": "52616d6e6974",
+      "type": "worm",
+      "severity": 0.85,
+      "description": "Ramnit banking worm"
+    },
+    {
+      "name": "SolarBot.RAT",
+      "pattern": "536f6c6172426f74",
+      "type": "backdoor",
+      "severity": 0.85,
+      "description": "SolarBot remote access trojan"
+    },
+    {
+      "name": "Phorpiex.Worm",
+      "pattern": "50686f72706965",
+      "type": "worm",
+      "severity": 0.8,
+      "description": "Phorpiex botnet worm"
+    },
+    {
+      "name": "Tofsee.Spambot",
+      "pattern": "546f66736565",
+      "type": "malware",
+      "severity": 0.7,
+      "description": "Tofsee spam botnet"
+    },
+    {
+      "name": "Smoke.Loader",
+      "pattern": "536d6f6b654c6f",
+      "type": "trojan",
+      "severity": 0.85,
+      "description": "Smoke Loader downloader trojan"
+    },
+    {
+      "name": "IcedID.Banking.Trojan",
+      "pattern": "4963656449",
+      "type": "trojan",
+      "severity": 0.9,
+      "description": "IcedID banking trojan"
+    },
+    {
+      "name": "Qakbot.Trojan",
+      "pattern": "51616b626f",
+      "type": "trojan",
+      "severity": 0.9,
+      "description": "Qakbot (QBot) banking trojan"
+    },
+    {
+      "name": "GandCrab.Ransomware",
+      "pattern": "47616e6443726162",
+      "type": "ransomware",
+      "severity": 0.95,
+      "description": "GandCrab ransomware family"
+    },
+    {
+      "name": "Sodinokibi.Ransomware",
+      "pattern": "536f64696e6f6b",
+      "type": "ransomware",
+      "severity": 1.0,
+      "description": "Sodinokibi/REvil ransomware"
+    },
+    {
+      "name": "Maze.Ransomware",
+      "pattern": "4d617a6552616e736f",
+      "type": "ransomware",
+      "severity": 1.0,
+      "description": "Maze ransomware"
+    },
+    {
+      "name": "Conti.Ransomware",
+      "pattern": "436f6e746952616e",
+      "type": "ransomware",
+      "severity": 1.0,
+      "description": "Conti ransomware group"
+    }
+  ]
+}

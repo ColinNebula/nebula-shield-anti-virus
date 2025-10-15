@@ -1,0 +1,18 @@
+{
+  "name": "nebula-shield-mock-backend",
+  "version": "1.0.0",
+  "description": "Mock Node.js backend for Nebula Shield Anti-Virus",
+  "main": "mock-backend.js",
+  "scripts": {
+    "start": "node mock-backend.js",
+    "dev": "nodemon mock-backend.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "multer": "^1.4.5-lts.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  }
+}

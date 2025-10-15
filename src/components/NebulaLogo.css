@@ -1,0 +1,26 @@
+/* NebulaLogo Component Styles */
+.nebula-logo {
+  display: inline-block;
+  transition: all 0.3s ease;
+}
+
+.nebula-logo:hover {
+  filter: drop-shadow(0 0 8px rgba(79, 70, 229, 0.5));
+}
+
+.nebula-logo.animated {
+  animation: float 3s ease-in-out infinite;
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-5px);
+  }
+}
+
+.nebula-logo.glow {
+  filter: drop-shadow(0 0 12px rgba(79, 70, 229, 0.6));
+}

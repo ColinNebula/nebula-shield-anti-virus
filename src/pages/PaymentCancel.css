@@ -1,0 +1,84 @@
+.payment-container {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  background: linear-gradient(135deg, #f44336 0%, #e91e63 100%);
+}
+
+.payment-card.cancel {
+  background: white;
+  border-radius: 16px;
+  padding: 3rem;
+  max-width: 600px;
+  width: 100%;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  text-align: center;
+}
+
+.cancel-icon {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #f44336 0%, #e53935 100%);
+  color: white;
+  font-size: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 1.5rem;
+}
+
+.payment-card.cancel h1 {
+  color: #333;
+  margin-bottom: 0.5rem;
+  font-size: 2rem;
+}
+
+.cancel-details {
+  margin: 2rem 0;
+  padding: 1.5rem;
+  background: #fff3e0;
+  border-radius: 12px;
+  border-left: 4px solid #ff9800;
+}
+
+.cancel-details p {
+  margin: 0.5rem 0;
+  color: #666;
+  line-height: 1.6;
+}
+
+.help-box {
+  margin-top: 2rem;
+  padding: 1.5rem;
+  background: #f8f9fa;
+  border-radius: 12px;
+}
+
+.help-box h3 {
+  margin-top: 0;
+  color: #667eea;
+}
+
+.help-box p {
+  margin: 0.5rem 0 0 0;
+  color: #666;
+}
+
+@media (max-width: 768px) {
+  .payment-card.cancel {
+    padding: 2rem 1.5rem;
+  }
+
+  .payment-card.cancel h1 {
+    font-size: 1.5rem;
+  }
+
+  .cancel-icon {
+    width: 60px;
+    height: 60px;
+    font-size: 36px;
+  }
+}
