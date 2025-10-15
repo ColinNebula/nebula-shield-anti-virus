@@ -10,6 +10,7 @@
 
 # production
 /build
+/dist
 
 # misc
 .DS_Store
@@ -21,3 +22,92 @@
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+# =======================
+# SECURITY - DO NOT COMMIT
+# =======================
+
+# Environment variables (contains API keys, secrets)
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# File uploads directory
+uploads/
+temp/
+quarantine/
+
+# Log files
+logs/
+*.log
+
+# API keys and secrets
+api-keys.txt
+secrets/
+*.pem
+*.key
+*.cert
+
+# Security reports (may contain sensitive info)
+integrity-report.json
+security-report.json
+vulnerability-scan.json
+
+# Database files (if using SQLite)
+*.db
+*.sqlite
+*.sqlite3
+
+# Backup files
+backups/
+*.backup
+
+# OS files
+Thumbs.db
+Desktop.ini
+
+# IDE files
+.vscode/settings.json
+.idea/
+*.swp
+*.swo
+*~
+
+# Checksums (regenerate after changes)
+# .checksums.json - KEEP THIS for integrity verification
+
+# =======================
+# BACKEND BUILD ARTIFACTS
+# =======================
+
+# CMake build files
+backend/build/CMakeFiles/
+backend/build/_deps/
+backend/build/x64/
+backend/build/Win32/
+backend/build/Testing/
+backend/build/CMakeCache.txt
+backend/build/*.cmake
+backend/build/*.vcxproj*
+backend/build/*.sln
+
+# Compiler intermediate files
+*.obj
+*.ilk
+*.pdb
+*.tlog
+*.iobj
+*.ipdb
+*.lastbuildstate
+
+# Keep only the final executable
+!backend/build/bin/Release/*.exe
+!backend/build/bin/Debug/*.exe
+
+# Backend configuration and data
+backend/build/bin/Release/data/*.db
+backend/build/bin/Release/logs/*.log
+backend/build/bin/Debug/data/*.db
+backend/build/bin/Debug/logs/*.log

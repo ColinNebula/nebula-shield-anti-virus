@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Backend Connection</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .success { background-color: #d4edda; border-color: #c3e6cb; }
+        .error { background-color: #f8d7da; border-color: #f5c6cb; }
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            cursor: pointer;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+        }
+        button:hover { background-color: #0056b3; }
+        pre {
+            background-color: #f4f4f4;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>🛡️ Nebula Shield Backend Test</h1>
+    
+    <div class="test-section">
+        <h2>Backend Status</h2>
+        <button onclick="testStatus()">Test /api/status</button>
+        <button onclick="testQuarantine()">Test /api/quarantine</button>
+        <button onclick="testQuickScan()">Test Quick Scan</button>
+        <div id="result"></div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:8080/api';
+        const resultDiv = document.getElementById('result');
+
+        function showResult(success, message, data = null) {
+            resultDiv.className = success ? 'test-section success' : 'test-section error';
+            resultDiv.innerHTML = `
+                <h3>${success ? '✅ Success' : '❌ Error'}</h3>
+                <p>${message}</p>
+                ${data ? `<pre>${JSON.stringify(data, null, 2)}</pre>` : ''}
+            `;
+        }
+
+        async function testStatus() {
+            try {
+                const response = await fetch(`${API_BASE}/status`);
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                const data = await response.json();
+                showResult(true, 'Backend is running!', data);
+            } catch (error) {
+                showResult(false, `Failed to connect: ${error.message}`);
+            }
+        }
+
+        async function testQuarantine() {
+            try {
+                const response = await fetch(`${API_BASE}/quarantine`);
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                const data = await response.json();
+                showResult(true, 'Quarantine API working!', data);
+            } catch (error) {
+                showResult(false, `Failed to fetch quarantine: ${error.message}`);
+            }
+        }
+
+        async function testQuickScan() {
+            try {
+                const response = await fetch(`${API_BASE}/scan/quick`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({})
+                });
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                const data = await response.json();
+                showResult(true, 'Quick scan endpoint working!', data);
+            } catch (error) {
+                showResult(false, `Quick scan failed: ${error.message}`);
+            }
+        }
+
+        // Auto-test on load
+        window.onload = () => testStatus();
+    </script>
+</body>
+</html>

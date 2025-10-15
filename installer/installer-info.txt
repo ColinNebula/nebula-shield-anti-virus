@@ -1,0 +1,105 @@
+WELCOME TO NEBULA SHIELD ANTI-VIRUS INSTALLER
+═══════════════════════════════════════════════
+
+Built with ❤️ by Colin Nebula for Nebula3ddev.com
+
+This installer will set up Nebula Shield Anti-Virus on your computer.
+
+═══════════════════════════════════════════════
+WHAT WILL BE INSTALLED:
+═══════════════════════════════════════════════
+
+✅ Complete React application with all features
+✅ Backend services (Auth & Main API)
+✅ ALL 9 logos and branding assets
+   • logo.svg, logo192.png, logo512.png
+   • logo-horizontal.svg, logo192.svg, logo32.svg
+   • favicon.ico (used for desktop & Start Menu icons)
+   • mech2.png, manifest.json
+
+✅ Desktop shortcut with Nebula Shield icon
+✅ Start Menu folder with shortcuts (all with icons)
+✅ 3 startup batch files for easy launching
+✅ SQLite databases for quarantine & auth
+✅ Comprehensive documentation
+
+═══════════════════════════════════════════════
+PREREQUISITES:
+═══════════════════════════════════════════════
+
+⚠️  REQUIRED: Node.js 18.0.0 or higher
+   Download from: https://nodejs.org/
+
+✅ Windows 10/11 (64-bit recommended)
+✅ Administrator privileges
+✅ At least 2GB free disk space
+✅ 4GB RAM minimum (8GB recommended)
+
+═══════════════════════════════════════════════
+INSTALLATION PROCESS:
+═══════════════════════════════════════════════
+
+The installer will:
+
+1. Copy all application files
+2. Install ALL logos to public/ folder
+3. Create desktop shortcut (with logo icon)
+4. Create Start Menu entries (with logo icons)
+5. Install Node.js dependencies (may take 5-10 minutes)
+6. Initialize SQLite databases
+7. Create startup scripts
+
+═══════════════════════════════════════════════
+AFTER INSTALLATION:
+═══════════════════════════════════════════════
+
+1. Edit the .env file to add your VirusTotal API key:
+   • Get free key from: https://www.virustotal.com/
+   • Location: C:\Program Files\Nebula Shield\.env
+
+2. Launch Nebula Shield:
+   • Double-click desktop icon, OR
+   • Start Menu → Nebula Shield, OR
+   • Run: Start-Nebula-Shield.bat
+
+3. The application will open in your browser at:
+   http://localhost:3001
+
+═══════════════════════════════════════════════
+FEATURES:
+═══════════════════════════════════════════════
+
+• Real-time scanning engine
+• File & directory scanning
+• Quarantine with AES-256 encryption
+• VirusTotal integration
+• Network protection with IDS
+• Web & email protection
+• Driver vulnerability scanner
+• Ransomware protection
+• Advanced firewall
+• PDF report generation
+• Premium subscription system
+• Beautiful modern UI (dark/light themes)
+• Optimized performance (85% smaller bundle)
+
+═══════════════════════════════════════════════
+SUPPORT:
+═══════════════════════════════════════════════
+
+🌐 Website: https://nebula3ddev.com
+📧 Email: support@nebula3ddev.com
+📖 Documentation: Installed in application folder
+
+═══════════════════════════════════════════════
+LICENSE:
+═══════════════════════════════════════════════
+
+MIT License
+Copyright (c) 2025 Colin Nebula - Nebula3ddev.com
+
+═══════════════════════════════════════════════
+
+Click Next to begin installation.
+
+Stay Protected. Stay Secure. 🛡️

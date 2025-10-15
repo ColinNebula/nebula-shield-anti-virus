@@ -1,0 +1,54 @@
+<svg viewBox="0 0 200 80" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="logoTextGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#4f46e5;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#7c3aed;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#1e40af;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="logoShieldGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#4f46e5;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#7c3aed;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#1e40af;stop-opacity:1" />
+    </linearGradient>
+    <filter id="logoGlow">
+      <fegaussianblur stdDeviation="2" result="coloredBlur"/>
+      <femerge> 
+        <femergenode in="coloredBlur"/>
+        <femergenode in="SourceGraphic"/>
+      </femerge>
+    </filter>
+  </defs>
+  
+  <!-- Shield Logo -->
+  <g transform="translate(10, 10)">
+    <!-- Main shield shape -->
+    <path d="M30 8 C22 8, 15 12, 15 20 L15 35 C15 42, 22 52, 30 55 C38 52, 45 42, 45 35 L45 20 C45 12, 38 8, 30 8 Z" 
+          fill="url(#logoShieldGradient)" 
+          filter="url(#logoGlow)"/>
+    
+    <!-- Lock symbol -->
+    <circle cx="30" cy="28" r="7" fill="none" stroke="#ffffff" stroke-width="1" opacity="0.8"/>
+    <rect x="26" y="32" width="8" height="6" rx="1" fill="#ffffff" opacity="0.9"/>
+    <path d="M28 32 L28 28 C28 26, 29 24, 30 24 C31 24, 32 26, 32 28 L32 32" 
+          fill="none" 
+          stroke="#ffffff" 
+          stroke-width="1" 
+          opacity="0.9"/>
+  </g>
+  
+  <!-- Text Logo -->
+  <text x="70" y="35" font-family="Arial, sans-serif" font-size="20" font-weight="bold" fill="url(#logoTextGradient)">
+    Nebula Shield
+  </text>
+  <text x="70" y="50" font-family="Arial, sans-serif" font-size="10" fill="#64748b">
+    ANTI-VIRUS PROTECTION
+  </text>
+  
+  <!-- Decorative elements -->
+  <circle cx="180" cy="25" r="1.5" fill="#00d9ff" opacity="0.6">
+    <animate attributeName="opacity" values="0.3;1;0.3" dur="2s" repeatCount="indefinite"/>
+  </circle>
+  <circle cx="190" cy="35" r="1" fill="#00d9ff" opacity="0.5">
+    <animate attributeName="opacity" values="0.2;0.8;0.2" dur="3s" repeatCount="indefinite"/>
+  </circle>
+</svg>
