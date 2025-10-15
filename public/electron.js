@@ -6,12 +6,23 @@ let mainWindow;
 let tray = null;
 let backendProcess = null;
 
-// Enable live reload for Electron
-if (isDev) {
-  require('electron-reload')(__dirname, {
-    electron: path.join(__dirname, '..', 'node_modules', '.bin', 'electron'),
-    hardResetMethod: 'exit'
-  });
+// Security: Disable deprecated features
+app.allowRendererProcessReuse = true;
+
+// Determine if running in development
+const isDevMode = isDev && process.defaultApp;
+console.log('Running mode:', isDevMode ? 'Development' : 'Production');
+
+// Enable live reload for Electron in development
+if (isDevMode) {
+  try {
+    require('electron-reload')(__dirname, {
+      electron: path.join(__dirname, '..', 'node_modules', '.bin', 'electron'),
+      hardResetMethod: 'exit'
+    });
+  } catch (err) {
+    console.log('Electron reload not available');
+  }
 }
 
 function createWindow() {
@@ -25,26 +36,33 @@ function createWindow() {
     webPreferences: {
       nodeIntegration: true,
       contextIsolation: false,
-      enableRemoteModule: true,
-      webSecurity: !isDev,
-      devTools: isDev
+      enableRemoteModule: false,
+      webSecurity: true,
+      devTools: true,
+      sandbox: false
     },
     frame: true,
     titleBarStyle: 'default',
-    show: false
+    show: false,
+    autoHideMenuBar: false
   });
 
   // Load the app
-  const startUrl = isDev
+  const startUrl = isDevMode
     ? 'http://localhost:3001'
-    : `file://${path.join(__dirname, '../build/index.html')}`.replace(/\\/g, '/');
+    : `file://${path.join(__dirname, 'index.html')}`;
 
-  mainWindow.loadURL(startUrl);
+  console.log('Loading URL:', startUrl);
+  console.log('__dirname:', __dirname);
+  console.log('Full path:', path.join(__dirname, 'index.html'));
+  mainWindow.loadURL(startUrl).catch(err => {
+    console.error('Failed to load URL:', err);
+  });
 
   // Show window when ready
   mainWindow.once('ready-to-show', () => {
     mainWindow.show();
-    if (isDev) {
+    if (isDevMode) {
       mainWindow.webContents.openDevTools();
     }
   });
@@ -228,7 +246,7 @@ function createTray() {
 }
 
 function startBackend() {
-  if (isDev) {
+  if (isDevMode) {
     // In development, backend should be started separately
     console.log('Running in development mode - start backend separately');
     return;
