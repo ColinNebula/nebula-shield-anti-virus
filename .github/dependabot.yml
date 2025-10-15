@@ -1,0 +1,77 @@
+version: 2
+updates:
+  # Enable version updates for npm
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    
+    # Security updates only (optional - remove to get all updates)
+    open-pull-requests-limit: 10
+    
+    # Assignees for pull requests
+    # assignees:
+    #   - "your-github-username"
+    
+    # Reviewers for pull requests
+    # reviewers:
+    #   - "your-team-name"
+    
+    # Labels for pull requests
+    labels:
+      - "dependencies"
+      - "security"
+    
+    # Commit message prefix
+    commit-message:
+      prefix: "chore"
+      prefix-development: "chore"
+      include: "scope"
+    
+    # Allow both direct and indirect updates
+    allow:
+      - dependency-type: "all"
+    
+    # Group dependency updates
+    groups:
+      # Group all React-related updates
+      react:
+        patterns:
+          - "react*"
+      
+      # Group all security-related packages
+      security:
+        patterns:
+          - "helmet"
+          - "express-rate-limit"
+          - "express-validator"
+          - "cors"
+      
+      # Group all development dependencies
+      development:
+        dependency-type: "development"
+        update-types:
+          - "minor"
+          - "patch"
+    
+    # Ignore specific dependencies (if needed)
+    # ignore:
+    #   - dependency-name: "react"
+    #     versions: ["18.x"]
+    
+    # Vendor dependencies (if using private registry)
+    # registries: "*"
+
+  # Enable version updates for GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    labels:
+      - "github-actions"
+      - "dependencies"
+    commit-message:
+      prefix: "ci"

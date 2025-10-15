@@ -1,0 +1,63 @@
+# ====================================
+# NEBULA SHIELD - QUICK START GUIDE
+# ====================================
+
+## Current Status ✓
+- CMake: INSTALLED
+- Visual Studio 2019: INSTALLED  
+- SQLite3 & OpenSSL: NEED TO INSTALL
+
+## Install Dependencies (Run these commands):
+
+### 1. Install vcpkg (one-time setup)
+```powershell
+cd C:\
+git clone https://github.com/Microsoft/vcpkg.git
+cd vcpkg
+.\bootstrap-vcpkg.bat
+```
+
+### 2. Install SQLite3 and OpenSSL
+```powershell
+cd C:\vcpkg
+.\vcpkg install sqlite3:x64-windows
+.\vcpkg install openssl:x64-windows
+.\vcpkg integrate install
+```
+
+### 3. Build the C++ Backend
+```powershell
+cd Z:\Directory\projects\nebula-shield-anti-virus\backend
+mkdir build -Force
+cd build
+cmake .. -DCMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake
+cmake --build . --config Release
+```
+
+### 4. Start the Backend
+```powershell
+cd bin\Release
+.\nebula_shield_backend.exe
+```
+
+### 5. Start the React Frontend (in new terminal)
+```powershell
+cd Z:\Directory\projects\nebula-shield-anti-virus
+npm start
+```
+
+## OR Use the Mock Backend (No C++ build needed)
+```powershell
+cd Z:\Directory\projects\nebula-shield-anti-virus
+node mock-backend-secure.js
+```
+Then in another terminal:
+```powershell
+npm start
+```
+
+====================================
+Choose your path:
+- Want REAL antivirus? → Follow steps 1-5 above
+- Want to test UI only? → Use mock backend
+====================================

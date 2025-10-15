@@ -1,0 +1,67 @@
+{
+  "appId": "com.nebulashield.antivirus",
+  "productName": "Nebula Shield Anti-Virus",
+  "directories": {
+    "buildResources": "public",
+    "output": "dist"
+  },
+  "files": [
+    "build/**/*",
+    "!build/**/*.map",
+    "public/electron.js",
+    "public/favicon.ico",
+    "node_modules/**/*",
+    "package.json"
+  ],
+  "asarUnpack": [
+    "build/**/*"
+  ],
+  "extraResources": [
+    {
+      "from": "backend",
+      "to": "backend",
+      "filter": ["**/*"]
+    },
+    {
+      "from": "data",
+      "to": "data",
+      "filter": ["**/*"]
+    }
+  ],
+  "win": {
+    "target": [
+      {
+        "target": "nsis",
+        "arch": ["x64"]
+      },
+      {
+        "target": "portable",
+        "arch": ["x64"]
+      }
+    ],
+    "icon": "public/favicon.ico",
+    "verifyUpdateCodeSignature": false
+  },
+  "nsis": {
+    "oneClick": false,
+    "allowToChangeInstallationDirectory": true,
+    "createDesktopShortcut": true,
+    "createStartMenuShortcut": true,
+    "shortcutName": "Nebula Shield Anti-Virus",
+    "installerIcon": "public/favicon.ico",
+    "uninstallerIcon": "public/favicon.ico",
+    "installerHeaderIcon": "public/favicon.ico",
+    "license": "LICENSE"
+  },
+  "mac": {
+    "target": ["dmg", "zip"],
+    "icon": "public/favicon.icns",
+    "category": "public.app-category.utilities"
+  },
+  "linux": {
+    "target": ["AppImage", "deb"],
+    "icon": "public/favicon.png",
+    "category": "Utility"
+  },
+  "publish": null
+}

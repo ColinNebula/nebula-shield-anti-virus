@@ -1,0 +1,103 @@
+.virtual-list-container {
+  width: 100%;
+  border-radius: 8px;
+  background: var(--card-bg);
+  border: 1px solid var(--border-primary);
+}
+
+.virtual-list-container::-webkit-scrollbar {
+  width: 8px;
+}
+
+.virtual-list-container::-webkit-scrollbar-track {
+  background: var(--bg-secondary);
+  border-radius: 4px;
+}
+
+.virtual-list-container::-webkit-scrollbar-thumb {
+  background: var(--border-primary);
+  border-radius: 4px;
+  transition: background 0.2s;
+}
+
+.virtual-list-container::-webkit-scrollbar-thumb:hover {
+  background: var(--accent-primary);
+}
+
+.virtual-list-spacer {
+  min-height: 100%;
+}
+
+.virtual-list-content {
+  will-change: transform;
+}
+
+.virtual-list-item {
+  display: flex;
+  align-items: center;
+  border-bottom: 1px solid var(--border-secondary);
+  transition: background 0.2s;
+}
+
+.virtual-list-item:hover {
+  background: var(--bg-hover);
+}
+
+.virtual-list-item:last-child {
+  border-bottom: none;
+}
+
+.virtual-list-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 20px;
+  color: var(--text-secondary);
+  font-size: 14px;
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: linear-gradient(to top, var(--card-bg), transparent);
+}
+
+.virtual-list-loading .spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--border-primary);
+  border-top-color: var(--accent-primary);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+.virtual-list-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  min-height: 200px;
+  color: var(--text-tertiary);
+  font-size: 14px;
+}
+
+.virtual-list-empty p {
+  margin: 0;
+  padding: 20px;
+  text-align: center;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Dark theme adjustments */
+[data-theme="dark"] .virtual-list-container {
+  background: rgba(30, 30, 40, 0.6);
+}
+
+[data-theme="dark"] .virtual-list-item:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
