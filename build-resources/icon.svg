@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="shieldGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#667eea;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#764ba2;stop-opacity:1" />
+    </linearGradient>
+    <filter id="shadow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="8"/>
+      <feOffset dx="0" dy="4" result="offsetblur"/>
+      <feComponentTransfer>
+        <feFuncA type="linear" slope="0.3"/>
+      </feComponentTransfer>
+      <feMerge>
+        <feMergeNode/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  
+  <!-- Background Circle -->
+  <circle cx="256" cy="256" r="240" fill="url(#shieldGradient)" filter="url(#shadow)"/>
+  
+  <!-- Shield Shape -->
+  <path d="M 256 80 L 380 140 L 380 260 Q 380 340, 256 420 Q 132 340, 132 260 L 132 140 Z" 
+        fill="white" opacity="0.95"/>
+  
+  <!-- Inner Shield Detail -->
+  <path d="M 256 110 L 360 160 L 360 260 Q 360 325, 256 390 Q 152 325, 152 260 L 152 160 Z" 
+        fill="url(#shieldGradient)"/>
+  
+  <!-- Checkmark -->
+  <path d="M 220 250 L 245 280 L 305 210" 
+        stroke="white" 
+        stroke-width="20" 
+        stroke-linecap="round" 
+        stroke-linejoin="round" 
+        fill="none"/>
+  
+  <!-- Subtle glow on checkmark -->
+  <path d="M 220 250 L 245 280 L 305 210" 
+        stroke="rgba(255,255,255,0.5)" 
+        stroke-width="26" 
+        stroke-linecap="round" 
+        stroke-linejoin="round" 
+        fill="none"
+        opacity="0.4"/>
+  
+  <!-- Small stars/sparkles for effect -->
+  <circle cx="200" cy="180" r="4" fill="white" opacity="0.8"/>
+  <circle cx="312" cy="180" r="4" fill="white" opacity="0.8"/>
+  <circle cx="256" cy="320" r="4" fill="white" opacity="0.8"/>
+</svg>

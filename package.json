@@ -1,6 +1,11 @@
 {
   "name": "nebula-shield-anti-virus",
   "version": "0.1.0",
+  "description": "Advanced anti-virus protection with real-time threat detection, firewall, email protection, and comprehensive security monitoring",
+  "author": {
+    "name": "ColinNebula",
+    "email": "contact@nebulashield.com"
+  },
   "private": true,
   "main": "public/electron.js",
   "homepage": "./",
@@ -95,9 +100,12 @@
     "cross-env": "^10.1.0",
     "electron": "^38.3.0",
     "electron-builder": "^26.0.12",
+    "electron-icon-maker": "^0.0.5",
     "electron-reload": "^2.0.0-alpha.1",
     "http-proxy-middleware": "^3.0.5",
+    "sharp": "^0.34.4",
     "source-map-explorer": "^2.5.3",
+    "svg2png-cli": "^1.1.1",
     "wait-on": "^9.0.1",
     "webpack-bundle-analyzer": "^4.10.1"
   }
