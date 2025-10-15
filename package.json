@@ -29,7 +29,7 @@
     "helmet": "^8.1.0",
     "jspdf": "^3.0.3",
     "jspdf-autotable": "^3.8.4",
-    "lucide-react": "^0.441.0",
+    "lucide-react": "^0.545.0",
     "multer": "^2.0.2",
     "node-cron": "^4.2.1",
     "nodemailer": "^7.0.9",
