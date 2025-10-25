@@ -1,6 +1,8 @@
 // Anti-virus API service for backend communication
-// Use relative URL to go through the proxy configured in setupProxy.js
-const API_BASE_URL = '/api';
+// In development with React dev server, use proxy (relative URLs)
+// In Electron or production, use direct backend URLs
+const isElectron = typeof window !== 'undefined' && window.electronAPI?.isElectron;
+const API_BASE_URL = isElectron ? 'http://localhost:8080/api' : '/api';
 
 // Helper function to safely parse JSON responses with Windows paths
 const safeJSONParse = async (response) => {
@@ -143,7 +145,7 @@ class AntivirusAPI {
         // If proxy returns 404, try direct backend connection
         if (response.status === 404) {
           console.warn('Proxy returned 404, attempting direct backend connection');
-          const directResponse = await fetch('http://localhost:8080/api/scan/quick', {
+          const directResponse = await fetch(`http://localhost:8080${API_BASE_URL}/scan/quick`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -564,7 +566,7 @@ class AntivirusAPI {
         // If proxy returns 404 or 504, try direct backend connection
         if (response.status === 404 || response.status === 504) {
           console.warn('Proxy error, attempting direct backend connection');
-          const directResponse = await fetch('http://localhost:8080/api/signatures/update', {
+          const directResponse = await fetch(`http://localhost:8080${API_BASE_URL}/signatures/update`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -743,7 +745,7 @@ class AntivirusAPI {
   static async getProtectionStatus() {
     try {
       // Use the main status endpoint which includes real_time_protection
-      const response = await fetch(`${API_BASE_URL}/status`);
+      const response = await fetch(`${API_BASE_URL}/api/status`);
       
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);

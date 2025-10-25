@@ -1,8 +1,8 @@
 {
   "mock-backend-secure.js": "dfeace9102ff92801b3bef1f74f16e4ecc358976ffc5c622b7e8b7935e5025d9",
-  "src/services/mlAnomalyDetection.js": "c9722fc37e7dde7e97a6e0788e663a4483dcb55e91823dbb4f72a563f2b7e12d",
+  "src/services/mlAnomalyDetection.js": "21372af64c139319cbe7e4c118211f4c2e6520647459c282df0d86e5ee8e05cc",
   "src/services/emailVerification.js": "31e2430677db6a1e379585c9923e46d7a5bd3d595006f6bffdc2c3bfd16a8af7",
-  "src/contexts/AuthContext.js": "70a1ac096843e7a830c107a166699ad16b28bda096046b3270525a7ebac74190",
+  "src/contexts/AuthContext.js": "ed3f1c630595550f2bb2329be6b39cf49ec6c347c14c788a1d62a710d8c2851a",
   "src/middleware/security.js": "ab64e9f9f22cbcecc4497cb9f1f43a35469d9bbcf8b7dcd3d0409c2371923b7b",
-  "package.json": "1c1d3b7ffcdddd847e76551f39d877769fb7c97f2d90a2cbfa57c156ed52c647"
+  "package.json": "5c6f81253616650a4d430644d691987e424eb6d6a20fb4582283142b5589c20d"
 }

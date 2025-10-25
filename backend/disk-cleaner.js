@@ -50,6 +50,8 @@ class DiskCleaner {
    */
   async analyzeDiskSpace() {
     try {
+      console.log('🔍 Starting disk space analysis...');
+      
       const analysis = {
         recycleBin: await this.analyzeRecycleBin(),
         tempFiles: await this.analyzeTempFiles(),
@@ -59,19 +61,39 @@ class DiskCleaner {
         oldFiles: await this.analyzeOldFiles(),
       };
 
-      const totalCleanable = Object.values(analysis).reduce((sum, item) => sum + item.size, 0);
+      console.log('📊 Analysis complete:', {
+        recycleBin: this.formatBytes(analysis.recycleBin.size),
+        tempFiles: this.formatBytes(analysis.tempFiles.size),
+        downloads: this.formatBytes(analysis.downloads.size),
+      });
+
+      const totalCleanable = Object.values(analysis).reduce((sum, item) => sum + (item.size || 0), 0);
+      const totalFiles = Object.values(analysis).reduce((sum, item) => sum + (item.count || 0), 0);
 
       return {
         success: true,
         analysis,
         totalCleanable,
-        totalFiles: Object.values(analysis).reduce((sum, item) => sum + item.count, 0),
+        totalFiles,
         recommendations: this.generateRecommendations(analysis),
       };
     } catch (error) {
+      console.error('❌ Disk analysis failed:', error.message);
+      console.error(error.stack);
       return {
         success: false,
         error: error.message,
+        analysis: {
+          recycleBin: { size: 0, count: 0, location: 'Recycle Bin', error: 'Analysis failed' },
+          tempFiles: { size: 0, count: 0, location: 'Temporary Files', error: 'Analysis failed' },
+          downloads: { size: 0, count: 0, location: 'Downloads', error: 'Analysis failed' },
+          browserCache: { size: 0, count: 0, location: 'Browser Cache', error: 'Analysis failed' },
+          logs: { size: 0, count: 0, location: 'System Logs', error: 'Analysis failed' },
+          oldFiles: { size: 0, count: 0, location: 'Old Files', error: 'Analysis failed' },
+        },
+        totalCleanable: 0,
+        totalFiles: 0,
+        recommendations: [],
       };
     }
   }
@@ -81,6 +103,7 @@ class DiskCleaner {
    */
   async analyzeRecycleBin() {
     try {
+      console.log('🗑️  Analyzing Recycle Bin...');
       let size = 0;
       let count = 0;
 
@@ -90,9 +113,13 @@ class DiskCleaner {
         for (const drive of drives) {
           const recyclePath = `${drive}:\\$Recycle.Bin`;
           if (fs.existsSync(recyclePath)) {
-            const result = this.getDirectorySize(recyclePath);
-            size += result.size;
-            count += result.count;
+            try {
+              const result = this.getDirectorySize(recyclePath);
+              size += result.size;
+              count += result.count;
+            } catch (error) {
+              console.log(`⚠️  Cannot access ${recyclePath}:`, error.message);
+            }
           }
         }
       } else if (this.isMac) {
@@ -111,8 +138,10 @@ class DiskCleaner {
         }
       }
 
+      console.log(`✅ Recycle Bin: ${this.formatBytes(size)} (${count} files)`);
       return { size, count, location: 'Recycle Bin' };
     } catch (error) {
+      console.error('❌ Recycle Bin analysis error:', error.message);
       return { size: 0, count: 0, location: 'Recycle Bin', error: error.message };
     }
   }
@@ -121,6 +150,7 @@ class DiskCleaner {
    * Analyze temporary files
    */
   async analyzeTempFiles() {
+    console.log('📂 Analyzing temporary files...');
     let totalSize = 0;
     let totalCount = 0;
 
@@ -130,12 +160,14 @@ class DiskCleaner {
           const result = this.getDirectorySize(tempDir);
           totalSize += result.size;
           totalCount += result.count;
+          console.log(`  ✓ ${tempDir}: ${this.formatBytes(result.size)} (${result.count} files)`);
         } catch (error) {
-          // Skip inaccessible directories
+          console.log(`  ⚠️  Cannot access ${tempDir}:`, error.message);
         }
       }
     }
 
+    console.log(`✅ Temp Files: ${this.formatBytes(totalSize)} (${totalCount} files)`);
     return { size: totalSize, count: totalCount, location: 'Temporary Files' };
   }
 
@@ -143,9 +175,11 @@ class DiskCleaner {
    * Analyze Downloads folder
    */
   async analyzeDownloads() {
+    console.log('📥 Analyzing Downloads folder...');
     const downloadsPath = path.join(os.homedir(), 'Downloads');
     
     if (!fs.existsSync(downloadsPath)) {
+      console.log('⚠️  Downloads folder not found');
       return { size: 0, count: 0, location: 'Downloads' };
     }
 
@@ -172,8 +206,10 @@ class DiskCleaner {
         }
       });
 
+      console.log(`✅ Downloads (30+ days): ${this.formatBytes(size)} (${count} files)`);
       return { size, count, location: 'Downloads (30+ days old)' };
     } catch (error) {
+      console.error('❌ Downloads analysis error:', error.message);
       return { size: 0, count: 0, location: 'Downloads', error: error.message };
     }
   }
@@ -278,6 +314,10 @@ class DiskCleaner {
       return { size: totalSize, count: totalCount };
     }
 
+    if (!fs.existsSync(dirPath)) {
+      return { size: totalSize, count: totalCount };
+    }
+
     try {
       const files = fs.readdirSync(dirPath);
 
@@ -295,7 +335,7 @@ class DiskCleaner {
             totalCount++;
           }
         } catch (error) {
-          // Skip inaccessible files
+          // Skip inaccessible files (permission denied, etc.)
         }
       });
     } catch (error) {
@@ -310,30 +350,51 @@ class DiskCleaner {
    */
   async cleanRecycleBin() {
     try {
-      let cleaned = 0;
-      let count = 0;
+      console.log('🗑️  Cleaning Recycle Bin...');
+      
+      // Analyze FIRST to get size before deletion
+      const beforeAnalysis = await this.analyzeRecycleBin();
+      let cleaned = beforeAnalysis.size;
+      let count = beforeAnalysis.count;
+
+      if (cleaned === 0 && count === 0) {
+        console.log('✅ Recycle Bin is already empty');
+        return {
+          success: true,
+          cleaned: 0,
+          filesDeleted: 0,
+          location: 'Recycle Bin'
+        };
+      }
 
       if (this.isWindows) {
         // Empty Recycle Bin using PowerShell
         try {
+          console.log('  Using PowerShell Clear-RecycleBin...');
           execSync('powershell.exe -Command "Clear-RecycleBin -Force -ErrorAction SilentlyContinue"', { 
             stdio: 'ignore',
             timeout: 30000 
           });
-          const analysis = await this.analyzeRecycleBin();
-          cleaned = analysis.size;
-          count = analysis.count;
+          console.log(`✅ Recycle Bin cleaned: ${this.formatBytes(cleaned)} (${count} files)`);
         } catch (error) {
+          console.log('  PowerShell failed, using manual deletion...');
           // Fallback: manually delete files
           const drives = ['C', 'D', 'E'];
+          cleaned = 0;
+          count = 0;
           for (const drive of drives) {
             const recyclePath = `${drive}:\\$Recycle.Bin`;
             if (fs.existsSync(recyclePath)) {
-              const result = this.deleteDirectoryContents(recyclePath);
-              cleaned += result.size;
-              count += result.count;
+              try {
+                const result = this.deleteDirectoryContents(recyclePath);
+                cleaned += result.size;
+                count += result.count;
+              } catch (err) {
+                console.log(`  ⚠️  Cannot clean ${recyclePath}: ${err.message}`);
+              }
             }
           }
+          console.log(`✅ Recycle Bin cleaned manually: ${this.formatBytes(cleaned)} (${count} files)`);
         }
       } else if (this.isMac) {
         const trashPath = path.join(os.homedir(), '.Trash');
@@ -341,6 +402,7 @@ class DiskCleaner {
           const result = this.deleteDirectoryContents(trashPath);
           cleaned = result.size;
           count = result.count;
+          console.log(`✅ Trash cleaned: ${this.formatBytes(cleaned)} (${count} files)`);
         }
       } else if (this.isLinux) {
         const trashPath = path.join(os.homedir(), '.local', 'share', 'Trash', 'files');
@@ -348,6 +410,7 @@ class DiskCleaner {
           const result = this.deleteDirectoryContents(trashPath);
           cleaned = result.size;
           count = result.count;
+          console.log(`✅ Trash cleaned: ${this.formatBytes(cleaned)} (${count} files)`);
         }
       }
 
@@ -358,8 +421,11 @@ class DiskCleaner {
         location: 'Recycle Bin'
       };
     } catch (error) {
+      console.error('❌ Recycle Bin cleanup error:', error.message);
       return {
         success: false,
+        cleaned: 0,
+        filesDeleted: 0,
         error: error.message,
         location: 'Recycle Bin'
       };
@@ -370,6 +436,7 @@ class DiskCleaner {
    * Clean temporary files
    */
   async cleanTempFiles() {
+    console.log('🧹 Cleaning temporary files...');
     let totalCleaned = 0;
     let totalCount = 0;
 
@@ -379,12 +446,16 @@ class DiskCleaner {
           const result = this.deleteDirectoryContents(tempDir);
           totalCleaned += result.size;
           totalCount += result.count;
+          if (result.size > 0) {
+            console.log(`  ✓ ${tempDir}: ${this.formatBytes(result.size)} (${result.count} files)`);
+          }
         } catch (error) {
-          // Skip inaccessible directories
+          console.log(`  ⚠️  Cannot clean ${tempDir}: ${error.message}`);
         }
       }
     }
 
+    console.log(`✅ Temp files cleaned: ${this.formatBytes(totalCleaned)} (${totalCount} files)`);
     return {
       success: true,
       cleaned: totalCleaned,
@@ -397,9 +468,11 @@ class DiskCleaner {
    * Clean old downloads
    */
   async cleanOldDownloads(daysOld = 30) {
+    console.log(`🧹 Cleaning downloads older than ${daysOld} days...`);
     const downloadsPath = path.join(os.homedir(), 'Downloads');
     
     if (!fs.existsSync(downloadsPath)) {
+      console.log('⚠️  Downloads folder not found');
       return { success: true, cleaned: 0, filesDeleted: 0, location: 'Downloads' };
     }
 
@@ -410,6 +483,7 @@ class DiskCleaner {
       
       let cleaned = 0;
       let count = 0;
+      let skipped = 0;
 
       files.forEach(file => {
         try {
@@ -417,15 +491,19 @@ class DiskCleaner {
           const stats = fs.statSync(filePath);
           
           if (stats.mtimeMs < cutoffDate) {
-            cleaned += stats.size;
+            const fileSize = stats.size;
             fs.unlinkSync(filePath);
+            cleaned += fileSize;
             count++;
+          } else {
+            skipped++;
           }
         } catch (error) {
-          // Skip files that can't be deleted
+          console.log(`  ⚠️  Cannot delete ${file}: ${error.message}`);
         }
       });
 
+      console.log(`✅ Downloads cleaned: ${this.formatBytes(cleaned)} (${count} files deleted, ${skipped} kept)`);
       return {
         success: true,
         cleaned,
@@ -433,8 +511,11 @@ class DiskCleaner {
         location: `Downloads (${daysOld}+ days old)`
       };
     } catch (error) {
+      console.error('❌ Downloads cleanup error:', error.message);
       return {
         success: false,
+        cleaned: 0,
+        filesDeleted: 0,
         error: error.message,
         location: 'Downloads'
       };
@@ -546,22 +627,44 @@ class DiskCleaner {
    * Clean all (one-click cleanup)
    */
   async cleanAll() {
-    const results = {
-      recycleBin: await this.cleanRecycleBin(),
-      tempFiles: await this.cleanTempFiles(),
-      oldDownloads: await this.cleanOldDownloads(30),
-    };
+    console.log('🚀 Starting full disk cleanup...');
+    
+    try {
+      const results = {
+        recycleBin: await this.cleanRecycleBin(),
+        tempFiles: await this.cleanTempFiles(),
+        oldDownloads: await this.cleanOldDownloads(30),
+      };
 
-    const totalCleaned = Object.values(results).reduce((sum, result) => sum + (result.cleaned || 0), 0);
-    const totalFiles = Object.values(results).reduce((sum, result) => sum + (result.filesDeleted || 0), 0);
+      const totalCleaned = Object.values(results).reduce((sum, result) => sum + (result.cleaned || 0), 0);
+      const totalFiles = Object.values(results).reduce((sum, result) => sum + (result.filesDeleted || 0), 0);
 
-    return {
-      success: true,
-      totalCleaned,
-      totalFiles,
-      results,
-      message: `Freed up ${this.formatBytes(totalCleaned)} by deleting ${totalFiles} files`
-    };
+      // Check if any cleanup succeeded
+      const anySuccess = Object.values(results).some(r => r.success);
+      
+      const message = totalCleaned > 0 
+        ? `Freed up ${this.formatBytes(totalCleaned)} by deleting ${totalFiles} files`
+        : 'No files to clean (all areas already clean)';
+
+      console.log(`✅ Cleanup complete: ${message}`);
+      
+      return {
+        success: anySuccess,
+        totalCleaned,
+        totalFiles,
+        results,
+        message
+      };
+    } catch (error) {
+      console.error('❌ Full cleanup error:', error.message);
+      return {
+        success: false,
+        totalCleaned: 0,
+        totalFiles: 0,
+        error: error.message,
+        message: 'Cleanup failed: ' + error.message
+      };
+    }
   }
 }
 

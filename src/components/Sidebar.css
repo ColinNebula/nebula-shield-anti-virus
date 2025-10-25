@@ -277,21 +277,22 @@
 }
 
 /* Protection Status Section */
-.protection-status {
+.sidebar .protection-status {
   padding: 8px 16px !important;
   border-top: 1px solid var(--border-primary);
   margin-top: auto;
 }
 
-.protection-card {
+.sidebar .protection-card {
   background: linear-gradient(135deg, rgba(79, 70, 229, 0.08) 0%, rgba(124, 58, 237, 0.08) 100%);
   backdrop-filter: blur(10px);
   border: 1px solid rgba(79, 70, 229, 0.25);
   border-radius: 10px !important;
-  padding: 12px 14px !important;
+  padding: 14px 16px !important;
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 12px;
   transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
   box-shadow: 
     0 4px 16px rgba(79, 70, 229, 0.12),
@@ -300,7 +301,7 @@
   overflow: hidden;
 }
 
-.protection-card::before {
+.sidebar .protection-card::before {
   content: '';
   position: absolute;
   top: 0;
@@ -311,11 +312,11 @@
   transition: left 0.5s ease;
 }
 
-.protection-card:hover::before {
+.sidebar .protection-card:hover::before {
   left: 100%;
 }
 
-.protection-card:hover {
+.sidebar .protection-card:hover {
   background: linear-gradient(135deg, rgba(79, 70, 229, 0.12) 0%, rgba(124, 58, 237, 0.12) 100%);
   border-color: rgba(79, 70, 229, 0.4);
   box-shadow: 
@@ -324,14 +325,15 @@
   transform: translateY(-2px);
 }
 
-.protection-header {
+.sidebar .protection-header {
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 8px !important;
+  gap: 10px !important;
+  flex: 1;
+  min-width: 0;
 }
 
-.protection-icon {
+.sidebar .protection-icon {
   width: 36px !important;
   height: 36px !important;
   background: var(--gradient-primary);
@@ -361,13 +363,18 @@
   }
 }
 
-.protection-icon svg {
+.sidebar .protection-icon svg {
   width: 22px !important;
   height: 22px !important;
   filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
 }
 
-.protection-info h3 {
+.sidebar .protection-info {
+  min-width: 0;
+  flex: 1;
+}
+
+.sidebar .protection-info h3 {
   font-size: 13px !important;
   font-weight: 600;
   color: var(--text-primary);
@@ -375,10 +382,12 @@
   line-height: 1.4 !important;
   letter-spacing: 0.3px;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
 }
 
-.protection-state {
+.sidebar .protection-state {
   font-size: 11px !important;
   font-weight: 600;
   margin: 0;
@@ -389,7 +398,7 @@
   transition: all 0.3s ease;
 }
 
-.protection-state.active {
+.sidebar .protection-state.active {
   color: var(--accent-success);
   text-shadow: 
     0 0 10px rgba(16, 185, 129, 0.6),
@@ -406,26 +415,26 @@
   }
 }
 
-.protection-state.inactive {
+.sidebar .protection-state.inactive {
   color: var(--accent-danger);
   text-shadow: 
     0 0 10px rgba(239, 68, 68, 0.6),
     0 0 20px rgba(239, 68, 68, 0.3);
 }
 
-.protection-toggle {
-  width: 44px !important;
-  height: 24px !important;
-  border-radius: 12px !important;
+.sidebar .protection-toggle {
+  width: 48px !important;
+  height: 26px !important;
+  border-radius: 13px !important;
   position: relative;
-  cursor: pointer;
+  flex-shrink: 0;
   transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
   box-shadow: 
     inset 0 2px 6px rgba(0, 0, 0, 0.25),
     0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
-.protection-toggle.on {
+.sidebar .protection-toggle.on {
   background: linear-gradient(135deg, var(--accent-success) 0%, #059669 100%);
   box-shadow: 
     0 0 20px rgba(16, 185, 129, 0.5),
@@ -433,40 +442,42 @@
     inset 0 2px 6px rgba(0, 0, 0, 0.2);
 }
 
-.protection-toggle.off {
+.sidebar .protection-toggle.off {
   background: linear-gradient(135deg, #4b5563 0%, #374151 100%);
   box-shadow: 
     inset 0 2px 6px rgba(0, 0, 0, 0.3),
     0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
-.protection-toggle:hover {
-  transform: scale(1.05);
+/* Toggle is display-only, not interactive */
+.sidebar .protection-card:hover .protection-toggle {
+  opacity: 0.9;
 }
 
-.toggle-indicator {
-  width: 18px !important;
-  height: 18px !important;
+.sidebar .toggle-indicator {
+  width: 20px !important;
+  height: 20px !important;
   background: linear-gradient(135deg, #ffffff 0%, #f0f0f0 100%);
   border-radius: 50%;
   position: absolute;
   top: 3px;
+  left: 3px;
   transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
   box-shadow: 
     0 3px 8px rgba(0, 0, 0, 0.4),
     0 1px 2px rgba(0, 0, 0, 0.2);
 }
 
-.protection-toggle.on .toggle-indicator {
-  transform: translateX(20px) !important;
+.sidebar .protection-toggle.on .toggle-indicator {
+  transform: translateX(22px) !important;
   box-shadow: 
     0 3px 10px rgba(16, 185, 129, 0.6),
     0 1px 3px rgba(0, 0, 0, 0.3);
   background: linear-gradient(135deg, #ffffff 0%, #ecfdf5 100%);
 }
 
-.protection-toggle.off .toggle-indicator {
-  transform: translateX(3px) !important;
+.sidebar .protection-toggle.off .toggle-indicator {
+  transform: translateX(0) !important;
   box-shadow: 
     0 3px 8px rgba(0, 0, 0, 0.4),
     0 1px 2px rgba(0, 0, 0, 0.2);

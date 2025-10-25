@@ -9,4 +9,4 @@ echo.
 echo Press Ctrl+C to stop
 echo.
 
-npm run electron:dev
+npm run electron:build:win

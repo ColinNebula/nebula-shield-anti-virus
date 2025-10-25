@@ -1,0 +1,153 @@
+{
+  "version": "1.0.0",
+  "lastUpdated": "2025-10-23T00:00:00Z",
+  "signatures": {
+    "md5": [
+      {
+        "hash": "44d88612fea8a8f36de82e1278abb02f",
+        "name": "EICAR-Test-File",
+        "type": "TEST",
+        "severity": "low",
+        "family": "TestVirus",
+        "description": "EICAR anti-virus test file"
+      },
+      {
+        "hash": "275a021bbfb6489e54d471899f7db9d1663fc695ec2fe2a2c4538aabf651fd0f",
+        "name": "WannaCry.Ransomware",
+        "type": "RANSOMWARE",
+        "severity": "critical",
+        "family": "WannaCry",
+        "description": "WannaCry ransomware"
+      },
+      {
+        "hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "name": "EmptyFile.Suspicious",
+        "type": "SUSPICIOUS",
+        "severity": "low",
+        "family": "Generic",
+        "description": "Empty file - potentially suspicious"
+      }
+    ],
+    "sha256": [
+      {
+        "hash": "131f95c51cc819465fa1797f6ccacf9d494aaaff46fa3eac73ae63ffbdfd8267",
+        "name": "EICAR-SHA256",
+        "type": "TEST",
+        "severity": "low",
+        "family": "TestVirus",
+        "description": "EICAR test file (SHA256)"
+      },
+      {
+        "hash": "ed01ebfbc9eb5bbea545662d0747d71a",
+        "name": "Emotet.Trojan",
+        "type": "TROJAN",
+        "severity": "high",
+        "family": "Emotet",
+        "description": "Emotet banking trojan"
+      }
+    ],
+    "patterns": [
+      {
+        "pattern": "X5O!P%@AP\\[4\\\\PZX54\\(P\\^\\)7CC\\)7\\}\\$EICAR-STANDARD-ANTIVIRUS-TEST-FILE!\\$H\\+H\\*",
+        "name": "EICAR-Pattern",
+        "type": "TEST",
+        "severity": "low",
+        "description": "EICAR test pattern"
+      },
+      {
+        "pattern": "eval\\s*\\(\\s*(?:atob|unescape|String\\.fromCharCode)",
+        "name": "JS.Obfuscated.Suspicious",
+        "type": "SUSPICIOUS",
+        "severity": "medium",
+        "description": "Obfuscated JavaScript code"
+      },
+      {
+        "pattern": "(?i)powershell.*-encodedcommand",
+        "name": "PS.EncodedCommand.Suspicious",
+        "type": "SUSPICIOUS",
+        "severity": "high",
+        "description": "PowerShell encoded command execution"
+      },
+      {
+        "pattern": "(?i)\\.(exe|dll|scr|vbs|bat|cmd|ps1)\\s*\\x00",
+        "name": "File.DoubleExtension.Suspicious",
+        "type": "SUSPICIOUS",
+        "severity": "medium",
+        "description": "Double extension hiding technique"
+      },
+      {
+        "pattern": "(?i)iex\\s*\\(.*downloadstring",
+        "name": "PS.DownloadExecute.Malicious",
+        "type": "MALWARE",
+        "severity": "critical",
+        "description": "PowerShell download and execute pattern"
+      },
+      {
+        "pattern": "(?i)cmd\\.exe.*\\/c.*echo.*>.*\\.bat",
+        "name": "CMD.BatchCreation.Suspicious",
+        "type": "SUSPICIOUS",
+        "severity": "medium",
+        "description": "Suspicious batch file creation"
+      }
+    ],
+    "yara_rules": [
+      {
+        "name": "Ransomware_Generic",
+        "strings": ["$a = /\\.encrypted$/", "$b = /\\.locked$/", "$c = \"Bitcoin\"", "$d = \"ransom\""],
+        "condition": "2 of them",
+        "severity": "critical",
+        "type": "RANSOMWARE"
+      },
+      {
+        "name": "Cryptominer_Generic",
+        "strings": ["$a = \"stratum+tcp\"", "$b = \"xmr-\"", "$c = \"cryptonight\"", "$d = \"monero\""],
+        "condition": "2 of them",
+        "severity": "high",
+        "type": "MALWARE"
+      },
+      {
+        "name": "Keylogger_Generic",
+        "strings": ["$a = \"GetAsyncKeyState\"", "$b = \"GetForegroundWindow\"", "$c = \"keylog\""],
+        "condition": "2 of them",
+        "severity": "high",
+        "type": "SPYWARE"
+      }
+    ],
+    "behavioral": [
+      {
+        "name": "Registry.Persistence.Suspicious",
+        "actions": ["registry_modify:HKLM\\\\Software\\\\Microsoft\\\\Windows\\\\CurrentVersion\\\\Run"],
+        "severity": "high",
+        "type": "SUSPICIOUS"
+      },
+      {
+        "name": "Process.Injection.Malicious",
+        "actions": ["createremotethread", "virtualallocex", "writeprocessmemory"],
+        "severity": "critical",
+        "type": "MALWARE"
+      },
+      {
+        "name": "Network.C2.Suspicious",
+        "actions": ["tcp_connect:443", "http_post:encrypted"],
+        "severity": "high",
+        "type": "TROJAN"
+      }
+    ]
+  },
+  "whitelist": {
+    "processes": [
+      "explorer.exe",
+      "svchost.exe",
+      "System",
+      "chrome.exe",
+      "firefox.exe",
+      "msedge.exe"
+    ],
+    "paths": [
+      "C:\\\\Windows\\\\System32",
+      "C:\\\\Program Files",
+      "C:\\\\Program Files (x86)"
+    ],
+    "hashes": []
+  }
+}

@@ -413,8 +413,530 @@ export const getActiveConnections = async () => {
   });
 };
 
+// ==================== ADVANCED FIREWALL ENHANCEMENTS ====================
+
 /**
- * Firewall rules database
+ * Firewall Zone Management
+ */
+const FIREWALL_ZONES = {
+  trusted: {
+    name: 'Trusted Zone',
+    networks: ['192.168.1.0/24', '10.0.0.0/8', '172.16.0.0/12'],
+    defaultAction: 'allow',
+    level: 'low',
+    description: 'Private networks with minimal restrictions'
+  },
+  public: {
+    name: 'Public Zone',
+    networks: ['0.0.0.0/0'],
+    defaultAction: 'block',
+    level: 'high',
+    description: 'Internet with strict filtering'
+  },
+  dmz: {
+    name: 'DMZ Zone',
+    networks: ['192.168.100.0/24'],
+    defaultAction: 'restrict',
+    level: 'medium',
+    description: 'Demilitarized zone for public-facing services'
+  },
+  guest: {
+    name: 'Guest Zone',
+    networks: ['192.168.200.0/24'],
+    defaultAction: 'restrict',
+    level: 'medium',
+    description: 'Guest network with limited access'
+  }
+};
+
+/**
+ * Threat Intelligence Feed
+ */
+class ThreatIntelligenceFeed {
+  constructor() {
+    this.maliciousIPs = new Set(MALICIOUS_IPS);
+    this.maliciousDomains = new Set([
+      'malware-example.com',
+      'phishing-test.net',
+      'c2-server.evil',
+      'ransomware-distributor.org'
+    ]);
+    this.compromisedIPs = new Map();
+    this.reputationCache = new Map();
+    this.lastUpdate = new Date();
+  }
+
+  async checkIPReputation(ip) {
+    if (this.reputationCache.has(ip)) {
+      return this.reputationCache.get(ip);
+    }
+
+    let reputation = {
+      ip,
+      score: 100, // 0-100, higher is better
+      status: 'clean',
+      threats: [],
+      firstSeen: null,
+      lastSeen: null,
+      categories: []
+    };
+
+    // Check against known malicious IPs
+    if (this.maliciousIPs.has(ip)) {
+      reputation.score = 0;
+      reputation.status = 'malicious';
+      reputation.threats.push('Known malicious IP');
+      reputation.categories.push('malware', 'c2');
+    }
+
+    // Check for recent compromise
+    if (this.compromisedIPs.has(ip)) {
+      const compromiseData = this.compromisedIPs.get(ip);
+      reputation.score = Math.max(0, reputation.score - 50);
+      reputation.status = 'suspicious';
+      reputation.threats.push(`Compromised: ${compromiseData.reason}`);
+    }
+
+    // Check Tor exit nodes
+    if (ip.startsWith('185.220.')) {
+      reputation.score = Math.max(0, reputation.score - 30);
+      reputation.status = 'suspicious';
+      reputation.categories.push('tor', 'anonymizer');
+    }
+
+    // Cache for 1 hour
+    this.reputationCache.set(ip, reputation);
+    setTimeout(() => this.reputationCache.delete(ip), 3600000);
+
+    return reputation;
+  }
+
+  reportCompromisedIP(ip, reason) {
+    this.compromisedIPs.set(ip, {
+      timestamp: new Date(),
+      reason,
+      reportedBy: 'firewall'
+    });
+  }
+
+  addMaliciousIP(ip) {
+    this.maliciousIPs.add(ip);
+  }
+
+  removeMaliciousIP(ip) {
+    this.maliciousIPs.delete(ip);
+  }
+
+  getStatistics() {
+    return {
+      maliciousIPs: this.maliciousIPs.size,
+      maliciousDomains: this.maliciousDomains.size,
+      compromisedIPs: this.compromisedIPs.size,
+      cachedReputations: this.reputationCache.size,
+      lastUpdate: this.lastUpdate
+    };
+  }
+}
+
+/**
+ * Rate Limiting & DDoS Protection
+ */
+class RateLimiter {
+  constructor() {
+    this.connectionCounts = new Map();
+    this.blockedIPs = new Map();
+    this.config = {
+      maxConnectionsPerIP: 100,
+      maxConnectionsPerMinute: 50,
+      blockDuration: 300000, // 5 minutes
+      ddosThreshold: 1000 // connections per second
+    };
+  }
+
+  checkRateLimit(ip) {
+    const now = Date.now();
+    
+    // Check if IP is blocked
+    if (this.blockedIPs.has(ip)) {
+      const blockInfo = this.blockedIPs.get(ip);
+      if (now - blockInfo.timestamp < this.config.blockDuration) {
+        return {
+          allowed: false,
+          reason: 'rate_limit_exceeded',
+          blockedUntil: new Date(blockInfo.timestamp + this.config.blockDuration),
+          blockReason: blockInfo.reason
+        };
+      } else {
+        // Unblock after duration
+        this.blockedIPs.delete(ip);
+      }
+    }
+
+    // Get or create connection counter
+    if (!this.connectionCounts.has(ip)) {
+      this.connectionCounts.set(ip, {
+        total: 0,
+        recent: [],
+        firstSeen: now
+      });
+    }
+
+    const counter = this.connectionCounts.get(ip);
+    counter.total++;
+    counter.recent.push(now);
+
+    // Clean old entries (keep last minute)
+    counter.recent = counter.recent.filter(t => now - t < 60000);
+
+    // Check rate limits
+    if (counter.recent.length > this.config.maxConnectionsPerMinute) {
+      this.blockIP(ip, 'Too many connections per minute', now);
+      return {
+        allowed: false,
+        reason: 'rate_limit_exceeded',
+        connections: counter.recent.length,
+        limit: this.config.maxConnectionsPerMinute
+      };
+    }
+
+    if (counter.total > this.config.maxConnectionsPerIP) {
+      this.blockIP(ip, 'Total connection limit exceeded', now);
+      return {
+        allowed: false,
+        reason: 'connection_limit_exceeded',
+        total: counter.total,
+        limit: this.config.maxConnectionsPerIP
+      };
+    }
+
+    // DDoS detection (connections per second)
+    const lastSecond = counter.recent.filter(t => now - t < 1000);
+    if (lastSecond.length > this.config.ddosThreshold) {
+      this.blockIP(ip, 'Possible DDoS attack detected', now);
+      return {
+        allowed: false,
+        reason: 'ddos_detected',
+        connectionsPerSecond: lastSecond.length
+      };
+    }
+
+    return {
+      allowed: true,
+      connections: counter.recent.length,
+      total: counter.total
+    };
+  }
+
+  blockIP(ip, reason, timestamp) {
+    this.blockedIPs.set(ip, { reason, timestamp });
+  }
+
+  unblockIP(ip) {
+    this.blockedIPs.delete(ip);
+  }
+
+  getBlockedIPs() {
+    const now = Date.now();
+    const blocked = [];
+    
+    for (const [ip, info] of this.blockedIPs.entries()) {
+      if (now - info.timestamp < this.config.blockDuration) {
+        blocked.push({
+          ip,
+          reason: info.reason,
+          blockedAt: new Date(info.timestamp),
+          unblocksAt: new Date(info.timestamp + this.config.blockDuration)
+        });
+      }
+    }
+    
+    return blocked;
+  }
+
+  getStatistics() {
+    return {
+      totalIPs: this.connectionCounts.size,
+      blockedIPs: this.blockedIPs.size,
+      activeConnections: Array.from(this.connectionCounts.values())
+        .reduce((sum, c) => sum + c.recent.length, 0)
+    };
+  }
+}
+
+/**
+ * Geographic IP Blocking (Geo-Fencing)
+ */
+class GeoIPFilter {
+  constructor() {
+    this.blockedCountries = new Set(['KP', 'IR', 'SY']); // North Korea, Iran, Syria
+    this.allowedCountries = new Set(); // Empty = allow all except blocked
+    this.mode = 'blocklist'; // 'blocklist' or 'allowlist'
+  }
+
+  checkCountry(ip) {
+    // Simple geo-lookup (in production, use MaxMind GeoIP2 or similar)
+    const geo = this.lookupGeo(ip);
+    
+    if (this.mode === 'blocklist') {
+      if (this.blockedCountries.has(geo.countryCode)) {
+        return {
+          allowed: false,
+          reason: 'geo_blocked',
+          country: geo.country,
+          countryCode: geo.countryCode
+        };
+      }
+    } else if (this.mode === 'allowlist') {
+      if (!this.allowedCountries.has(geo.countryCode)) {
+        return {
+          allowed: false,
+          reason: 'geo_not_allowed',
+          country: geo.country,
+          countryCode: geo.countryCode
+        };
+      }
+    }
+
+    return { allowed: true, geo };
+  }
+
+  lookupGeo(ip) {
+    // Simplified geo lookup
+    for (const [prefix, info] of Object.entries(GEO_DATABASE)) {
+      if (ip.startsWith(prefix)) {
+        return { ...info, countryCode: 'US' }; // Default to US for demo
+      }
+    }
+    return { country: 'Unknown', countryCode: 'XX', city: 'Unknown', org: 'Unknown' };
+  }
+
+  blockCountry(countryCode) {
+    this.blockedCountries.add(countryCode);
+  }
+
+  unblockCountry(countryCode) {
+    this.blockedCountries.delete(countryCode);
+  }
+
+  allowCountry(countryCode) {
+    this.allowedCountries.add(countryCode);
+  }
+
+  setMode(mode) {
+    this.mode = mode;
+  }
+}
+
+/**
+ * Deep Packet Inspection (DPI)
+ */
+class DeepPacketInspector {
+  constructor() {
+    this.signatures = this.loadSignatures();
+  }
+
+  loadSignatures() {
+    return {
+      malware: [
+        { pattern: /eval\(atob\(/i, name: 'Obfuscated JavaScript', severity: 'high' },
+        { pattern: /<script[^>]*>.*?(document\.write|eval|unescape)/is, name: 'XSS Attempt', severity: 'high' },
+        { pattern: /\bwget\b.*?\bhttp/i, name: 'Wget Download', severity: 'medium' },
+        { pattern: /\bcurl\b.*?-o/i, name: 'Curl Download', severity: 'medium' },
+        { pattern: /powershell.*?-enc/i, name: 'Encoded PowerShell', severity: 'critical' }
+      ],
+      sql_injection: [
+        { pattern: /(\bunion\b.*?\bselect\b|\bselect\b.*?\bfrom\b.*?\bwhere\b)/i, name: 'SQL Injection', severity: 'critical' },
+        { pattern: /'.*?(?:or|and).*?'.*?=.*?'/i, name: 'SQL Boolean Injection', severity: 'critical' },
+        { pattern: /;\s*drop\s+table/i, name: 'SQL Drop Table', severity: 'critical' }
+      ],
+      command_injection: [
+        { pattern: /[;&|]\s*(?:cat|ls|pwd|whoami|id|uname)/i, name: 'Command Injection', severity: 'critical' },
+        { pattern: /\$\(.*?\)|`.*?`/i, name: 'Command Substitution', severity: 'high' }
+      ],
+      path_traversal: [
+        { pattern: /\.\.\/|\.\.\\|%2e%2e/i, name: 'Path Traversal', severity: 'high' },
+        { pattern: /\/etc\/passwd|\/etc\/shadow/i, name: 'Passwd File Access', severity: 'critical' }
+      ],
+      crypto_mining: [
+        { pattern: /coinhive|cryptonight|monero/i, name: 'Crypto Mining Script', severity: 'medium' },
+        { pattern: /stratum\+tcp/i, name: 'Mining Pool Connection', severity: 'high' }
+      ]
+    };
+  }
+
+  inspectPayload(payload) {
+    const findings = [];
+
+    for (const [category, signatures] of Object.entries(this.signatures)) {
+      for (const sig of signatures) {
+        if (sig.pattern.test(payload)) {
+          findings.push({
+            category,
+            name: sig.name,
+            severity: sig.severity,
+            matched: payload.match(sig.pattern)?.[0] || '',
+            timestamp: new Date()
+          });
+        }
+      }
+    }
+
+    return {
+      inspected: true,
+      payloadSize: payload.length,
+      findings,
+      threat: findings.length > 0,
+      riskScore: this.calculateRiskScore(findings)
+    };
+  }
+
+  calculateRiskScore(findings) {
+    const severityScores = { critical: 100, high: 70, medium: 40, low: 20 };
+    return findings.reduce((score, f) => score + severityScores[f.severity], 0);
+  }
+}
+
+/**
+ * Application Layer Firewall (Layer 7)
+ */
+class ApplicationFirewall {
+  constructor() {
+    this.appRules = new Map();
+    this.processWhitelist = new Set(['chrome.exe', 'firefox.exe', 'msedge.exe', 'vscode.exe']);
+    this.processBlacklist = new Set(['suspicious.exe', 'malware.exe']);
+  }
+
+  checkApplication(process, destination) {
+    // Check blacklist first
+    if (this.processBlacklist.has(process)) {
+      return {
+        allowed: false,
+        reason: 'application_blacklisted',
+        process
+      };
+    }
+
+    // Check application-specific rules
+    if (this.appRules.has(process)) {
+      const rule = this.appRules.get(process);
+      
+      // Check if destination is allowed
+      if (rule.allowedDestinations && !rule.allowedDestinations.includes('*')) {
+        const allowed = rule.allowedDestinations.some(dest => destination.includes(dest));
+        if (!allowed) {
+          return {
+            allowed: false,
+            reason: 'destination_not_allowed',
+            process,
+            destination
+          };
+        }
+      }
+
+      // Check ports
+      if (rule.allowedPorts && !rule.allowedPorts.includes('*')) {
+        const port = parseInt(destination.split(':')[1]);
+        if (!rule.allowedPorts.includes(port)) {
+          return {
+            allowed: false,
+            reason: 'port_not_allowed',
+            process,
+            port
+          };
+        }
+      }
+    }
+
+    return { allowed: true, process };
+  }
+
+  addAppRule(process, rule) {
+    this.appRules.set(process, rule);
+  }
+
+  whitelistProcess(process) {
+    this.processWhitelist.add(process);
+    this.processBlacklist.delete(process);
+  }
+
+  blacklistProcess(process) {
+    this.processBlacklist.add(process);
+    this.processWhitelist.delete(process);
+  }
+}
+
+/**
+ * Intrusion Prevention System (IPS)
+ */
+class IntrusionPreventionSystem {
+  constructor() {
+    this.detectionRules = this.loadIPSRules();
+    this.activeThreats = new Map();
+    this.autoBlock = true;
+  }
+
+  loadIPSRules() {
+    return {
+      port_scan: {
+        name: 'Port Scan Detection',
+        threshold: 10, // ports per minute
+        action: 'block',
+        severity: 'high'
+      },
+      brute_force: {
+        name: 'Brute Force Attack',
+        threshold: 5, // failed attempts
+        action: 'block',
+        severity: 'critical'
+      },
+      syn_flood: {
+        name: 'SYN Flood Attack',
+        threshold: 100, // SYN packets per second
+        action: 'block',
+        severity: 'critical'
+      },
+      data_exfiltration: {
+        name: 'Data Exfiltration',
+        threshold: 10485760, // 10 MB in 1 minute
+        action: 'alert',
+        severity: 'critical'
+      }
+    };
+  }
+
+  detectThreat(connection) {
+    const threats = [];
+
+    // Port scan detection
+    // (In real implementation, track sequential port connections)
+    
+    // Brute force detection
+    // (Track failed authentication attempts)
+    
+    // SYN flood detection
+    if (connection.state === 'SYN_RECV') {
+      // Track SYN packets
+    }
+
+    return threats;
+  }
+
+  shouldBlock(threatType) {
+    const rule = this.detectionRules[threatType];
+    return this.autoBlock && rule && rule.action === 'block';
+  }
+}
+
+// Initialize advanced firewall components
+const threatIntelligence = new ThreatIntelligenceFeed();
+const rateLimiter = new RateLimiter();
+const geoIPFilter = new GeoIPFilter();
+const packetInspector = new DeepPacketInspector();
+const appFirewall = new ApplicationFirewall();
+const ipsSystem = new IntrusionPreventionSystem();
+
+/**
+ * Firewall rules database (Enhanced)
  */
 let firewallRules = [
   {
@@ -427,7 +949,10 @@ let firewallRules = [
     ips: MALICIOUS_IPS,
     enabled: true,
     priority: 1,
-    description: 'Blocks connections to known Tor exit nodes'
+    description: 'Blocks connections to known Tor exit nodes',
+    zone: 'public',
+    logging: true,
+    rateLimit: null
   },
   {
     id: 'rule_002',
@@ -439,7 +964,10 @@ let firewallRules = [
     ips: ['*'],
     enabled: false,
     priority: 2,
-    description: 'Blocks all inbound Remote Desktop connections'
+    description: 'Blocks all inbound Remote Desktop connections',
+    zone: 'public',
+    logging: true,
+    rateLimit: null
   },
   {
     id: 'rule_003',
@@ -451,7 +979,10 @@ let firewallRules = [
     ips: ['*'],
     enabled: true,
     priority: 10,
-    description: 'Allows HTTP and HTTPS traffic'
+    description: 'Allows HTTP and HTTPS traffic',
+    zone: 'trusted',
+    logging: false,
+    rateLimit: { maxPerMinute: 1000 }
   },
   {
     id: 'rule_004',
@@ -463,7 +994,55 @@ let firewallRules = [
     ips: ['*'],
     enabled: true,
     priority: 1,
-    description: 'Blocks inbound SMB to prevent ransomware spread'
+    description: 'Blocks inbound SMB to prevent ransomware spread',
+    zone: 'public',
+    logging: true,
+    rateLimit: null
+  },
+  {
+    id: 'rule_005',
+    name: 'Block Malicious IPs (Threat Intel)',
+    direction: 'both',
+    action: 'block',
+    protocol: '*',
+    ports: ['*'],
+    ips: Array.from(threatIntelligence.maliciousIPs),
+    enabled: true,
+    priority: 1,
+    description: 'Blocks IPs from threat intelligence feed',
+    zone: 'public',
+    logging: true,
+    rateLimit: null
+  },
+  {
+    id: 'rule_006',
+    name: 'Rate Limit SSH',
+    direction: 'inbound',
+    action: 'allow',
+    protocol: 'TCP',
+    ports: [22],
+    ips: ['*'],
+    enabled: true,
+    priority: 5,
+    description: 'Allow SSH with rate limiting',
+    zone: 'trusted',
+    logging: true,
+    rateLimit: { maxPerMinute: 10 }
+  },
+  {
+    id: 'rule_007',
+    name: 'DPI - Block Malware Signatures',
+    direction: 'both',
+    action: 'block',
+    protocol: '*',
+    ports: ['*'],
+    ips: ['*'],
+    enabled: true,
+    priority: 1,
+    description: 'Deep packet inspection for malware signatures',
+    zone: 'public',
+    logging: true,
+    dpi: true
   }
 ];
 
@@ -670,6 +1249,535 @@ export const getNetworkStats = async () => {
   });
 };
 
+// ==================== ENHANCED FIREWALL FUNCTIONS ====================
+
+/**
+ * Check IP reputation using threat intelligence
+ */
+export const checkIPReputation = async (ip) => {
+  return new Promise((resolve) => {
+    setTimeout(async () => {
+      const reputation = await threatIntelligence.checkIPReputation(ip);
+      resolve({
+        success: true,
+        reputation
+      });
+    }, 100);
+  });
+};
+
+/**
+ * Check rate limit for IP
+ */
+export const checkRateLimit = async (ip) => {
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      const result = rateLimiter.checkRateLimit(ip);
+      resolve({
+        success: true,
+        result
+      });
+    }, 50);
+  });
+};
+
+/**
+ * Get blocked IPs from rate limiter
+ */
+export const getBlockedIPs = async () => {
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      const blocked = rateLimiter.getBlockedIPs();
+      resolve({
+        success: true,
+        blockedIPs: blocked,
+        count: blocked.length
+      });
+    }, 100);
+  });
+};
+
+/**
+ * Unblock IP from rate limiter
+ */
+export const unblockIP = async (ip) => {
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      rateLimiter.unblockIP(ip);
+      resolve({
+        success: true,
+        message: `IP ${ip} has been unblocked`
+      });
+    }, 100);
+  });
+};
+
+/**
+ * Inspect packet payload using DPI
+ */
+export const inspectPacket = async (payload) => {
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      const result = packetInspector.inspectPayload(payload);
+      resolve({
+        success: true,
+        inspection: result
+      });
+    }, 150);
+  });
+};
+
+/**
+ * Check application firewall rules
+ */
+export const checkApplicationAccess = async (process, destination) => {
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      const result = appFirewall.checkApplication(process, destination);
+      resolve({
+        success: true,
+        result
+      });
+    }, 100);
+  });
+};
+
+/**
+ * Add application to whitelist
+ */
+export const whitelistApplication = async (process) => {
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      appFirewall.whitelistProcess(process);
+      resolve({
+        success: true,
+        message: `${process} added to whitelist`
+      });
+    }, 100);
+  });
+};
+
+/**
+ * Add application to blacklist
+ */
+export const blacklistApplication = async (process) => {
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      appFirewall.blacklistProcess(process);
+      resolve({
+        success: true,
+        message: `${process} added to blacklist`
+      });
+    }, 100);
+  });
+};
+
+/**
+ * Check geographic location and filtering
+ */
+export const checkGeoLocation = async (ip) => {
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      const result = geoIPFilter.checkCountry(ip);
+      resolve({
+        success: true,
+        result
+      });
+    }, 100);
+  });
+};
+
+/**
+ * Block traffic from specific country
+ */
+export const blockCountry = async (countryCode) => {
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      geoIPFilter.blockCountry(countryCode);
+      resolve({
+        success: true,
+        message: `Country ${countryCode} has been blocked`
+      });
+    }, 100);
+  });
+};
+
+/**
+ * Unblock traffic from specific country
+ */
+export const unblockCountry = async (countryCode) => {
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      geoIPFilter.unblockCountry(countryCode);
+      resolve({
+        success: true,
+        message: `Country ${countryCode} has been unblocked`
+      });
+    }, 100);
+  });
+};
+
+/**
+ * Get firewall zones configuration
+ */
+export const getFirewallZones = async () => {
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      resolve({
+        success: true,
+        zones: FIREWALL_ZONES
+      });
+    }, 100);
+  });
+};
+
+/**
+ * Get comprehensive firewall statistics
+ */
+export const getFirewallStatistics = async () => {
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      resolve({
+        success: true,
+        statistics: {
+          threatIntelligence: threatIntelligence.getStatistics(),
+          rateLimiter: rateLimiter.getStatistics(),
+          rules: {
+            total: firewallRules.length,
+            enabled: firewallRules.filter(r => r.enabled).length,
+            disabled: firewallRules.filter(r => !r.enabled).length,
+            blockRules: firewallRules.filter(r => r.action === 'block').length,
+            allowRules: firewallRules.filter(r => r.action === 'allow').length,
+            dpiEnabled: firewallRules.filter(r => r.dpi).length,
+            rateLimited: firewallRules.filter(r => r.rateLimit).length
+          },
+          zones: Object.keys(FIREWALL_ZONES).length,
+          geoFiltering: {
+            mode: geoIPFilter.mode,
+            blockedCountries: geoIPFilter.blockedCountries.size,
+            allowedCountries: geoIPFilter.allowedCountries.size
+          }
+        },
+        timestamp: new Date().toISOString()
+      });
+    }, 200);
+  });
+};
+
+/**
+ * Perform comprehensive connection analysis
+ */
+export const analyzeConnection = async (connection) => {
+  return new Promise((resolve) => {
+    setTimeout(async () => {
+      const analysis = {
+        connectionId: connection.id,
+        timestamp: new Date().toISOString(),
+        
+        // IP Reputation
+        sourceReputation: await threatIntelligence.checkIPReputation(connection.remoteAddress),
+        
+        // Rate limiting
+        rateLimit: rateLimiter.checkRateLimit(connection.remoteAddress),
+        
+        // Geo-location
+        geoCheck: geoIPFilter.checkCountry(connection.remoteAddress),
+        
+        // Application check
+        appCheck: appFirewall.checkApplication(connection.process, connection.remoteAddress),
+        
+        // IPS detection
+        ipsThreats: ipsSystem.detectThreat(connection),
+        
+        // Risk scoring
+        riskScore: 0,
+        recommendation: 'allow',
+        reasons: []
+      };
+
+      // Calculate risk score
+      if (analysis.sourceReputation.status === 'malicious') {
+        analysis.riskScore += 100;
+        analysis.recommendation = 'block';
+        analysis.reasons.push('Malicious IP detected');
+      } else if (analysis.sourceReputation.status === 'suspicious') {
+        analysis.riskScore += 50;
+        analysis.reasons.push('Suspicious IP');
+      }
+
+      if (!analysis.rateLimit.allowed) {
+        analysis.riskScore += 30;
+        analysis.recommendation = 'block';
+        analysis.reasons.push(`Rate limit: ${analysis.rateLimit.reason}`);
+      }
+
+      if (!analysis.geoCheck.allowed) {
+        analysis.riskScore += 40;
+        analysis.recommendation = 'block';
+        analysis.reasons.push(`Geo-blocked: ${analysis.geoCheck.reason}`);
+      }
+
+      if (!analysis.appCheck.allowed) {
+        analysis.riskScore += 60;
+        analysis.recommendation = 'block';
+        analysis.reasons.push(`App policy: ${analysis.appCheck.reason}`);
+      }
+
+      if (analysis.riskScore === 0) {
+        analysis.reasons.push('No threats detected');
+      }
+
+      resolve({
+        success: true,
+        analysis
+      });
+    }, 300);
+  });
+};
+
+/**
+ * Add malicious IP to threat intelligence
+ */
+export const reportMaliciousIP = async (ip, reason) => {
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      threatIntelligence.addMaliciousIP(ip);
+      threatIntelligence.reportCompromisedIP(ip, reason);
+      
+      resolve({
+        success: true,
+        message: `IP ${ip} added to threat intelligence database`,
+        reason
+      });
+    }, 100);
+  });
+};
+
+/**
+ * Remove IP from malicious list
+ */
+export const removeMaliciousIP = async (ip) => {
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      threatIntelligence.removeMaliciousIP(ip);
+      
+      resolve({
+        success: true,
+        message: `IP ${ip} removed from threat intelligence database`
+      });
+    }, 100);
+  });
+};
+
+/**
+ * Get IPS (Intrusion Prevention System) status
+ */
+export const getIPSStatus = async () => {
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      resolve({
+        success: true,
+        ips: {
+          enabled: ipsSystem.autoBlock,
+          rules: Object.keys(ipsSystem.detectionRules).length,
+          activeThreats: ipsSystem.activeThreats.size,
+          detectionRules: ipsSystem.detectionRules
+        }
+      });
+    }, 100);
+  });
+};
+
+/**
+ * Enable/Disable IPS auto-blocking
+ */
+export const setIPSAutoBlock = async (enabled) => {
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      ipsSystem.autoBlock = enabled;
+      
+      resolve({
+        success: true,
+        message: `IPS auto-blocking ${enabled ? 'enabled' : 'disabled'}`,
+        autoBlock: ipsSystem.autoBlock
+      });
+    }, 100);
+  });
+};
+
+/**
+ * Test firewall rule against connection
+ */
+export const testFirewallRule = async (rule, connection) => {
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      const matches = [];
+      const blocks = [];
+
+      // Check direction
+      if (rule.direction !== 'both' && rule.direction !== connection.direction) {
+        return resolve({
+          success: true,
+          matches: false,
+          reason: 'Direction mismatch'
+        });
+      }
+
+      // Check protocol
+      if (rule.protocol !== '*' && rule.protocol !== connection.protocol) {
+        return resolve({
+          success: true,
+          matches: false,
+          reason: 'Protocol mismatch'
+        });
+      }
+
+      // Check port
+      if (!rule.ports.includes('*') && !rule.ports.includes(connection.remotePort)) {
+        return resolve({
+          success: true,
+          matches: false,
+          reason: 'Port mismatch'
+        });
+      }
+
+      // Check IP
+      if (!rule.ips.includes('*') && !rule.ips.includes(connection.remoteAddress)) {
+        return resolve({
+          success: true,
+          matches: false,
+          reason: 'IP mismatch'
+        });
+      }
+
+      resolve({
+        success: true,
+        matches: true,
+        action: rule.action,
+        rule: rule.name,
+        reason: `Rule matches - Action: ${rule.action}`
+      });
+    }, 100);
+  });
+};
+
+/**
+ * Get advanced firewall recommendations
+ */
+export const getFirewallRecommendations = async () => {
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      const recommendations = [];
+
+      // Check for duplicate rules
+      const ruleSignatures = new Map();
+      firewallRules.forEach(rule => {
+        const sig = `${rule.direction}-${rule.action}-${rule.protocol}-${rule.ports.join(',')}`; 
+        if (ruleSignatures.has(sig)) {
+          recommendations.push({
+            type: 'duplicate_rule',
+            severity: 'low',
+            title: 'Duplicate Rule Detected',
+            description: `Rule "${rule.name}" is similar to "${ruleSignatures.get(sig)}"`,
+            suggestion: 'Consider consolidating duplicate rules'
+          });
+        }
+        ruleSignatures.set(sig, rule.name);
+      });
+
+      // Check for conflicting rules
+      const blockRules = firewallRules.filter(r => r.action === 'block' && r.enabled);
+      const allowRules = firewallRules.filter(r => r.action === 'allow' && r.enabled);
+      
+      // Check if any allow rules conflict with block rules
+      allowRules.forEach(allow => {
+        blockRules.forEach(block => {
+          if (allow.protocol === block.protocol || block.protocol === '*') {
+            const portOverlap = allow.ports.some(p => block.ports.includes(p) || block.ports.includes('*'));
+            if (portOverlap) {
+              recommendations.push({
+                type: 'rule_conflict',
+                severity: 'medium',
+                title: 'Conflicting Rules',
+                description: `Allow rule "${allow.name}" may conflict with block rule "${block.name}"`,
+                suggestion: 'Review rule priorities to ensure correct behavior'
+              });
+            }
+          }
+        });
+      });
+
+      // Check for missing essential rules
+      const hasInboundSMBBlock = firewallRules.some(r => 
+        r.enabled && r.action === 'block' && r.direction === 'inbound' && 
+        (r.ports.includes(445) || r.ports.includes(139))
+      );
+      if (!hasInboundSMBBlock) {
+        recommendations.push({
+          type: 'security_gap',
+          severity: 'high',
+          title: 'Missing SMB Protection',
+          description: 'No firewall rule blocking inbound SMB connections',
+          suggestion: 'Add rule to block ports 445 and 139 to prevent ransomware spread'
+        });
+      }
+
+      // Check for open RDP
+      const hasRDPBlock = firewallRules.some(r =>
+        r.enabled && r.action === 'block' && r.direction === 'inbound' && r.ports.includes(3389)
+      );
+      if (!hasRDPBlock) {
+        recommendations.push({
+          type: 'security_gap',
+          severity: 'critical',
+          title: 'RDP Port Exposed',
+          description: 'Remote Desktop (port 3389) is not blocked',
+          suggestion: 'Block inbound RDP or restrict to specific IPs only'
+        });
+      }
+
+      // Check rate limiting
+      const criticalPortsWithoutRateLimit = firewallRules.filter(r =>
+        r.enabled && r.action === 'allow' && !r.rateLimit &&
+        (r.ports.includes(22) || r.ports.includes(21) || r.ports.includes(3389))
+      );
+      if (criticalPortsWithoutRateLimit.length > 0) {
+        recommendations.push({
+          type: 'performance_risk',
+          severity: 'medium',
+          title: 'Missing Rate Limiting',
+          description: `${criticalPortsWithoutRateLimit.length} allow rules on critical ports lack rate limiting`,
+          suggestion: 'Add rate limits to prevent brute force attacks'
+        });
+      }
+
+      // Check DPI coverage
+      const dpiRules = firewallRules.filter(r => r.dpi && r.enabled);
+      if (dpiRules.length === 0) {
+        recommendations.push({
+          type: 'security_gap',
+          severity: 'high',
+          title: 'No Deep Packet Inspection',
+          description: 'DPI is not enabled on any firewall rules',
+          suggestion: 'Enable DPI for enhanced malware detection'
+        });
+      }
+
+      resolve({
+        success: true,
+        recommendations,
+        summary: {
+          total: recommendations.length,
+          critical: recommendations.filter(r => r.severity === 'critical').length,
+          high: recommendations.filter(r => r.severity === 'high').length,
+          medium: recommendations.filter(r => r.severity === 'medium').length,
+          low: recommendations.filter(r => r.severity === 'low').length
+        }
+      });
+    }, 500);
+  });
+};
+
 export default {
   scanOpenPorts,
   getActiveConnections,
@@ -679,5 +1787,27 @@ export default {
   deleteFirewallRule,
   applySecurityProfile,
   blockIP,
-  getNetworkStats
+  getNetworkStats,
+  
+  // Enhanced firewall functions
+  checkIPReputation,
+  checkRateLimit,
+  getBlockedIPs,
+  unblockIP,
+  inspectPacket,
+  checkApplicationAccess,
+  whitelistApplication,
+  blacklistApplication,
+  checkGeoLocation,
+  blockCountry,
+  unblockCountry,
+  getFirewallZones,
+  getFirewallStatistics,
+  analyzeConnection,
+  reportMaliciousIP,
+  removeMaliciousIP,
+  getIPSStatus,
+  setIPSAutoBlock,
+  testFirewallRule,
+  getFirewallRecommendations
 };

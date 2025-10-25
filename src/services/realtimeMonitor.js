@@ -240,11 +240,18 @@ class RealtimeMonitor {
     console.log('🧠 Initializing ML anomaly detection...');
     
     try {
+      // Check if firewallLogger is available and has getLogs method
+      if (!firewallLogger || typeof firewallLogger.getLogs !== 'function') {
+        console.warn('⚠️ FirewallLogger not available, skipping ML initialization');
+        this.mlEnabled = false;
+        return;
+      }
+
       // Load historical data for training
-      const historicalLogs = await firewallLogger.getAllLogs(1000);
+      const historicalLogs = await firewallLogger.getLogs({ limit: 1000 });
       
       // Prepare training data
-      const trainingData = historicalLogs.map(log => ({
+      const trainingData = (historicalLogs || []).map(log => ({
         type: 'network',
         size: log.forensics?.packetSize || 512,
         port: log.port,
@@ -271,19 +278,20 @@ class RealtimeMonitor {
       
     } catch (error) {
       console.error('❌ ML initialization error:', error);
-      this.mlEnabled = false;
     }
   }
 
-  /**
-   * Retrain ML models with latest data
-   */
   async retrainMLModels() {
     console.log('🔄 Retraining ML models...');
     
     try {
-      const recentLogs = await firewallLogger.getAllLogs(1000);
-      const trainingData = recentLogs.map(log => ({
+      if (!firewallLogger || typeof firewallLogger.getLogs !== 'function') {
+        console.warn('⚠️ FirewallLogger not available for retraining');
+        return;
+      }
+
+      const recentLogs = await firewallLogger.getLogs({ limit: 1000 });
+      const trainingData = (recentLogs || []).map(log => ({
         type: 'network',
         size: log.forensics?.packetSize || 512,
         port: log.port,

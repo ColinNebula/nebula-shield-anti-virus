@@ -232,7 +232,7 @@ function EnhancedWebProtection() {
             <p>Real-time threat detection, phishing protection, and malicious URL blocking</p>
           </div>
         </div>
-        <div className="protection-status">
+        <div className="enhanced-protection-status">
           {settings && (
             <div className="status-indicator">
               <div className={`status-dot ${settings.enabled ? 'active' : ''}`} />
@@ -703,14 +703,16 @@ function EnhancedWebProtection() {
                   </label>
                 </div>
 
-                <div className="setting-item">
+                <div className="setting-item protection-featured">
                   <div className="setting-info">
                     <div className="setting-icon">
-                      {settings.realTimeProtection ? <Eye size={24} /> : <EyeOff size={24} />}
+                      <Shield size={20} />
                     </div>
                     <div>
-                      <h4>Real-Time Protection</h4>
-                      <p>Monitor and block threats in real-time</p>
+                      <h4>Real-time Protection</h4>
+                      <p className={settings.realTimeProtection ? 'active' : 'inactive'}>
+                        {settings.realTimeProtection ? 'Active' : 'Inactive'}
+                      </p>
                     </div>
                   </div>
                   <label className="toggle-switch">

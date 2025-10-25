@@ -1,6 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import './NebulaLogo.css';
+import logoSvg from '../logo.svg';
 
 const NebulaLogo = ({ size = 32, animated = false, glow = false, className = "" }) => {
   const logoStyle = {
@@ -16,10 +17,13 @@ const NebulaLogo = ({ size = 32, animated = false, glow = false, className = "" 
     className
   ].filter(Boolean).join(' ');
 
+  // Use imported SVG instead of public path for better bundling
+  const logoSrc = logoSvg;
+
   if (animated) {
     return (
       <motion.img
-        src="/logo.svg"
+        src={logoSrc}
         alt="Nebula Shield"
         style={logoStyle}
         className={logoClasses}
@@ -32,7 +36,7 @@ const NebulaLogo = ({ size = 32, animated = false, glow = false, className = "" 
 
   return (
     <img
-      src="/logo.svg"
+      src={logoSrc}
       alt="Nebula Shield"
       style={logoStyle}
       className={logoClasses}

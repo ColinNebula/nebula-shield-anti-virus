@@ -1,6 +1,7 @@
 const express = require('express');
 const sqlite3 = require('sqlite3').verbose();
 const bcrypt = require('bcryptjs');
+const authService = require('../auth-service');
 
 const router = express.Router();
 const db = new sqlite3.Database('./data/auth.db');
@@ -164,6 +165,74 @@ router.delete('/users/:userId', isAdmin, (req, res) => {
     logAuditEntry(req.user.id, 'USER_DELETED', `Deleted user ${userId}`);
     
     res.json({ success: true, message: 'User deleted successfully' });
+  });
+});
+
+// Reset all users' 2FA (admin only)
+router.post('/reset-2fa', isAdmin, (req, res) => {
+  // Reset in-memory auth service data
+  const result = authService.resetAll2FA();
+  
+  // Also update database if 2FA columns exist
+  db.run(
+    `UPDATE users SET two_factor_enabled = 0, two_factor_secret = NULL WHERE 1=1`,
+    [],
+    function(err) {
+      // Ignore error if columns don't exist - they may be in-memory only
+      if (err && !err.message.includes('no such column')) {
+        console.error('Database 2FA reset error:', err);
+      }
+    }
+  );
+  
+  // Log audit entry
+  logAuditEntry(req.user.id, '2FA_RESET_ALL', `Reset 2FA for all users - ${result.count} users affected`);
+  
+  res.json({ 
+    success: true, 
+    message: result.message,
+    count: result.count,
+    note: 'All users can now re-enable 2FA in their settings.'
+  });
+});
+
+// Reset specific user's 2FA (admin only)
+router.post('/reset-2fa/:userId', isAdmin, (req, res) => {
+  const { userId } = req.params;
+  
+  // First get user email from database
+  db.get('SELECT email FROM users WHERE id = ?', [userId], (err, user) => {
+    if (err) {
+      console.error('Failed to find user:', err);
+      return res.status(500).json({ success: false, error: 'Database error' });
+    }
+    
+    if (!user) {
+      return res.status(404).json({ success: false, error: 'User not found' });
+    }
+    
+    // Reset in-memory 2FA
+    const result = authService.reset2FAForUser(user.email);
+    
+    // Also update database if 2FA columns exist
+    db.run(
+      `UPDATE users SET two_factor_enabled = 0, two_factor_secret = NULL WHERE id = ?`,
+      [userId],
+      function(err) {
+        if (err && !err.message.includes('no such column')) {
+          console.error('Database 2FA reset error:', err);
+        }
+      }
+    );
+    
+    // Log audit entry
+    logAuditEntry(req.user.id, '2FA_RESET_USER', `Reset 2FA for user ${userId} (${user.email})`);
+    
+    res.json({ 
+      success: true, 
+      message: result.message,
+      note: 'User can re-enable 2FA in settings if needed.'
+    });
   });
 });
 

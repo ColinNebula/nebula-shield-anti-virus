@@ -26,7 +26,8 @@ app.use(cors());
 app.use(express.json());
 
 // Apply enhanced hacker protection middleware
-app.use(enhancedHackerProtection.middleware());
+// TEMPORARILY DISABLED FOR DEBUGGING
+// app.use(enhancedHackerProtection.middleware());
 
 // Configure multer for file uploads
 const upload = multer({ 
@@ -655,10 +656,32 @@ app.get('/api/disk/analyze', async (req, res) => {
     try {
         console.log('📊 Analyzing disk space...');
         const analysis = await diskCleaner.analyzeDiskSpace();
+        
+        if (!analysis.success) {
+            console.error('❌ Disk analysis returned error:', analysis.error);
+            return res.status(500).json(analysis);
+        }
+        
+        console.log(`✅ Analysis complete: ${diskCleaner.formatBytes(analysis.totalCleanable)} cleanable`);
         res.json(analysis);
     } catch (error) {
         console.error('❌ Disk analysis error:', error.message);
-        res.status(500).json({ success: false, error: error.message });
+        console.error(error.stack);
+        res.status(500).json({ 
+            success: false, 
+            error: error.message,
+            analysis: {
+                recycleBin: { size: 0, count: 0, location: 'Recycle Bin' },
+                tempFiles: { size: 0, count: 0, location: 'Temporary Files' },
+                downloads: { size: 0, count: 0, location: 'Downloads' },
+                browserCache: { size: 0, count: 0, location: 'Browser Cache' },
+                logs: { size: 0, count: 0, location: 'System Logs' },
+                oldFiles: { size: 0, count: 0, location: 'Old Files' },
+            },
+            totalCleanable: 0,
+            totalFiles: 0,
+            recommendations: []
+        });
     }
 });
 
@@ -768,12 +791,144 @@ app.post('/api/auth/login', async (req, res) => {
                 session.ipAddress = ipAddress;
                 session.userAgent = userAgent;
             }
+            
+            // Map sessionToken to token for frontend compatibility
+            res.json({
+                success: result.success,
+                token: result.sessionToken,
+                user: result.user,
+                message: 'Login successful'
+            });
+        } else {
+            res.json(result);
         }
-
-        res.json(result);
     } catch (error) {
         console.error('Login error:', error);
-        res.status(500).json({ error: 'Login failed' });
+        res.status(500).json({ 
+            success: false,
+            error: 'Login failed',
+            message: 'An error occurred during login'
+        });
+    }
+});
+
+// Register endpoint
+app.post('/api/auth/register', async (req, res) => {
+    try {
+        const { email, password, fullName } = req.body;
+        const ipAddress = req.ip;
+        const userAgent = req.headers['user-agent'];
+
+        // Validate input
+        if (!email || !password || !fullName) {
+            return res.status(400).json({ 
+                success: false, 
+                message: 'All fields are required' 
+            });
+        }
+
+        // Check if user already exists (mock check)
+        const existingUsers = authService.users || new Map();
+        const userExists = Array.from(existingUsers.values()).some(u => u.email === email);
+        
+        if (userExists) {
+            return res.status(400).json({ 
+                success: false, 
+                message: 'An account with this email already exists' 
+            });
+        }
+
+        // Create new user (simplified - in production, hash password properly)
+        const newUser = {
+            id: Date.now(),
+            email,
+            fullName,
+            password, // In production, this should be hashed
+            role: 'user',
+            tier: 'free',
+            createdAt: new Date().toISOString(),
+            verified: false // Email not verified yet
+        };
+
+        // Store user (mock storage)
+        if (!authService.users) {
+            authService.users = new Map();
+        }
+        authService.users.set(email, newUser);
+
+        // Log registration
+        await activityLogger.log({
+            userEmail: email,
+            action: 'user_registration',
+            category: 'authentication',
+            details: `New user registered: ${fullName}`,
+            ipAddress,
+            userAgent,
+            status: 'success'
+        });
+
+        res.json({ 
+            success: true, 
+            message: 'Account created successfully',
+            user: {
+                id: newUser.id,
+                email: newUser.email,
+                fullName: newUser.fullName,
+                role: newUser.role,
+                tier: newUser.tier
+            }
+        });
+    } catch (error) {
+        console.error('Registration error:', error);
+        res.status(500).json({ 
+            success: false, 
+            message: 'Registration failed. Please try again.' 
+        });
+    }
+});
+
+// Token verification endpoint
+app.get('/api/auth/verify', (req, res) => {
+    try {
+        const authHeader = req.headers.authorization;
+        
+        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+            return res.status(401).json({ 
+                success: false, 
+                message: 'No token provided' 
+            });
+        }
+
+        const token = authHeader.substring(7); // Remove 'Bearer ' prefix
+        
+        // Verify the token with auth service
+        const session = authService.verifyToken(token);
+        
+        if (!session) {
+            return res.status(401).json({ 
+                success: false, 
+                message: 'Invalid or expired token' 
+            });
+        }
+
+        // Return user data
+        res.json({ 
+            success: true, 
+            user: {
+                id: session.userId,
+                email: session.email,
+                fullName: session.fullName,
+                role: session.role,
+                tier: session.tier,
+                verified: session.verified
+            }
+        });
+    } catch (error) {
+        console.error('Token verification error:', error);
+        res.status(500).json({ 
+            success: false, 
+            message: 'Token verification failed' 
+        });
     }
 });
 

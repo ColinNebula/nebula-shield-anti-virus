@@ -1,82 +1,165 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
-# dependencies
-/node_modules
-/.pnp
-.pnp.js
-
-# testing
-/coverage
-
-# production
-/build
-/dist
-
-# misc
-.DS_Store
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
-
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
+# =======================
+# DEPENDENCIES (HUGE - NEVER COMMIT)
+# =======================
+**/node_modules/
+**/.pnp
+**/.pnp.js
+**/package-lock.json
+**/yarn.lock
 
 # =======================
-# SECURITY - DO NOT COMMIT
+# BUILD ARTIFACTS (LARGE FILES)
 # =======================
 
-# Environment variables (contains API keys, secrets)
-.env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
+# Production builds
+/build/
+/dist/
+**/build/
+**/dist/
+/installer/build/
+*.exe
+*.dmg
+*.deb
+*.rpm
+*.appimage
+*.snap
 
-# File uploads directory
-uploads/
-temp/
-quarantine/
+# Electron dist
+/out/
+**/out/
 
-# Log files
-logs/
-*.log
+# React build
+/public/build/
 
-# API keys and secrets
+# =======================
+# SECURITY - CRITICAL - DO NOT COMMIT
+# =======================
+
+# Environment variables (contains API keys, JWT secrets, database URLs)
+**/.env
+**/.env.local
+**/.env.development
+**/.env.development.local
+**/.env.test
+**/.env.test.local
+**/.env.production
+**/.env.production.local
+**/.env.*.local
+
+# API keys and authentication
 api-keys.txt
+api-keys.json
 secrets/
+credentials/
 *.pem
 *.key
 *.cert
+*.crt
+*.p12
+*.pfx
+service-account.json
+firebase-adminsdk.json
+google-services.json
+GoogleService-Info.plist
 
-# Security reports (may contain sensitive info)
+# Database files (may contain user data)
+**/*.db
+**/*.sqlite
+**/*.sqlite3
+**/*.db-journal
+data/auth.db
+data/*.db
+
+# User data and uploads
+uploads/
+temp/
+temporary/
+quarantine/
+user-data/
+
+# Log files (may contain sensitive info)
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+
+# Security and audit reports
 integrity-report.json
 security-report.json
 vulnerability-scan.json
-
-# Database files (if using SQLite)
-*.db
-*.sqlite
-*.sqlite3
+audit-report.json
 
 # Backup files
 backups/
 *.backup
+*.bak
+*.old
 
-# OS files
+# =======================
+# OS-SPECIFIC FILES
+# =======================
+
+# Windows
 Thumbs.db
 Desktop.ini
+$RECYCLE.BIN/
+*.lnk
 
-# IDE files
-.vscode/settings.json
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
+
+# Linux
+*~
+.directory
+.Trash-*
+
+# =======================
+# IDE AND EDITOR FILES
+# =======================
+
+# Visual Studio Code
+.vscode/
+!.vscode/extensions.json
+!.vscode/settings.json.example
+
+# JetBrains IDEs (WebStorm, IntelliJ, etc.)
 .idea/
+*.iml
+*.iws
+
+# Sublime Text
+*.sublime-workspace
+*.sublime-project
+
+# Vim
 *.swp
 *.swo
 *~
+.*.sw[a-z]
 
-# Checksums (regenerate after changes)
-# .checksums.json - KEEP THIS for integrity verification
+# Emacs
+*~
+\#*\#
+.\#*
+
+# =======================
+# TESTING AND COVERAGE
+# =======================
+
+/coverage/
+.nyc_output/
+*.lcov
+.coverage
+htmlcov/
 
 # =======================
 # BACKEND BUILD ARTIFACTS
@@ -92,22 +175,101 @@ backend/build/CMakeCache.txt
 backend/build/*.cmake
 backend/build/*.vcxproj*
 backend/build/*.sln
+backend/build/Makefile
 
 # Compiler intermediate files
 *.obj
+*.o
 *.ilk
 *.pdb
 *.tlog
 *.iobj
 *.ipdb
 *.lastbuildstate
+*.suo
+*.user
 
-# Keep only the final executable
-!backend/build/bin/Release/*.exe
-!backend/build/bin/Debug/*.exe
+# C++ build artifacts
+/backend/build/
+!/backend/build/.gitkeep
 
-# Backend configuration and data
-backend/build/bin/Release/data/*.db
-backend/build/bin/Release/logs/*.log
-backend/build/bin/Debug/data/*.db
-backend/build/bin/Debug/logs/*.log
+# =======================
+# MOBILE APP SPECIFICS
+# =======================
+
+# Android
+mobile/android/.gradle/
+mobile/android/app/build/
+mobile/android/build/
+mobile/android/local.properties
+mobile/android/app/release/
+mobile/android/app/debug/
+*.apk
+*.aab
+
+# iOS
+mobile/ios/Pods/
+mobile/ios/build/
+mobile/ios/*.xcworkspace
+mobile/ios/*.xcuserdata
+mobile/DerivedData/
+*.ipa
+
+# React Native
+mobile/.expo/
+mobile/.expo-shared/
+
+# =======================
+# CLOUD BACKEND
+# =======================
+
+cloud-backend/node_modules/
+cloud-backend/.env
+cloud-backend/logs/
+cloud-backend/*.log
+
+# =======================
+# TEMPORARY FILES
+# =======================
+
+*.tmp
+*.temp
+*.cache
+.cache/
+.temp/
+.eslintcache
+.parcel-cache/
+
+# =======================
+# GITHUB-SPECIFIC
+# =======================
+
+# Keep GitHub workflows but ignore local testing
+!.github/
+.github/workflows/*.local.yml
+
+# =======================
+# PACKAGE MANAGER CACHES
+# =======================
+
+.npm/
+.yarn/
+.pnpm-store/
+
+# =======================
+# IMPORTANT: KEEP THESE FILES
+# =======================
+
+# Keep example environment file (for documentation)
+!.env.example
+!**/.env.example
+
+# Keep README and documentation
+!README.md
+!**/README.md
+!SECURITY.md
+!LICENSE
+
+# Keep package.json (needed for dependencies)
+!package.json
+!**/package.json

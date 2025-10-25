@@ -8,7 +8,6 @@ import { AuthProvider } from './contexts/AuthContext';
 import notificationService from './services/notificationService';
 import ProtectedRoute from './components/ProtectedRoute';
 import SplashScreen from './components/SplashScreen';
-import Sidebar from './components/Sidebar';
 import ErrorBoundary from './components/ErrorBoundary';
 import ErrorBoundaryWithReporting from './components/ErrorBoundaryWithReporting';
 import useKeyboardShortcuts from './hooks/useKeyboardShortcuts';
@@ -50,6 +49,7 @@ const EnhancedScanner = lazy(() => import('./pages/EnhancedScanner'));
 const HackerProtection = lazy(() => import('./pages/HackerProtection'));
 const RansomwareProtection = lazy(() => import('./pages/RansomwareProtection'));
 const AdvancedFirewall = lazy(() => import('./pages/AdvancedFirewall'));
+const MLDashboard = lazy(() => import('./components/MLDashboard'));
 const FirewallLogs = lazy(() => import('./pages/FirewallLogs'));
 const DataProtection = lazy(() => import('./pages/DataProtection'));
 const AdminPanel = lazy(() => import('./pages/AdminPanel'));
@@ -58,6 +58,9 @@ const DiskCleanup = lazy(() => import('./pages/DiskCleanup'));
 const PerformanceMetrics = lazy(() => import('./pages/PerformanceMetrics'));
 const TermsOfService = lazy(() => import('./pages/TermsOfService'));
 const LicenseActivation = lazy(() => import('./pages/LicenseActivation'));
+const CyberCapture = lazy(() => import('./components/CyberCapture'));
+const StartupManager = lazy(() => import('./pages/StartupManager'));
+const Sidebar = lazy(() => import('./components/Sidebar'));
 
 // Loading fallback component
 const PageLoader = () => (
@@ -305,6 +308,16 @@ const AppContent = ({ showSplash, isMobileMenuOpen, closeMobileMenu, toggleMobil
                   </>
                 </ProtectedRoute>
               } />
+              <Route path="/startup-manager" element={
+                <ProtectedRoute>
+                  <>
+                    <Sidebar isOpen={isMobileMenuOpen} onClose={closeMobileMenu} />
+                    <main className="main-content">
+                      <StartupManager />
+                    </main>
+                  </>
+                </ProtectedRoute>
+              } />
               <Route path="/performance-metrics" element={
                 <ProtectedRoute>
                   <>
@@ -324,6 +337,26 @@ const AppContent = ({ showSplash, isMobileMenuOpen, closeMobileMenu, toggleMobil
                     <Sidebar isOpen={isMobileMenuOpen} onClose={closeMobileMenu} />
                     <main className="main-content">
                       <LicenseActivation />
+                    </main>
+                  </>
+                </ProtectedRoute>
+              } />
+              <Route path="/cyber-capture" element={
+                <ProtectedRoute>
+                  <>
+                    <Sidebar isOpen={isMobileMenuOpen} onClose={closeMobileMenu} />
+                    <main className="main-content">
+                      <CyberCapture />
+                    </main>
+                  </>
+                </ProtectedRoute>
+              } />
+              <Route path="/ml-dashboard" element={
+                <ProtectedRoute>
+                  <>
+                    <Sidebar isOpen={isMobileMenuOpen} onClose={closeMobileMenu} />
+                    <main className="main-content">
+                      <MLDashboard />
                     </main>
                   </>
                 </ProtectedRoute>
@@ -362,24 +395,24 @@ const AppContent = ({ showSplash, isMobileMenuOpen, closeMobileMenu, toggleMobil
       const [showSplash, setShowSplash] = useState(true);
       const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-      useEffect(() => {
-        // Request notification permission on app load
-        const requestNotifications = async () => {
-          const granted = await notificationService.requestPermission();
-          if (granted) {
-            console.log('✅ Desktop notifications enabled');
-          } else {
-            console.warn('⚠️ Desktop notifications disabled');
-          }
-        };
-        requestNotifications();
-
-        // Preload critical routes after initial page load
-        // This improves perceived performance for common navigation paths
-        preloadAfterLoad([Dashboard, Scanner, Login], 3000);
-      }, []);
-
-      const handleShowSplash = () => {
+  useEffect(() => {
+    // Defer notification permission request to not block initial load
+    const requestNotifications = async () => {
+      const granted = await notificationService.requestPermission();
+      if (granted) {
+        console.log('✅ Desktop notifications enabled');
+      } else {
+        console.warn('⚠️ Desktop notifications disabled');
+      }
+    };
+    
+    // Defer these operations until after the app is interactive
+    setTimeout(() => {
+      requestNotifications();
+      // Preload critical routes after initial page load
+      preloadAfterLoad([Dashboard, Scanner, Login], 2000);
+    }, 1000);
+  }, []);      const handleShowSplash = () => {
         setShowSplash(true);
       };
 

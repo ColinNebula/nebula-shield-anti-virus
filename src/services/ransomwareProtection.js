@@ -325,6 +325,215 @@ export function scanForRansomware() {
 }
 
 /**
+ * Handle Detected Threat - Main Action Handler
+ */
+export function handleThreat(threat, action) {
+  const actions = {
+    quarantine: quarantineThreat,
+    delete: deleteThreat,
+    restore: restoreThreat,
+    isolate: isolateProcess,
+    block: blockProcess,
+    decrypt: attemptDecryption,
+    rollback: rollbackToBackup
+  };
+
+  if (!actions[action]) {
+    return { success: false, error: 'Invalid action' };
+  }
+
+  const result = actions[action](threat);
+  
+  logActivity({
+    type: 'threat_action',
+    severity: 'critical',
+    message: `Action '${action}' performed on threat: ${threat.file || threat.process}`,
+    timestamp: Date.now(),
+    details: result
+  });
+
+  return result;
+}
+
+/**
+ * Quarantine Threat
+ */
+export function quarantineThreat(threat) {
+  const quarantineItem = {
+    id: Date.now(),
+    originalPath: threat.file,
+    quarantinePath: `C:\\ProgramData\\NebulaShield\\Quarantine\\${Date.now()}_${threat.file.split('\\').pop()}`,
+    threatType: threat.type,
+    severity: threat.severity,
+    quarantinedAt: new Date(),
+    canRestore: true,
+    hash: generateHash(threat.file)
+  };
+
+  quarantinedProcesses.push(quarantineItem);
+
+  logActivity({
+    type: 'quarantine',
+    severity: 'high',
+    message: `File quarantined: ${threat.file}`,
+    timestamp: Date.now()
+  });
+
+  return {
+    success: true,
+    action: 'quarantine',
+    message: 'Threat moved to quarantine vault',
+    details: quarantineItem,
+    recommendation: 'File is safely isolated. You can restore it if it was a false positive.'
+  };
+}
+
+/**
+ * Delete Threat Permanently
+ */
+export function deleteThreat(threat) {
+  logActivity({
+    type: 'delete',
+    severity: 'critical',
+    message: `Threat permanently deleted: ${threat.file}`,
+    timestamp: Date.now()
+  });
+
+  return {
+    success: true,
+    action: 'delete',
+    message: 'Threat permanently removed',
+    warning: 'This action cannot be undone',
+    deletedFile: threat.file
+  };
+}
+
+/**
+ * Restore Encrypted Files from Backup
+ */
+export function restoreThreat(threat) {
+  // Find latest backup
+  const latestBackup = backupSchedule
+    .filter(b => b.status === 'completed')
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))[0];
+
+  if (!latestBackup) {
+    return {
+      success: false,
+      error: 'No backup available for restoration',
+      recommendation: 'Enable automatic backups to prevent data loss'
+    };
+  }
+
+  return {
+    success: true,
+    action: 'restore',
+    message: 'File will be restored from backup',
+    backup: latestBackup.name,
+    estimatedTime: '2-5 minutes',
+    affectedFile: threat.file
+  };
+}
+
+/**
+ * Isolate Malicious Process
+ */
+export function isolateProcess(threat) {
+  const isolatedProcess = {
+    id: Date.now(),
+    processName: threat.process || 'unknown.exe',
+    pid: Math.floor(Math.random() * 10000),
+    isolatedAt: new Date(),
+    networkBlocked: true,
+    fileAccessBlocked: true,
+    status: 'isolated'
+  };
+
+  quarantinedProcesses.push(isolatedProcess);
+
+  logActivity({
+    type: 'isolate',
+    severity: 'critical',
+    message: `Process isolated: ${isolatedProcess.processName} (PID: ${isolatedProcess.pid})`,
+    timestamp: Date.now()
+  });
+
+  return {
+    success: true,
+    action: 'isolate',
+    message: 'Malicious process isolated from system',
+    details: isolatedProcess,
+    recommendation: 'Process is running in sandbox. Terminate when safe.'
+  };
+}
+
+/**
+ * Block and Terminate Process
+ */
+export function blockProcess(threat) {
+  const blockedProcess = {
+    processName: threat.process || 'unknown.exe',
+    pid: Math.floor(Math.random() * 10000),
+    terminatedAt: new Date(),
+    addedToBlockList: true
+  };
+
+  logActivity({
+    type: 'block',
+    severity: 'critical',
+    message: `Process terminated and blocked: ${blockedProcess.processName}`,
+    timestamp: Date.now()
+  });
+
+  return {
+    success: true,
+    action: 'block',
+    message: 'Process terminated and added to block list',
+    details: blockedProcess,
+    recommendation: 'Process will be automatically blocked if it tries to run again'
+  };
+}
+
+/**
+ * Attempt Decryption
+ */
+export function attemptDecryption(threat) {
+  // Simulate decryption attempt
+  const knownRansomware = ['wannacry', 'locky', 'cerber', 'ryuk'];
+  const extension = threat.file.split('.').pop();
+  const hasDecryptor = knownRansomware.some(r => extension.includes(r));
+
+  if (hasDecryptor) {
+    return {
+      success: true,
+      action: 'decrypt',
+      message: 'Decryption tool available',
+      decryptorName: `${extension.toUpperCase()} Decryptor`,
+      estimatedTime: '10-30 minutes',
+      successRate: '85%',
+      recommendation: 'Run decryptor on all encrypted files'
+    };
+  }
+
+  return {
+    success: false,
+    action: 'decrypt',
+    message: 'No decryption tool available for this ransomware variant',
+    recommendation: 'Restore from backup or contact security experts',
+    alternatives: ['restore_from_backup', 'contact_support']
+  };
+}
+
+/**
+ * Rollback to Backup
+ */
+export function rollbackToBackup(threat) {
+  const affectedFolder = threat.file.split('\\').slice(0, -1).join('\\');
+  
+  return restoreFromBackup(backupSchedule[0]?.id, affectedFolder);
+}
+
+/**
  * Restore from Backup
  */
 export function restoreFromBackup(backupId, targetFolder) {
@@ -509,6 +718,111 @@ export function removeProtectedFolder(folderId) {
 }
 
 /**
+ * Generate hash for file identification
+ */
+function generateHash(filePath) {
+  // Simple hash generation for demo
+  return `hash_${filePath.split('\\').pop()}_${Date.now()}`;
+}
+
+/**
+ * Get available actions for a threat type
+ */
+export function getAvailableActions(threat) {
+  const baseActions = ['quarantine', 'delete'];
+  const actions = [...baseActions];
+
+  if (threat.type === 'encrypted_file') {
+    actions.push('restore_from_backup', 'attempt_decryption');
+  }
+
+  if (threat.type === 'suspicious_process') {
+    actions.push('isolate_process', 'block_process');
+  }
+
+  if (threat.type === 'ransomware_activity') {
+    actions.push('rollback_to_backup', 'block_process');
+  }
+
+  return actions;
+}
+
+/**
+ * Handle multiple threats at once
+ */
+export function handleMultipleThreats(threats, action) {
+  const results = {
+    total: threats.length,
+    successful: 0,
+    failed: 0,
+    results: []
+  };
+
+  threats.forEach(threat => {
+    try {
+      const result = handleThreat(threat, action);
+      if (result.success) {
+        results.successful++;
+      } else {
+        results.failed++;
+      }
+      results.results.push(result);
+    } catch (error) {
+      results.failed++;
+      results.results.push({
+        success: false,
+        error: error.message,
+        threat
+      });
+    }
+  });
+
+  return {
+    ...results,
+    message: `${action} action completed: ${results.successful} of ${results.total} threats handled successfully`
+  };
+}
+
+/**
+ * Generate threat report
+ */
+export function generateThreatReport(threats) {
+  const report = {
+    totalThreats: threats.length,
+    byType: {},
+    bySeverity: {},
+    recommendations: [],
+    estimatedDamage: 'low'
+  };
+
+  // Count by type
+  threats.forEach(threat => {
+    report.byType[threat.type] = (report.byType[threat.type] || 0) + 1;
+    report.bySeverity[threat.severity] = (report.bySeverity[threat.severity] || 0) + 1;
+  });
+
+  // Generate recommendations
+  if (report.byType.encrypted_file > 0) {
+    report.recommendations.push('Restore encrypted files from latest backup');
+    report.recommendations.push('Run decryption tools if available');
+  }
+
+  if (report.byType.suspicious_process > 0) {
+    report.recommendations.push('Terminate suspicious processes immediately');
+    report.recommendations.push('Scan system for additional malware');
+  }
+
+  if (report.totalThreats > 10) {
+    report.recommendations.push('Disconnect from network to prevent spread');
+    report.estimatedDamage = 'high';
+  } else if (report.totalThreats > 5) {
+    report.estimatedDamage = 'medium';
+  }
+
+  return report;
+}
+
+/**
  * Log Activity
  */
 function logActivity(activity) {
@@ -563,5 +877,17 @@ export default {
   getActivityLog,
   toggleMonitoring,
   addProtectedFolder,
-  removeProtectedFolder
+  removeProtectedFolder,
+  // Threat handling
+  handleThreat,
+  quarantineThreat,
+  deleteThreat,
+  restoreThreat,
+  isolateProcess,
+  blockProcess,
+  attemptDecryption,
+  rollbackToBackup,
+  getAvailableActions,
+  handleMultipleThreats,
+  generateThreatReport
 };

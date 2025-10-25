@@ -298,7 +298,7 @@ const EnhancedNetworkProtection = () => {
                       </tr>
                     </thead>
                     <tbody>
-                      {connections.connections.map(conn => (
+                      {connections?.connections && Array.isArray(connections.connections) ? connections.connections.map(conn => (
                         <tr 
                           key={conn.id}
                           className={conn.threat ? `threat-row threat-${conn.threat.level}` : ''}
@@ -370,7 +370,13 @@ const EnhancedNetworkProtection = () => {
                             )}
                           </td>
                         </tr>
-                      ))}
+                      )) : (
+                        <tr>
+                          <td colSpan="8" style={{ textAlign: 'center', padding: '20px' }}>
+                            No connections available
+                          </td>
+                        </tr>
+                      )}
                     </tbody>
                   </table>
                 </div>
@@ -439,12 +445,12 @@ const EnhancedNetworkProtection = () => {
                             <Eye size={20} />
                             IDS Analysis
                           </h4>
-                          {selectedConnection.idsAnalysis.map((threat, idx) => (
+                          {selectedConnection.idsAnalysis && Array.isArray(selectedConnection.idsAnalysis) ? selectedConnection.idsAnalysis.map((threat, idx) => (
                             <div key={idx} className="analysis-item">
                               <div><strong>{threat.type}</strong></div>
                               <div>{threat.description}</div>
                             </div>
-                          ))}
+                          )) : null}
                         </div>
                       )}
                     </div>
@@ -519,7 +525,7 @@ const EnhancedNetworkProtection = () => {
                 </h3>
 
                 <div className="signatures-grid">
-                  {idsStats.signatures.map(sig => (
+                  {idsStats?.signatures && Array.isArray(idsStats.signatures) ? idsStats.signatures.map(sig => (
                     <div key={sig.id} className={`signature-card signature-${sig.severity}`}>
                       <div className="signature-header">
                         <h4>{sig.name}</h4>
@@ -533,7 +539,7 @@ const EnhancedNetworkProtection = () => {
                         <div><strong>Threshold:</strong> {sig.threshold} events in {sig.timeWindow}s</div>
                       </div>
                     </div>
-                  ))}
+                  )) : <div style={{ padding: '20px', textAlign: 'center' }}>No signatures available</div>}
                 </div>
               </div>
 
@@ -544,13 +550,13 @@ const EnhancedNetworkProtection = () => {
                 </h3>
 
                 <div className="threats-list">
-                  {idsStats.recentThreats.slice(0, 10).map((threat, idx) => (
+                  {idsStats?.recentThreats && Array.isArray(idsStats.recentThreats) ? idsStats.recentThreats.slice(0, 10).map((threat, idx) => (
                     <div key={idx} className="threat-item">
                       <div className="threat-time">
                         {new Date(threat.timestamp).toLocaleTimeString()}
                       </div>
                       <div className="threat-content">
-                        {threat.threats.map((t, ti) => (
+                        {threat.threats && Array.isArray(threat.threats) ? threat.threats.map((t, ti) => (
                           <div key={ti} className="threat-entry">
                             {getSeverityIcon(t.severity)}
                             <div>
@@ -559,10 +565,10 @@ const EnhancedNetworkProtection = () => {
                               {t.ip && <span className="threat-ip">IP: {t.ip}</span>}
                             </div>
                           </div>
-                        ))}
+                        )) : null}
                       </div>
                     </div>
-                  ))}
+                  )) : <div style={{ padding: '20px', textAlign: 'center' }}>No recent threats</div>}
                 </div>
               </div>
             </motion.div>
@@ -648,7 +654,7 @@ const EnhancedNetworkProtection = () => {
                         </tr>
                       </thead>
                       <tbody>
-                        {ddosStatus.mitigationHistory.map((mitigation, idx) => (
+                        {ddosStatus?.mitigationHistory && Array.isArray(ddosStatus.mitigationHistory) ? ddosStatus.mitigationHistory.map((mitigation, idx) => (
                           <tr key={idx}>
                             <td>{new Date(mitigation.timestamp).toLocaleString()}</td>
                             <td><code>{mitigation.ip}</code></td>
@@ -665,7 +671,13 @@ const EnhancedNetworkProtection = () => {
                               </span>
                             </td>
                           </tr>
-                        ))}
+                        )) : (
+                          <tr>
+                            <td colSpan="6" style={{ textAlign: 'center', padding: '20px' }}>
+                              No mitigation history available
+                            </td>
+                          </tr>
+                        )}
                       </tbody>
                     </table>
                   </div>
@@ -717,13 +729,13 @@ const EnhancedNetworkProtection = () => {
                 </h3>
 
                 <div className="protocols-grid">
-                  {Object.entries(trafficAnalysis.protocolDistribution).map(([protocol, stats]) => (
+                  {trafficAnalysis?.protocolDistribution && typeof trafficAnalysis.protocolDistribution === 'object' ? Object.entries(trafficAnalysis.protocolDistribution).map(([protocol, stats]) => (
                     <div key={protocol} className="protocol-stat">
                       <div className="protocol-name">{protocol}</div>
                       <div className="protocol-packets">{stats.packets.toLocaleString()} packets</div>
                       <div className="protocol-bytes">{formatBytes(stats.bytes)}</div>
                     </div>
-                  ))}
+                  )) : <div style={{ padding: '20px', textAlign: 'center' }}>No protocol data available</div>}
                 </div>
               </div>
 
@@ -744,14 +756,20 @@ const EnhancedNetworkProtection = () => {
                       </tr>
                     </thead>
                     <tbody>
-                      {trafficAnalysis.topPorts.map(port => (
+                      {trafficAnalysis?.topPorts && Array.isArray(trafficAnalysis.topPorts) ? trafficAnalysis.topPorts.map(port => (
                         <tr key={port.port}>
                           <td><code>{port.port}</code></td>
                           <td>{port.service}</td>
                           <td>{port.packets.toLocaleString()}</td>
                           <td>{formatBytes(port.bytes)}</td>
                         </tr>
-                      ))}
+                      )) : (
+                        <tr>
+                          <td colSpan="4" style={{ textAlign: 'center', padding: '20px' }}>
+                            No port data available
+                          </td>
+                        </tr>
+                      )}
                     </tbody>
                   </table>
                 </div>
@@ -771,7 +789,7 @@ const EnhancedNetworkProtection = () => {
                       </tr>
                     </thead>
                     <tbody>
-                      {trafficAnalysis.topCountries.map(country => (
+                      {trafficAnalysis?.topCountries && Array.isArray(trafficAnalysis.topCountries) ? trafficAnalysis.topCountries.map(country => (
                         <tr key={country.country}>
                           <td>
                             <span className="country-name">
@@ -781,7 +799,13 @@ const EnhancedNetworkProtection = () => {
                           <td>{country.packets.toLocaleString()}</td>
                           <td>{formatBytes(country.bytes)}</td>
                         </tr>
-                      ))}
+                      )) : (
+                        <tr>
+                          <td colSpan="3" style={{ textAlign: 'center', padding: '20px' }}>
+                            No country data available
+                          </td>
+                        </tr>
+                      )}
                     </tbody>
                   </table>
                 </div>
@@ -837,7 +861,7 @@ const EnhancedNetworkProtection = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {firewallRules && firewallRules.map((rule) => (
+                    {firewallRules && Array.isArray(firewallRules) ? firewallRules.map((rule) => (
                       <tr key={rule.id}>
                         <td className="rule-name" style={{ fontWeight: 600 }}>{rule.name}</td>
                         <td>
@@ -938,7 +962,13 @@ const EnhancedNetworkProtection = () => {
                           </div>
                         </td>
                       </tr>
-                    ))}
+                    )) : (
+                      <tr>
+                        <td colSpan="7" style={{ textAlign: 'center', padding: '20px' }}>
+                          No firewall rules available
+                        </td>
+                      </tr>
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -1046,7 +1076,7 @@ const EnhancedNetworkProtection = () => {
                         </tr>
                       </thead>
                       <tbody>
-                        {openPorts.map((port, index) => (
+                        {openPorts && Array.isArray(openPorts) && openPorts.length > 0 ? openPorts.map((port, index) => (
                           <tr 
                             key={index}
                             className={port.risk === 'high' || port.risk === 'critical' ? 'threat-row' : ''}
@@ -1113,7 +1143,13 @@ const EnhancedNetworkProtection = () => {
                               {port.recommendation}
                             </td>
                           </tr>
-                        ))}
+                        )) : (
+                          <tr>
+                            <td colSpan="6" style={{ textAlign: 'center', padding: '20px' }}>
+                              No open ports detected. Click "Scan Ports" to start a scan.
+                            </td>
+                          </tr>
+                        )}
                       </tbody>
                     </table>
                   </div>

@@ -3,7 +3,10 @@
  * Handles 2FA, session management, activity logs, and backup/restore
  */
 
-const API_BASE_URL = 'http://localhost:8080';
+// In development with React dev server, use proxy (relative URLs)
+// In Electron or production, use direct backend URLs
+const isElectron = typeof window !== 'undefined' && window.electronAPI?.isElectron;
+const API_BASE_URL = isElectron ? 'http://localhost:8080' : '';
 
 // Get auth token from localStorage
 const getAuthToken = () => {

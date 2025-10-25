@@ -9,13 +9,12 @@ echo.
 
 cd /d "%~dp0"
 
-echo Starting Authentication Server...
-start "Nebula Shield - Auth Server" cmd /k "cd backend && node auth-server.js"
-timeout /t 3 /nobreak >nul
+REM Note: Using unified backend (mock-backend.js) which includes auth + all API endpoints
+REM The auth-server.js is not needed as mock-backend.js provides authentication
 
-echo Starting Main Backend...
-start "Nebula Shield - Backend" cmd /k "node mock-backend.js"
-timeout /t 3 /nobreak >nul
+echo Starting Unified Backend Server...
+start "Nebula Shield - Backend" cmd /k "cd backend && node mock-backend.js"
+timeout /t 5 /nobreak >nul
 
 echo Starting Frontend...
 start "Nebula Shield - Frontend" cmd /k "npm start"

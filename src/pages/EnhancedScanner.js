@@ -18,6 +18,11 @@ import pdfReportService from '../services/pdfReportService';
 import toast from 'react-hot-toast';
 import './EnhancedScanner.css';
 
+// In development with React dev server, use proxy (relative URLs)
+// In Electron or production, use direct backend URLs
+const isElectron = typeof window !== 'undefined' && window.electronAPI?.isElectron;
+const API_BASE_URL = isElectron ? 'http://localhost:8080' : '';
+
 const EnhancedScanner = () => {
   const { checkFeatureAccess, isPremium } = useAuth();
   const [activeTab, setActiveTab] = useState('scanner'); // scanner, quarantine, schedule, statistics
@@ -338,15 +343,20 @@ const EnhancedScanner = () => {
   };
 
   const handleAddWatchFolder = () => {
-    const folder = prompt('Enter folder path to watch:');
-    if (folder) {
-      try {
-        enhancedScanner.addWatchFolder(folder);
-        toast.success(`Now watching: ${folder}`);
-        loadRealTimeStatus();
-      } catch (error) {
-        toast.error('Failed to add folder: ' + error.message);
-      }
+    // Use the current scan path or default path
+    const folderPath = scanPath || 'C:\\';
+    
+    if (!folderPath || folderPath.trim() === '') {
+      toast.error('Please enter a folder path to watch in the scan path field above');
+      return;
+    }
+    
+    try {
+      enhancedScanner.addWatchFolder(folderPath);
+      toast.success(`Now watching: ${folderPath}`);
+      loadRealTimeStatus();
+    } catch (error) {
+      toast.error('Failed to add folder: ' + error.message);
     }
   };
 
@@ -522,7 +532,12 @@ const EnhancedScanner = () => {
           <button
             key={tab}
             className={`tab-button ${activeTab === tab ? 'active' : ''}`}
-            onClick={() => setActiveTab(tab)}
+            onClick={(e) => {
+              e.stopPropagation();
+              console.log('Tab clicked:', tab, 'Current activeTab:', activeTab);
+              setActiveTab(tab);
+            }}
+            type="button"
           >
             {tab === 'scanner' && <Shield size={18} />}
             {tab === 'quarantine' && <Archive size={18} />}
@@ -671,7 +686,7 @@ const EnhancedScanner = () => {
                           setScanStats({ totalFiles: 0, scannedFiles: 0, threatsFound: 0, cleanFiles: 0 });
                           
                           try {
-                            const response = await axios.post('http://localhost:8080/api/scan/quick');
+                            const response = await axios.post(`${API_BASE_URL}/api/scan/quick`);
                             
                             if (response.data.results) {
                               setScanResults(response.data.results);
@@ -707,7 +722,7 @@ const EnhancedScanner = () => {
                           
                           try {
                             toast.loading('Starting full system scan...', { duration: 3000 });
-                            const response = await axios.post('http://localhost:8080/api/scan/full');
+                            const response = await axios.post(`${API_BASE_URL}/api/scan/full`);
                             
                             if (response.data.results) {
                               setScanResults(response.data.results);

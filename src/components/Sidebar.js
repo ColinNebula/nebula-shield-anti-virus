@@ -24,7 +24,9 @@ import {
   FileText,
   Brain,
   BarChart3,
-  Key
+  Key,
+  Cloud,
+  Zap
 } from 'lucide-react';
 import AntivirusAPI from '../services/antivirusApi';
 import { useAuth } from '../contexts/AuthContext';
@@ -163,6 +165,20 @@ const Sidebar = ({ isOpen = false, onClose = () => {} }) => {
       premium: true
     },
     {
+      path: '/cyber-capture',
+      icon: Cloud,
+      label: 'CyberCapture',
+      badge: null,
+      premium: false
+    },
+    {
+      path: '/ml-dashboard',
+      icon: Brain,
+      label: 'ML Dashboard',
+      badge: '🧠',
+      premium: false
+    },
+    {
       path: '/data-protection',
       icon: Database,
       label: 'Data Protection',
@@ -173,6 +189,13 @@ const Sidebar = ({ isOpen = false, onClose = () => {} }) => {
       path: '/disk-cleanup',
       icon: HardDrive,
       label: 'Disk Cleanup',
+      badge: null,
+      premium: false
+    },
+    {
+      path: '/startup-manager',
+      icon: Zap,
+      label: 'Startup Manager',
       badge: null,
       premium: false
     },
@@ -315,7 +338,7 @@ const Sidebar = ({ isOpen = false, onClose = () => {} }) => {
         <div className="protection-card">
           <div className="protection-header">
             <div className="protection-icon">
-              <Shield size={18} />
+              <Shield size={20} />
             </div>
             <div className="protection-info">
               <h3>Real-time Protection</h3>

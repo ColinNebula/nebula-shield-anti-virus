@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Archive,
@@ -22,7 +22,7 @@ import VirtualList from './VirtualList';
 import toast from 'react-hot-toast';
 import './Quarantine.css';
 
-const Quarantine = () => {
+const Quarantine = memo(() => {
   const [quarantinedFiles, setQuarantinedFiles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -34,9 +34,22 @@ const Quarantine = () => {
     loadQuarantinedFiles();
   }, []);
 
-  const loadQuarantinedFiles = async () => {
+  // OPTIMIZATION: Memoize load function with IndexedDB caching
+  const loadQuarantinedFiles = useCallback(async () => {
     try {
       setLoading(true);
+      
+      // OPTIMIZATION: Load from IndexedDB first (offline-first)
+      try {
+        const { default: scanCache } = await import('../services/scanCache');
+        const cached = await scanCache.getQuarantineFiles();
+        if (cached && cached.length > 0) {
+          setQuarantinedFiles(cached);
+          setLoading(false);
+        }
+      } catch (cacheError) {
+        console.warn('Cache load failed:', cacheError);
+      }
       const response = await AntivirusAPI.getQuarantinedFiles();
       
       // Use mock data if backend returns empty or fails
@@ -73,7 +86,17 @@ const Quarantine = () => {
         }
       ];
       
-      setQuarantinedFiles(response.quarantined_files?.length > 0 ? response.quarantined_files : mockData);
+      const files = response.quarantined_files?.length > 0 ? response.quarantined_files : mockData;
+      setQuarantinedFiles(files);
+      
+      // OPTIMIZATION: Cache to IndexedDB
+      try {
+        const { default: scanCache } = await import('../services/scanCache');
+        await Promise.all(files.map(file => scanCache.cacheQuarantineFile(file)));
+      } catch (cacheError) {
+        console.warn('Failed to cache quarantine files:', cacheError);
+      }
+      
       toast.success('Quarantine loaded');
     } catch (error) {
       console.error('Quarantine load error:', error);
@@ -117,44 +140,93 @@ const Quarantine = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const filteredFiles = quarantinedFiles.filter(file => {
-    const matchesSearch = file.fileName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         file.originalPath.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         file.threatName.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    const matchesFilter = filterType === 'all' || file.threatType.toLowerCase() === filterType.toLowerCase();
-    
-    return matchesSearch && matchesFilter;
-  });
+  // OPTIMIZATION: Memoize filtered files
+  const filteredFiles = useMemo(() => {
+    if (!Array.isArray(quarantinedFiles)) return [];
+    return quarantinedFiles.filter(file => {
+      const matchesSearch = file?.fileName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                           file?.originalPath?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                           file?.threatName?.toLowerCase().includes(searchTerm.toLowerCase());
+      
+      const matchesFilter = filterType === 'all' || file.threatType.toLowerCase() === filterType.toLowerCase();
+      
+      return matchesSearch && matchesFilter;
+    });
+  }, [quarantinedFiles, searchTerm, filterType]);
 
-  const handleFileSelect = (fileId) => {
+  // OPTIMIZATION: Memoize statistics
+  const quarantineStats = useMemo(() => {
+    const stats = {
+      total: Array.isArray(quarantinedFiles) ? quarantinedFiles.length : 0,
+      critical: 0,
+      high: 0,
+      medium: 0,
+      low: 0,
+      totalSize: 0
+    };
+    
+    if (Array.isArray(quarantinedFiles)) {
+      quarantinedFiles.forEach(file => {
+        const risk = file?.riskLevel?.toLowerCase() || 'low';
+        if (risk in stats) {
+          stats[risk]++;
+        }
+        stats.totalSize += file?.fileSize || 0;
+      });
+    }
+    
+    return stats;
+  }, [quarantinedFiles]);
+
+  // OPTIMIZATION: Memoize callbacks
+  const handleFileSelect = useCallback((fileId) => {
     setSelectedFiles(prev => 
       prev.includes(fileId) 
         ? prev.filter(id => id !== fileId)
         : [...prev, fileId]
     );
-  };
+  }, []);
 
-  const handleSelectAll = () => {
+  const handleSelectAll = useCallback(() => {
     if (selectedFiles.length === filteredFiles.length) {
       setSelectedFiles([]);
     } else {
       setSelectedFiles(filteredFiles.map(file => file.id));
     }
-  };
+  }, [selectedFiles.length, filteredFiles]);
 
-  const handleRestoreFile = async (fileId) => {
+  const handleRestoreFile = useCallback(async (fileId) => {
     const file = quarantinedFiles.find(f => f.id === fileId);
     if (!file) return;
 
     try {
       setActionInProgress(true);
-      const result = await AntivirusAPI.restoreFromQuarantine(fileId);
+      
+      // Try to restore from backend, but handle "not found" gracefully
+      let result = { restoredPath: file.originalPath };
+      try {
+        result = await AntivirusAPI.restoreFromQuarantine(fileId);
+      } catch (apiError) {
+        // If it's just a "not found" error, continue with UI update
+        if (!apiError.message?.includes('not found')) {
+          throw apiError;
+        }
+        console.warn('File not in backend database, removing from UI:', apiError.message);
+      }
       
       setQuarantinedFiles(prev => prev.filter(f => f.id !== fileId));
       setSelectedFiles(prev => prev.filter(id => id !== fileId));
+      
+      // OPTIMIZATION: Remove from IndexedDB cache
+      try {
+        const { default: scanCache } = await import('../services/scanCache');
+        await scanCache.deleteQuarantineFile(fileId);
+      } catch (error) {
+        console.warn('Cache update failed:', error);
+      }
+      
       toast.success(`File restored: ${file.fileName} → ${result.restoredPath || file.originalPath}`);
     } catch (error) {
       toast.error(`Failed to restore file: ${error.message}`);
@@ -162,19 +234,38 @@ const Quarantine = () => {
     } finally {
       setActionInProgress(false);
     }
-  };
+  }, [quarantinedFiles]);
 
-  const handleDeleteFile = async (fileId) => {
+  const handleDeleteFile = useCallback(async (fileId) => {
     const file = quarantinedFiles.find(f => f.id === fileId);
     if (!file) return;
 
     if (window.confirm(`Permanently delete ${file.fileName}? This action cannot be undone.`)) {
       try {
         setActionInProgress(true);
-        await AntivirusAPI.deleteQuarantinedFile(fileId);
+        
+        // Try to delete from backend, but don't fail if record doesn't exist
+        try {
+          await AntivirusAPI.deleteQuarantinedFile(fileId);
+        } catch (apiError) {
+          // If it's just a "not found" error, continue with UI update
+          if (!apiError.message?.includes('not found')) {
+            throw apiError;
+          }
+          console.warn('File not in backend database, removing from UI:', apiError.message);
+        }
         
         setQuarantinedFiles(prev => prev.filter(f => f.id !== fileId));
         setSelectedFiles(prev => prev.filter(id => id !== fileId));
+        
+        // OPTIMIZATION: Remove from IndexedDB cache
+        try {
+          const { default: scanCache } = await import('../services/scanCache');
+          await scanCache.deleteQuarantineFile(fileId);
+        } catch (error) {
+          console.warn('Cache update failed:', error);
+        }
+        
         toast.success(`File permanently deleted: ${file.fileName}`);
       } catch (error) {
         toast.error(`Failed to delete file: ${error.message}`);
@@ -183,9 +274,9 @@ const Quarantine = () => {
         setActionInProgress(false);
       }
     }
-  };
+  }, [quarantinedFiles]);
 
-  const handleBulkAction = async (action) => {
+  const handleBulkAction = useCallback(async (action) => {
     if (selectedFiles.length === 0) {
       toast.error('No files selected');
       return;
@@ -215,7 +306,18 @@ const Quarantine = () => {
       if (window.confirm(`Permanently delete ${selectedFiles.length} files? This action cannot be undone.`)) {
         try {
           setActionInProgress(true);
-          const result = await AntivirusAPI.bulkDeleteQuarantined(selectedFiles);
+          
+          // Try bulk delete, but handle "not found" gracefully
+          let result = { success: selectedFiles, failed: [] };
+          try {
+            result = await AntivirusAPI.bulkDeleteQuarantined(selectedFiles);
+          } catch (apiError) {
+            // If it's a "not found" error, treat as success for UI cleanup
+            if (!apiError.message?.includes('not found')) {
+              throw apiError;
+            }
+            console.warn('Some files not in backend database, cleaning up UI');
+          }
           
           setQuarantinedFiles(prev => prev.filter(f => !selectedFiles.includes(f.id)));
           setSelectedFiles([]);
@@ -223,7 +325,7 @@ const Quarantine = () => {
           if (result.failed && result.failed.length > 0) {
             toast.error(`Deleted ${result.success.length} files, ${result.failed.length} failed`);
           } else {
-            toast.success(`${result.success.length} files permanently deleted`);
+            toast.success(`${selectedFiles.length} files permanently deleted`);
           }
         } catch (error) {
           toast.error(`Failed to delete files: ${error.message}`);
@@ -232,33 +334,34 @@ const Quarantine = () => {
         }
       }
     }
-  };
+  }, [selectedFiles, quarantinedFiles]);
 
-  const getRiskColor = (riskLevel) => {
+  // OPTIMIZATION: Memoize helper functions
+  const getRiskColor = useCallback((riskLevel) => {
     switch (riskLevel) {
       case 'high': return 'danger';
       case 'medium': return 'warning';
       case 'low': return 'info';
       default: return 'info';
     }
-  };
+  }, []);
 
-  const getThreatIcon = (threatType) => {
+  const getThreatIcon = useCallback((threatType) => {
     switch (threatType) {
       case 'VIRUS': return AlertTriangle;
       case 'MALWARE': return Shield;
       case 'ADWARE': return Eye;
       default: return AlertTriangle;
     }
-  };
+  }, []);
 
-  const formatFileSize = (bytes) => {
-    if (bytes === 0) return '0 Bytes';
+  const formatFileSize = useCallback((bytes) => {
+    if (!bytes) return '0 B';
     const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const sizes = ['B', 'KB', 'MB', 'GB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-  };
+    return `${(bytes / Math.pow(k, i)).toFixed(2)} ${sizes[i]}`;
+  }, []);
 
   if (loading) {
     return (
@@ -325,7 +428,7 @@ const Quarantine = () => {
             <HardDrive size={24} />
           </div>
           <div className="stat-content">
-            <h3>{formatFileSize(quarantinedFiles.reduce((sum, file) => sum + file.fileSize, 0))}</h3>
+            <h3>{formatFileSize(Array.isArray(quarantinedFiles) ? quarantinedFiles.reduce((sum, file) => sum + (file?.fileSize || 0), 0) : 0)}</h3>
             <p>Total Size</p>
           </div>
         </div>
@@ -335,8 +438,17 @@ const Quarantine = () => {
           </div>
           <div className="stat-content">
             <h3>
-              {quarantinedFiles.length > 0 
-                ? format(new Date(Math.max(...quarantinedFiles.map(f => f.quarantinedDate))), 'MMM dd')
+              {Array.isArray(quarantinedFiles) && quarantinedFiles.length > 0
+                ? (() => {
+                    try {
+                      const dates = quarantinedFiles
+                        .map(f => f?.quarantinedDate ? new Date(f.quarantinedDate).getTime() : 0)
+                        .filter(d => d > 0);
+                      return dates.length > 0 ? format(new Date(Math.max(...dates)), 'MMM dd') : 'N/A';
+                    } catch (e) {
+                      return 'N/A';
+                    }
+                  })()
                 : 'N/A'
               }
             </h3>
@@ -578,6 +690,8 @@ const Quarantine = () => {
       </AnimatePresence>
     </motion.div>
   );
-};
+});
+
+Quarantine.displayName = 'Quarantine';
 
 export default Quarantine;

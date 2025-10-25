@@ -828,34 +828,6 @@ class EmailProtectionService {
     return { isSpoofed: false };
   }
 
-  // Check for web attacks in email content
-  detectWebAttacks(email) {
-    const content = `${email.subject || ''} ${email.body || ''}`;
-    const detectedAttacks = [];
-    let score = 0;
-
-    for (const pattern of EMAIL_WEB_ATTACK_PATTERNS) {
-      if (pattern.pattern.test(content)) {
-        detectedAttacks.push({
-          type: pattern.id,
-          severity: pattern.severity,
-          description: pattern.description,
-          recommendation: 'Do not open this email. Delete immediately and report to IT security.'
-        });
-        score += pattern.severity === 'critical' ? 50 : 30;
-      }
-    }
-
-    return {
-      hasAttack: detectedAttacks.length > 0,
-      attacks: detectedAttacks,
-      score: Math.min(score, 50),
-      reason: detectedAttacks.length > 0
-        ? `${detectedAttacks.length} web attack pattern(s) detected`
-        : ''
-    };
-  }
-
   // Check for Business Email Compromise (BEC)
   checkBEC(email) {
     const text = `${email.subject || ''} ${email.body || ''}`.toLowerCase();

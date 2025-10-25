@@ -21,23 +21,23 @@ const SplashScreen = ({ onComplete }) => {
   useEffect(() => {
     const sequence = async () => {
       // Step 1: Show background
-      await new Promise(resolve => setTimeout(resolve, 500));
+      await new Promise(resolve => setTimeout(resolve, 200));
       
       // Step 2: Show logo
       setShowLogo(true);
-      await new Promise(resolve => setTimeout(resolve, 1200));
+      await new Promise(resolve => setTimeout(resolve, 600));
       
       // Step 3: Show text
       setShowText(true);
-      await new Promise(resolve => setTimeout(resolve, 800));
+      await new Promise(resolve => setTimeout(resolve, 400));
       
       // Step 4: Show features
       setShowFeatures(true);
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      await new Promise(resolve => setTimeout(resolve, 1000));
       
       // Step 5: Complete
       setIsComplete(true);
-      await new Promise(resolve => setTimeout(resolve, 800));
+      await new Promise(resolve => setTimeout(resolve, 300));
       
       // Callback to parent
       if (onComplete) {

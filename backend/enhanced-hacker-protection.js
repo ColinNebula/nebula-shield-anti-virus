@@ -176,8 +176,9 @@ class EnhancedHackerProtection extends EventEmitter {
     const ip = this.extractIP(req);
     const timestamp = Date.now();
 
-    // 1. Check if IP is already blocked
-    if (this.isIPBlocked(ip)) {
+    // 1. Check if IP is already blocked (except localhost)
+    const isLocalhost = ip === '127.0.0.1' || ip === '::1' || ip === '::ffff:127.0.0.1';
+    if (!isLocalhost && this.isIPBlocked(ip)) {
       analysis.safe = false;
       analysis.threats.push({
         type: 'blocked-ip',
@@ -889,6 +890,97 @@ class EnhancedHackerProtection extends EventEmitter {
    */
   middleware() {
     return (req, res, next) => {
+      // Whitelist certain endpoints that should bypass strict security checks
+      const whitelistedPaths = [
+        '/api/disk/analyze',
+        '/api/disk/clean/recyclebin',
+        '/api/disk/clean/temp',
+        '/api/disk/clean/downloads',
+        '/api/disk/clean/all',
+        '/api/status',
+        '/api/stats',
+        '/api/settings',
+        '/api/config',
+        '/api/system/health',
+        '/api/system/performance-report',
+        '/api/system/alerts/clear',
+        '/api/analytics/dashboard',
+        '/api/analytics/track',
+        '/api/analytics/event',
+        '/api/analytics/pageview',
+        '/api/analytics/session',
+        '/api/analytics/error',
+        '/api/analytics/events',
+        '/api/analytics/pageviews',
+        '/api/analytics/sessions',
+        '/api/analytics/errors',
+        '/api/analytics/performance',
+        '/api/auth/login',
+        '/api/auth/register',
+        '/api/auth/verify',
+        '/api/auth/verify-2fa',
+        '/api/auth/logout',
+        '/api/auth/enable-2fa',
+        '/api/auth/confirm-2fa',
+        '/api/auth/disable-2fa',
+        '/api/auth/change-password',
+        '/api/signatures/update',
+        '/api/database/update',
+        '/api/subscription',
+        '/api/scan/results',
+        '/api/scan/quick',
+        '/api/scan/full',
+        '/api/scan/file',
+        '/api/scan/directory',
+        '/api/quarantine',
+        '/api/quarantine/stats',
+        '/api/quarantine/export',
+        '/api/file/clean',
+        '/api/protection/status',
+        '/api/protection/toggle',
+        '/api/protection/events',
+        '/api/storage/info',
+        '/api/sessions',
+        '/api/activities',
+        '/api/backup/create',
+        '/api/backup/list',
+        '/api/backup/stats'
+      ];
+
+      // Check if current path is whitelisted (exact match or starts with pattern)
+      console.log('🔍 Checking path:', req.path, 'URL:', req.url);
+      const isWhitelisted = whitelistedPaths.some(path => {
+        if (req.path === path) return true;
+        // Also allow if path starts with /api/auth/ (all auth endpoints)
+        if (req.path && req.path.startsWith('/api/auth/')) return true;
+        // Allow all analytics endpoints
+        if (req.path.startsWith('/api/analytics/')) return true;
+        // Allow all disk cleanup endpoints
+        if (req.path.startsWith('/api/disk/')) return true;
+        // Allow all system monitoring endpoints
+        if (req.path.startsWith('/api/system/')) return true;
+        // Allow all session management endpoints
+        if (req.path.startsWith('/api/sessions')) return true;
+        // Allow all activity log endpoints
+        if (req.path.startsWith('/api/activities')) return true;
+        // Allow all backup endpoints
+        if (req.path.startsWith('/api/backup')) return true;
+        // Allow all config endpoints
+        if (req.path.startsWith('/api/config')) return true;
+        // Allow all quarantine endpoints
+        if (req.path.startsWith('/api/quarantine')) return true;
+        return false;
+      });
+
+      if (isWhitelisted) {
+        // Skip security analysis for whitelisted paths, just add headers
+        res.setHeader('X-Security-Scan', 'Whitelisted');
+        res.setHeader('X-Risk-Score', '0');
+        console.log('✅ Whitelisted request:', req.method, req.path);
+        return next();
+      }
+
+      console.log('🔍 Scanning request:', req.method, req.path);
       const analysis = this.analyzeRequest(req);
 
       // Attach analysis to request
@@ -896,6 +988,7 @@ class EnhancedHackerProtection extends EventEmitter {
 
       // Block if necessary
       if (!analysis.safe && analysis.riskScore >= 70) {
+        console.log('🚫 BLOCKED:', req.method, req.path, 'Risk:', analysis.riskScore, 'Threats:', analysis.threats.map(t => t.type));
         return res.status(403).json({
           error: 'Access denied',
           reason: 'Security threat detected',

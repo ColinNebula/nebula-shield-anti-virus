@@ -22,18 +22,101 @@ class AuthService {
    * Initialize demo user for testing
    */
   initializeDemoUser() {
-    const hashedPassword = this.hashPassword('demo123');
-    this.users.set('demo@nebulashield.com', {
+    // Primary Admin user (Gmail)
+    const adminPassword = this.hashPassword('Nebula2025!');
+    console.log('🔑 Admin password hash:', adminPassword);
+    console.log('🔑 Setting admin password to: Nebula2025!');
+    this.users.set('colinnebula@gmail.com', {
       id: 1,
-      email: 'demo@nebulashield.com',
-      username: 'demo',
-      password: hashedPassword,
+      email: 'colinnebula@gmail.com',
+      username: 'colinnebula',
+      fullName: 'Colin Nebula',
+      password: adminPassword,
+      role: 'admin',
+      tier: 'premium',
       twoFactorEnabled: false,
       twoFactorSecret: null,
       createdAt: new Date(),
       lastLogin: null,
       failedAttempts: 0,
-      lockedUntil: null
+      lockedUntil: null,
+      verified: true
+    });
+
+    // Secondary Admin user (Nebula3ddev)
+    this.users.set('colinnebula@nebula3ddev.com', {
+      id: 2,
+      email: 'colinnebula@nebula3ddev.com',
+      username: 'colinnebula_dev',
+      fullName: 'Colin Nebula Dev',
+      password: adminPassword,
+      role: 'admin',
+      tier: 'premium',
+      twoFactorEnabled: false,
+      twoFactorSecret: null,
+      createdAt: new Date(),
+      lastLogin: null,
+      failedAttempts: 0,
+      lockedUntil: null,
+      verified: true
+    });
+
+    // Test premium user
+    const testPassword = this.hashPassword('Test123!');
+    this.users.set('test@example.com', {
+      id: 3,
+      email: 'test@example.com',
+      username: 'testuser',
+      fullName: 'Test User',
+      password: testPassword,
+      role: 'user',
+      tier: 'premium',
+      twoFactorEnabled: false,
+      twoFactorSecret: null,
+      createdAt: new Date(),
+      lastLogin: null,
+      failedAttempts: 0,
+      lockedUntil: null,
+      verified: true
+    });
+
+    // Demo user (original)
+    const demoPassword = this.hashPassword('demo123');
+    this.users.set('demo@nebulashield.com', {
+      id: 4,
+      email: 'demo@nebulashield.com',
+      username: 'demo',
+      fullName: 'Demo User',
+      password: demoPassword,
+      role: 'user',
+      tier: 'free',
+      twoFactorEnabled: false,
+      twoFactorSecret: null,
+      createdAt: new Date(),
+      lastLogin: null,
+      failedAttempts: 0,
+      lockedUntil: null,
+      verified: true
+    });
+
+    // Easy login account for testing
+    const easyPassword = this.hashPassword('admin');
+    console.log('🔑 Easy test account created: admin@test.com / admin');
+    this.users.set('admin@test.com', {
+      id: 5,
+      email: 'admin@test.com',
+      username: 'admin',
+      fullName: 'Test Admin',
+      password: easyPassword,
+      role: 'admin',
+      tier: 'premium',
+      twoFactorEnabled: false,
+      twoFactorSecret: null,
+      createdAt: new Date(),
+      lastLogin: null,
+      failedAttempts: 0,
+      lockedUntil: null,
+      verified: true
     });
   }
 
@@ -76,6 +159,7 @@ class AuthService {
 
     // Verify password
     const hashedPassword = this.hashPassword(password);
+    console.log('🔐 Login attempt:', { email, providedHash: hashedPassword.substring(0, 20) + '...', storedHash: user.password.substring(0, 20) + '...', match: hashedPassword === user.password });
     if (hashedPassword !== user.password) {
       user.failedAttempts++;
       
@@ -159,6 +243,10 @@ class AuthService {
       userId: user.id,
       email: user.email,
       username: user.username,
+      fullName: user.fullName || user.username,
+      role: user.role || 'user',
+      tier: user.tier || 'free',
+      verified: user.verified !== undefined ? user.verified : true,
       createdAt: Date.now(),
       expiresAt: Date.now() + this.sessionTimeout,
       ipAddress: null, // Set by API
@@ -181,7 +269,11 @@ class AuthService {
         id: user.id,
         email: user.email,
         username: user.username,
-        twoFactorEnabled: user.twoFactorEnabled
+        fullName: user.fullName || user.username,
+        role: user.role || 'user',
+        tier: user.tier || 'free',
+        twoFactorEnabled: user.twoFactorEnabled,
+        verified: user.verified !== undefined ? user.verified : true
       }
     };
   }
@@ -236,6 +328,30 @@ class AuthService {
       success: false,
       error: 'Session not found'
     };
+  }
+
+  /**
+   * Verify token and return session data
+   * Used for token-based authentication verification
+   */
+  verifyToken(token) {
+    const session = this.sessions.get(token);
+    
+    if (!session) {
+      return null;
+    }
+
+    // Check if session expired
+    if (session.expiresAt < Date.now()) {
+      this.sessions.delete(token);
+      return null;
+    }
+
+    // Update last activity and extend session
+    session.lastActivity = Date.now();
+    session.expiresAt = Date.now() + this.sessionTimeout;
+
+    return session;
   }
 
   /**
@@ -520,6 +636,57 @@ class AuthService {
       createdAt: user.createdAt,
       lastLogin: user.lastLogin
     };
+  }
+
+  /**
+   * Reset all users' 2FA (Admin only)
+   */
+  resetAll2FA() {
+    let count = 0;
+    for (const [email, user] of this.users.entries()) {
+      if (user.twoFactorEnabled) {
+        user.twoFactorEnabled = false;
+        user.twoFactorSecret = null;
+        user.twoFactorSecretTemp = null;
+        count++;
+      }
+    }
+    console.log(`🔓 Reset 2FA for ${count} user(s)`);
+    return {
+      success: true,
+      message: `Reset 2FA for ${count} user(s)`,
+      count: count
+    };
+  }
+
+  /**
+   * Reset specific user's 2FA (Admin only)
+   */
+  reset2FAForUser(email) {
+    const user = this.users.get(email);
+    
+    if (!user) {
+      return {
+        success: false,
+        error: 'User not found'
+      };
+    }
+
+    if (user.twoFactorEnabled) {
+      user.twoFactorEnabled = false;
+      user.twoFactorSecret = null;
+      user.twoFactorSecretTemp = null;
+      console.log(`🔓 Reset 2FA for user: ${email}`);
+      return {
+        success: true,
+        message: `2FA reset for ${email}`
+      };
+    } else {
+      return {
+        success: true,
+        message: `User ${email} did not have 2FA enabled`
+      };
+    }
   }
 }
 

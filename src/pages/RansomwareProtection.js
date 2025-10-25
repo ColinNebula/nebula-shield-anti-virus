@@ -68,6 +68,9 @@ function RansomwareProtection() {
   const [addFolderDialog, setAddFolderDialog] = useState(false);
   const [backupDialog, setBackupDialog] = useState(false);
   const [restoreDialog, setRestoreDialog] = useState(false);
+  const [threatActionDialog, setThreatActionDialog] = useState(false);
+  const [selectedThreat, setSelectedThreat] = useState(null);
+  const [availableActions, setAvailableActions] = useState([]);
   const [newFolderPath, setNewFolderPath] = useState('');
   const [selectedBackup, setSelectedBackup] = useState(null);
 
@@ -138,6 +141,38 @@ function RansomwareProtection() {
       ransomwareService.restoreFromBackup(selectedBackup.id, selectedBackup.folders[0]);
       setRestoreDialog(false);
       setSelectedBackup(null);
+      loadData();
+    }
+  };
+
+  const handleThreatClick = (threat) => {
+    setSelectedThreat(threat);
+    const actions = ransomwareService.getAvailableActions(threat);
+    setAvailableActions(actions);
+    setThreatActionDialog(true);
+  };
+
+  const handleThreatAction = (action) => {
+    if (selectedThreat) {
+      const result = ransomwareService.handleThreat(selectedThreat, action);
+      
+      if (result.success) {
+        alert(`✅ ${result.message}\n\n${result.recommendation || ''}`);
+      } else {
+        alert(`❌ ${result.error || 'Action failed'}\n\n${result.recommendation || ''}`);
+      }
+      
+      setThreatActionDialog(false);
+      setSelectedThreat(null);
+      loadData();
+    }
+  };
+
+  const handleQuarantineAll = () => {
+    if (scanResults && scanResults.threats.length > 0) {
+      const result = ransomwareService.handleMultipleThreats(scanResults.threats, 'quarantine');
+      alert(`Quarantined ${result.successful} of ${result.total} threats`);
+      setScanResults(null);
       loadData();
     }
   };
@@ -293,11 +328,67 @@ function RansomwareProtection() {
         <Alert 
           severity={scanResults.threats.length > 0 ? 'error' : 'success'}
           sx={{ mb: 3 }}
-          onClose={() => setScanResults(null)}
+          action={
+            scanResults.threats.length > 0 && (
+              <Box sx={{ display: 'flex', gap: 1 }}>
+                <Button 
+                  size="small" 
+                  variant="contained" 
+                  color="error"
+                  onClick={handleQuarantineAll}
+                >
+                  Quarantine All
+                </Button>
+                <Button size="small" onClick={() => setScanResults(null)}>
+                  Dismiss
+                </Button>
+              </Box>
+            )
+          }
         >
           <AlertTitle>Scan Complete</AlertTitle>
           Scanned {scanResults.scanned.toLocaleString()} files in {scanResults.duration.toFixed(1)}s - 
           Found {scanResults.threats.length} threat{scanResults.threats.length !== 1 ? 's' : ''}
+          
+          {scanResults.threats.length > 0 && (
+            <Box sx={{ mt: 2 }}>
+              <Typography variant="subtitle2" gutterBottom>
+                Detected Threats:
+              </Typography>
+              <List dense>
+                {scanResults.threats.slice(0, 5).map((threat, index) => (
+                  <ListItem 
+                    key={index}
+                    sx={{ 
+                      bgcolor: 'rgba(255,255,255,0.05)', 
+                      borderRadius: 1, 
+                      mb: 0.5,
+                      cursor: 'pointer',
+                      '&:hover': { bgcolor: 'rgba(255,255,255,0.1)' }
+                    }}
+                    onClick={() => handleThreatClick(threat)}
+                  >
+                    <ListItemText
+                      primary={
+                        <Typography variant="body2" sx={{ fontFamily: 'monospace', fontSize: '0.85rem' }}>
+                          {threat.file}
+                        </Typography>
+                      }
+                      secondary={`Type: ${threat.type} | Severity: ${threat.severity}`}
+                    />
+                    <Button size="small" variant="outlined">
+                      Take Action
+                    </Button>
+                  </ListItem>
+                ))}
+              </List>
+              {scanResults.threats.length > 5 && (
+                <Typography variant="caption" color="text.secondary">
+                  ... and {scanResults.threats.length - 5} more
+                </Typography>
+              )}
+            </Box>
+          )}
         </Alert>
       )}
 
@@ -644,6 +735,70 @@ function RansomwareProtection() {
           >
             Restore
           </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Threat Action Dialog */}
+      <Dialog 
+        open={threatActionDialog} 
+        onClose={() => setThreatActionDialog(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <AlertTriangle size={24} color="#ff9800" />
+            Handle Ransomware Threat
+          </Box>
+        </DialogTitle>
+        <DialogContent>
+          {selectedThreat && (
+            <>
+              <Alert severity="error" sx={{ mb: 2 }}>
+                <AlertTitle>Threat Detected</AlertTitle>
+                <Typography variant="body2" sx={{ fontFamily: 'monospace', wordBreak: 'break-all' }}>
+                  {selectedThreat.file || selectedThreat.process}
+                </Typography>
+                <Typography variant="caption" display="block" sx={{ mt: 1 }}>
+                  Type: {selectedThreat.type} | Severity: {selectedThreat.severity}
+                </Typography>
+              </Alert>
+
+              <Typography variant="subtitle2" sx={{ mb: 2 }}>
+                Choose an action:
+              </Typography>
+
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                {availableActions.map((action) => (
+                  <Button
+                    key={action.id}
+                    variant={action.recommended ? "contained" : "outlined"}
+                    color={action.severity === 'high' ? 'error' : action.severity === 'medium' ? 'warning' : 'primary'}
+                    fullWidth
+                    onClick={() => handleThreatAction(action.id)}
+                    sx={{ justifyContent: 'flex-start', textAlign: 'left', py: 1.5 }}
+                  >
+                    <Box sx={{ width: '100%' }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+                        <Typography variant="button">
+                          {action.label}
+                        </Typography>
+                        {action.recommended && (
+                          <Chip label="Recommended" size="small" color="success" />
+                        )}
+                      </Box>
+                      <Typography variant="caption" sx={{ opacity: 0.8 }}>
+                        {action.description}
+                      </Typography>
+                    </Box>
+                  </Button>
+                ))}
+              </Box>
+            </>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setThreatActionDialog(false)}>Cancel</Button>
         </DialogActions>
       </Dialog>
     </Box>

@@ -19,7 +19,10 @@ import {
 import toast from 'react-hot-toast';
 import './DiskCleanup.css';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8080';
+// In development with React dev server, use proxy (relative URLs)
+// In Electron or production, use direct backend URLs
+const isElectron = typeof window !== 'undefined' && window.electronAPI?.isElectron;
+const API_BASE_URL = isElectron ? 'http://localhost:8080' : '';
 
 const DiskCleanup = () => {
   const [loading, setLoading] = useState(false);
@@ -63,27 +66,39 @@ const DiskCleanup = () => {
         body
       });
       
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      
       const data = await response.json();
       
       if (data.success) {
         setCleaningStatus(prev => ({ ...prev, [category]: 'success' }));
         setTotalCleaned(prev => prev + (data.cleaned || 0));
         
-        toast.success(
-          `✅ ${data.location} cleaned!\nFreed: ${formatBytes(data.cleaned || 0)}\nFiles: ${data.filesDeleted || 0}`,
-          { duration: 5000 }
-        );
+        if (data.cleaned === 0) {
+          toast.success(
+            `✅ ${data.location} is already clean!`,
+            { duration: 3000 }
+          );
+        } else {
+          toast.success(
+            `✅ ${data.location} cleaned!\nFreed: ${formatBytes(data.cleaned || 0)}\nFiles: ${data.filesDeleted || 0}`,
+            { duration: 5000 }
+          );
+        }
         
         // Re-analyze after cleaning
         setTimeout(analyzeDisks, 1000);
       } else {
         setCleaningStatus(prev => ({ ...prev, [category]: 'error' }));
-        toast.error(`Failed to clean ${data.location || category}`);
+        const errorMsg = data.error || 'Unknown error';
+        toast.error(`Failed to clean ${data.location || category}: ${errorMsg}`, { duration: 5000 });
       }
     } catch (error) {
       setCleaningStatus(prev => ({ ...prev, [category]: 'error' }));
-      toast.error(`Error cleaning ${category}`);
-      console.error(error);
+      toast.error(`Error cleaning ${category}: ${error.message}`, { duration: 5000 });
+      console.error('Cleanup error:', error);
     }
   };
 
@@ -96,14 +111,26 @@ const DiskCleanup = () => {
         method: 'POST'
       });
       
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      
       const data = await response.json();
       
       if (data.success) {
         setTotalCleaned(data.totalCleaned);
-        toast.success(
-          `🎉 ${data.message}\n${formatBytes(data.totalCleaned)} freed!`,
-          { id: 'cleanup', duration: 6000 }
-        );
+        
+        if (data.totalCleaned === 0) {
+          toast.success(
+            '✅ All clean! No files to remove.',
+            { id: 'cleanup', duration: 4000 }
+          );
+        } else {
+          toast.success(
+            `🎉 ${data.message}`,
+            { id: 'cleanup', duration: 6000 }
+          );
+        }
         
         // Mark all as success
         setCleaningStatus({
@@ -114,11 +141,12 @@ const DiskCleanup = () => {
         
         setTimeout(analyzeDisks, 1000);
       } else {
-        toast.error('Cleanup failed', { id: 'cleanup' });
+        const errorMsg = data.error || data.message || 'Unknown error';
+        toast.error(`Cleanup failed: ${errorMsg}`, { id: 'cleanup', duration: 5000 });
       }
     } catch (error) {
-      toast.error('Failed to perform cleanup', { id: 'cleanup' });
-      console.error(error);
+      toast.error(`Failed to perform cleanup: ${error.message}`, { id: 'cleanup', duration: 5000 });
+      console.error('Full cleanup error:', error);
     } finally {
       setLoading(false);
     }

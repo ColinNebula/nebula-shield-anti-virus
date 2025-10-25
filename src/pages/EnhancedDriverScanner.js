@@ -86,50 +86,82 @@ const EnhancedDriverScanner = () => {
   };
 
   const handleDownloadDriver = async (driver) => {
-    setDownloadProgress(prev => ({ ...prev, [driver.id]: 0 }));
-    
     try {
-      // Simulate download with progress
-      for (let i = 0; i <= 100; i += 10) {
-        await new Promise(resolve => setTimeout(resolve, 200));
-        setDownloadProgress(prev => ({ ...prev, [driver.id]: i }));
+      // Open manufacturer's download page directly
+      if (driver.downloadUrl) {
+        // Check if running in Electron
+        if (window.electron && window.electron.shell && window.electron.shell.openExternal) {
+          await window.electron.shell.openExternal(driver.downloadUrl);
+        } else if (window.electron && window.electron.openExternal) {
+          await window.electron.openExternal(driver.downloadUrl);
+        } else if (typeof require !== 'undefined') {
+          // Direct Electron access (nodeIntegration mode)
+          const { shell } = require('electron');
+          await shell.openExternal(driver.downloadUrl);
+        } else {
+          // Fallback for browser environment
+          window.open(driver.downloadUrl, '_blank', 'noopener,noreferrer');
+        }
+        
+        showNotification(
+          `Opening ${driver.manufacturer} download page. Please download and install the driver from the official website.`,
+          'info'
+        );
+        
+        // Show installation instructions
+        setInstallDialog({
+          driver,
+          downloadedSize: driver.updateSize || 'Unknown',
+          version: driver.latestVersion || 'Unknown',
+          isManualDownload: true
+        });
+      } else {
+        showNotification('Download URL not available for this driver', 'error');
       }
-      
-      setDownloadedDrivers(prev => ({ ...prev, [driver.id]: true }));
-      setDownloadProgress(prev => ({ ...prev, [driver.id]: undefined }));
-      
-      // Show install dialog
-      setInstallDialog({
-        driver,
-        downloadedSize: driver.updateSize || '0 MB',
-        version: driver.latestVersion || 'Unknown'
-      });
-      
-      showNotification(`${driver.name} downloaded successfully`, 'success');
     } catch (error) {
-      setDownloadProgress(prev => ({ ...prev, [driver.id]: undefined }));
-      showNotification('Download failed: ' + error.message, 'error');
+      showNotification('Failed to open download page: ' + error.message, 'error');
     }
   };
 
   const handleInstallDriver = async (driver) => {
     setInstallDialog(null);
-    setUpdating(prev => ({ ...prev, [driver.id]: true }));
     
     try {
-      const result = await updateDriver(driver.id, schedule?.createBackup !== false);
-      
-      if (result.backup) {
-        setBackups(backupManager.backups);
+      // Open manufacturer's download page
+      if (driver.downloadUrl) {
+        if (window.electron && window.electron.shell && window.electron.shell.openExternal) {
+          await window.electron.shell.openExternal(driver.downloadUrl);
+        } else if (window.electron && window.electron.openExternal) {
+          await window.electron.openExternal(driver.downloadUrl);
+        } else if (typeof require !== 'undefined') {
+          // Direct Electron access (nodeIntegration mode)
+          const { shell } = require('electron');
+          await shell.openExternal(driver.downloadUrl);
+        } else {
+          window.open(driver.downloadUrl, '_blank', 'noopener,noreferrer');
+        }
+        
+        // Create backup if enabled
+        if (schedule?.createBackup !== false) {
+          const backup = backupManager.createBackup(driver);
+          if (backup) {
+            setBackups(backupManager.backups);
+            showNotification(
+              `Backup created. Opening ${driver.manufacturer} download page. Please download and install the driver, then restart your computer.`,
+              'info'
+            );
+          }
+        } else {
+          showNotification(
+            `Opening ${driver.manufacturer} download page. Please download and install the driver, then restart your computer.`,
+            'info'
+          );
+        }
+      } else {
+        showNotification('Download URL not available for this driver', 'error');
       }
-      
-      setDownloadedDrivers(prev => ({ ...prev, [driver.id]: false }));
-      showNotification(result.message, 'success');
-      performScan(); // Refresh scan
     } catch (error) {
-      showNotification('Installation failed: ' + error.message, 'error');
-    } finally {
-      setUpdating(prev => ({ ...prev, [driver.id]: false }));
+      showNotification('Failed to open download page: ' + error.message, 'error');
     }
   };
 
@@ -323,13 +355,16 @@ const EnhancedDriverScanner = () => {
                 <div className="install-warning">
                   <AlertTriangle size={20} />
                   <div>
-                    <p><strong>Important:</strong></p>
+                    <p><strong>Manual Installation Required:</strong></p>
                     <ul>
-                      <li>Close all running applications before installation</li>
-                      <li>A system restart will be required after installation</li>
+                      <li>You will be redirected to the manufacturer's official download page</li>
+                      <li>Download the driver installer from the official website</li>
+                      <li>Run the installer with administrator privileges</li>
+                      <li>Follow the manufacturer's installation instructions</li>
                       {schedule?.createBackup !== false && (
-                        <li>A backup of your current driver will be created automatically</li>
+                        <li>A backup reference will be created before opening the download page</li>
                       )}
+                      <li>Restart your computer after installation completes</li>
                     </ul>
                   </div>
                 </div>
@@ -346,8 +381,8 @@ const EnhancedDriverScanner = () => {
                   className="dialog-button dialog-install"
                   onClick={() => handleInstallDriver(installDialog.driver)}
                 >
-                  <Play size={16} />
-                  Install Now
+                  <Download size={16} />
+                  Open Download Page
                 </button>
               </div>
             </motion.div>
@@ -542,42 +577,14 @@ const EnhancedDriverScanner = () => {
                               </div>
 
                               <div className="driver-actions">
-                                {driver.status === 'update-available' && (
-                                  downloadProgress[driver.id] !== undefined ? (
-                                    <div className="download-progress-container">
-                                      <div className="progress-bar">
-                                        <div 
-                                          className="progress-fill"
-                                          style={{ width: `${downloadProgress[driver.id]}%` }}
-                                        />
-                                      </div>
-                                      <span className="progress-text">
-                                        Downloading... {downloadProgress[driver.id]}%
-                                      </span>
-                                    </div>
-                                  ) : downloadedDrivers[driver.id] ? (
-                                    <button
-                                      className="action-button action-install"
-                                      onClick={() => setInstallDialog({ 
-                                        driver,
-                                        downloadedSize: driver.updateSize || '0 MB',
-                                        version: driver.latestVersion || 'Unknown'
-                                      })}
-                                      disabled={updating[driver.id]}
-                                    >
-                                      <Play size={16} />
-                                      <span>{updating[driver.id] ? 'Installing...' : 'Install Now'}</span>
-                                    </button>
-                                  ) : (
-                                    <button
-                                      className="action-button action-update"
-                                      onClick={() => handleUpdate(driver)}
-                                      disabled={updating[driver.id]}
-                                    >
-                                      <Download size={16} />
-                                      <span>Download Update</span>
-                                    </button>
-                                  )
+                                {driver.status === 'update-available' && driver.downloadUrl && (
+                                  <button
+                                    className="action-button action-update"
+                                    onClick={() => handleDownloadDriver(driver)}
+                                  >
+                                    <Download size={16} />
+                                    <span>Get Update from {driver.manufacturer}</span>
+                                  </button>
                                 )}
                                 
                                 <button
@@ -589,16 +596,11 @@ const EnhancedDriverScanner = () => {
                                   <span>Run Diagnostics</span>
                                 </button>
 
-                                {driver.downloadUrl && (
-                                  <a
-                                    href={driver.downloadUrl}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="action-button action-secondary"
-                                  >
-                                    <Download size={16} />
-                                    <span>Download Manually</span>
-                                  </a>
+                                {driver.vulnerability && (
+                                  <div className="vulnerability-warning">
+                                    <AlertTriangle size={14} />
+                                    <span>Security update available</span>
+                                  </div>
                                 )}
                               </div>
                             </motion.div>

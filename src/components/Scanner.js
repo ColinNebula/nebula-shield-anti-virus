@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useMemo, useCallback, memo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   FolderOpen,
@@ -20,12 +20,10 @@ import {
 import AntivirusAPI from '../services/antivirusApi';
 import { useAuth } from '../contexts/AuthContext';
 import notificationService from '../services/notificationService';
-import virusTotalService from '../services/virusTotalService';
-import pdfReportService from '../services/pdfReportService';
 import toast from 'react-hot-toast';
 import './Scanner.css';
 
-const Scanner = () => {
+const Scanner = memo(() => {
   const { checkFeatureAccess, isPremium } = useAuth();
   const [scanType, setScanType] = useState('file'); // 'file' or 'directory'
   const [scanPath, setScanPath] = useState('');
@@ -43,8 +41,47 @@ const Scanner = () => {
   const [vtReports, setVtReports] = useState(new Map());
   const [loadingVT, setLoadingVT] = useState(new Set());
   const fileInputRef = useRef(null);
+  const scanWorkerRef = useRef(null);
 
-  const handleScanStart = async () => {
+  // OPTIMIZATION: Load cached scan history from IndexedDB
+  useEffect(() => {
+    const loadCachedHistory = async () => {
+      try {
+        const { default: scanCache } = await import('../services/scanCache');
+        const cached = await scanCache.getRecentScans(20);
+        if (cached && cached.length > 0) {
+          setScanHistory(cached);
+        }
+      } catch (error) {
+        console.warn('Cache not available:', error);
+      }
+    };
+    loadCachedHistory();
+  }, []);
+
+  // OPTIMIZATION: Memoize filtered and computed values
+  const threatResults = useMemo(() => {
+    return scanResults.filter(result => result.threat_type !== 'CLEAN');
+  }, [scanResults]);
+
+  const threatSummary = useMemo(() => {
+    const summary = {
+      critical: 0,
+      high: 0,
+      medium: 0,
+      low: 0
+    };
+    threatResults.forEach(result => {
+      const severity = result.severity?.toLowerCase() || 'low';
+      if (severity in summary) {
+        summary[severity]++;
+      }
+    });
+    return summary;
+  }, [threatResults]);
+
+  // OPTIMIZATION: Memoize handleScanStart callback
+  const handleScanStart = useCallback(async () => {
     if (!scanPath.trim()) {
       toast.error('Please enter a path to scan');
       return;
@@ -125,6 +162,21 @@ const Scanner = () => {
       
       setScanHistory(prev => [historyEntry, ...prev.slice(0, 9)]); // Keep last 10 scans
 
+      // OPTIMIZATION: Cache scan result to IndexedDB for offline access
+      try {
+        const { default: scanCache } = await import('../services/scanCache');
+        await scanCache.cacheScanResult({
+          path: scanPath,
+          type: scanType,
+          results: scanResults,
+          stats: scanStats,
+          duration: scanDuration,
+          timestamp: Date.now()
+        });
+      } catch (error) {
+        console.warn('Failed to cache scan result:', error);
+      }
+
       // Show notifications
       if (scanStats.threatsFound > 0) {
         toast.error(`Scan complete: ${scanStats.threatsFound} threats found!`);
@@ -154,20 +206,27 @@ const Scanner = () => {
       setIsScanning(false);
       setCurrentFile('');
     }
-  };
+  }, [scanPath, scanType, checkFeatureAccess, scanResults, scanStats]);
 
-  const handleScanStop = () => {
+  // OPTIMIZATION: Memoize handleScanStop callback
+  const handleScanStop = useCallback(() => {
+    if (scanWorkerRef.current) {
+      scanWorkerRef.current.postMessage({ type: 'CANCEL_SCAN' });
+    }
     setIsScanning(false);
     setScanProgress(0);
     setCurrentFile('');
     toast('Scan stopped', { icon: 'ℹ️' });
-  };
+  }, []);
 
-  const handleCheckVirusTotal = async (filePath) => {
+  // OPTIMIZATION: Memoize VirusTotal check with lazy loading
+  const handleCheckVirusTotal = useCallback(async (filePath) => {
     setLoadingVT(prev => new Set(prev).add(filePath));
     const loadingToast = toast.loading('🔍 Checking VirusTotal...');
     
     try {
+      // Lazy load VirusTotal service
+      const { default: virusTotalService } = await import('../services/virusTotalService');
       const report = await virusTotalService.checkFile(filePath);
       
       toast.dismiss(loadingToast);
@@ -207,9 +266,10 @@ const Scanner = () => {
         return newSet;
       });
     }
-  };
+  }, []);
 
-  const handleCleanFile = async (filePath) => {
+  // OPTIMIZATION: Memoize handleCleanFile callback
+  const handleCleanFile = useCallback(async (filePath) => {
     const loadingToast = toast.loading('🧹 Analyzing and cleaning file...');
     
     try {
@@ -262,23 +322,25 @@ const Scanner = () => {
       
       console.error('Clean file error:', error);
     }
-  };
+  }, []);
 
-  const handleFileSelect = () => {
+  // OPTIMIZATION: Memoize file selection callbacks
+  const handleFileSelect = useCallback(() => {
     if (fileInputRef.current) {
       fileInputRef.current.click();
     }
-  };
+  }, []);
 
-  const handleFileChange = (event) => {
+  const handleFileChange = useCallback((event) => {
     const file = event.target.files[0];
     if (file) {
       setScanPath(file.name);
       setScanType('file');
     }
-  };
+  }, []);
 
-  const handleExportPDF = async () => {
+  // OPTIMIZATION: Memoize PDF export with lazy loading
+  const handleExportPDF = useCallback(async () => {
     if (scanResults.length === 0) {
       toast.error('No scan results to export');
       return;
@@ -297,6 +359,8 @@ const Scanner = () => {
     const loadingToast = toast.loading('📄 Generating PDF report...');
 
     try {
+      // Lazy load PDF service
+      const { default: pdfReportService } = await import('../services/pdfReportService');
       const scanData = {
         scanDate: Date.now(),
         scanType: scanType === 'file' ? 'File Scan' : 'Directory Scan',
@@ -326,12 +390,13 @@ const Scanner = () => {
       toast.error('Failed to generate PDF: ' + error.message);
       console.error('PDF generation error:', error);
     }
-  };
+  }, [scanResults, checkFeatureAccess, scanType, scanStats, scanHistory]);
 
   // Detect platform using browser APIs
   const isWindows = navigator.platform.toLowerCase().includes('win');
   
-  const handleQuickSystemScan = async () => {
+  // OPTIMIZATION: Memoize quick scan callback
+  const handleQuickSystemScan = useCallback(async () => {
     setScanType('directory');
     setScanPath(isWindows ? 'C:\\' : '/');
     
@@ -344,7 +409,7 @@ const Scanner = () => {
     setTimeout(() => {
       handleScanStart();
     }, 500);
-  };
+  }, [isWindows, handleScanStart]);
 
   const handleFullSystemScan = async () => {
     // Check for premium feature access for full system scan
@@ -838,6 +903,8 @@ const Scanner = () => {
       </div>
     </motion.div>
   );
-};
+});
+
+Scanner.displayName = 'Scanner';
 
 export default Scanner;

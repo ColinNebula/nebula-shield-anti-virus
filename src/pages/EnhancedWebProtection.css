@@ -57,7 +57,7 @@
   font-size: 0.95rem;
 }
 
-.protection-status {
+.enhanced-protection-status {
   display: flex;
   align-items: center;
 }
@@ -819,6 +819,167 @@
   margin-bottom: 2rem;
 }
 
+/* Featured Protection Card (Sidebar Style) */
+@keyframes protectionPulse {
+  0%, 100% {
+    box-shadow: 
+      0 4px 12px rgba(79, 70, 229, 0.4),
+      0 0 20px rgba(79, 70, 229, 0.2);
+  }
+  50% {
+    box-shadow: 
+      0 4px 16px rgba(79, 70, 229, 0.6),
+      0 0 30px rgba(79, 70, 229, 0.4);
+  }
+}
+
+.enhanced-web-protection .setting-item.protection-featured {
+  background: linear-gradient(135deg, rgba(79, 70, 229, 0.08) 0%, rgba(124, 58, 237, 0.08) 100%);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(79, 70, 229, 0.25);
+  border-radius: 10px;
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 
+    0 4px 16px rgba(79, 70, 229, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  position: relative;
+  overflow: hidden;
+}
+
+.enhanced-web-protection .setting-item.protection-featured::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+  transition: left 0.5s ease;
+}
+
+.enhanced-web-protection .setting-item.protection-featured:hover::before {
+  left: 100%;
+}
+
+.enhanced-web-protection .setting-item.protection-featured:hover {
+  background: linear-gradient(135deg, rgba(79, 70, 229, 0.12) 0%, rgba(124, 58, 237, 0.12) 100%);
+  border-color: rgba(79, 70, 229, 0.4);
+  box-shadow: 
+    0 8px 24px rgba(79, 70, 229, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.15);
+  transform: translateY(-2px);
+}
+
+.enhanced-web-protection .setting-item.protection-featured .setting-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+}
+
+.enhanced-web-protection .setting-item.protection-featured .setting-icon {
+  width: 36px;
+  height: 36px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  box-shadow: 
+    0 4px 12px rgba(79, 70, 229, 0.4),
+    0 0 20px rgba(79, 70, 229, 0.2);
+  flex-shrink: 0;
+  animation: protectionPulse 3s ease-in-out infinite;
+}
+
+.enhanced-web-protection .setting-item.protection-featured .setting-icon svg {
+  width: 20px;
+  height: 20px;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+}
+
+.enhanced-web-protection .setting-item.protection-featured .setting-info > div {
+  min-width: 0;
+  flex: 1;
+}
+
+.enhanced-web-protection .setting-item.protection-featured .setting-info h4 {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+  line-height: 1.4;
+  letter-spacing: 0.3px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+.enhanced-web-protection .setting-item.protection-featured .setting-info p {
+  font-size: 11px;
+  font-weight: 600;
+  margin: 0;
+  line-height: 1.3;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  white-space: nowrap;
+  transition: all 0.3s ease;
+}
+
+.enhanced-web-protection .setting-item.protection-featured .setting-info p.active {
+  color: var(--accent-success);
+  text-shadow: 
+    0 0 10px rgba(16, 185, 129, 0.6),
+    0 0 20px rgba(16, 185, 129, 0.3);
+  animation: statusGlow 2s ease-in-out infinite;
+}
+
+.enhanced-web-protection .setting-item.protection-featured .setting-info p.inactive {
+  color: var(--accent-danger);
+  text-shadow: 
+    0 0 10px rgba(239, 68, 68, 0.6),
+    0 0 20px rgba(239, 68, 68, 0.3);
+}
+
+@keyframes statusGlow {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.8;
+  }
+}
+
+.enhanced-web-protection .setting-item.protection-featured .toggle-switch {
+  width: 48px;
+  height: 26px;
+  flex-shrink: 0;
+}
+
+.enhanced-web-protection .setting-item.protection-featured .toggle-slider {
+  border-radius: 13px;
+}
+
+.enhanced-web-protection .setting-item.protection-featured .toggle-slider:before {
+  width: 20px;
+  height: 20px;
+  left: 3px;
+  bottom: 3px;
+}
+
+.enhanced-web-protection .setting-item.protection-featured input:checked + .toggle-slider:before {
+  transform: translateX(22px);
+}
+
+/* Regular Setting Items */
 .setting-item {
   display: flex;
   justify-content: space-between;

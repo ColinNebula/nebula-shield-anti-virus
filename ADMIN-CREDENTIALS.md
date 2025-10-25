@@ -2,11 +2,19 @@
 
 ## Your Account is Ready!
 
-### Login Details
+### Primary Admin Account (Full Privileges)
+- **Email:** `colinnebula@gmail.com`
+- **Password:** `Nebula2025!`
+- **Status:** ✅ Active
+- **Tier:** Premium
+- **Role:** Admin
+
+### Secondary Admin Account
 - **Email:** `colinnebula@nebula3ddev.com`
 - **Password:** `Nebula2025!`
 - **Status:** ✅ Active
-- **Tier:** Free (upgradeable to Premium)
+- **Tier:** Premium
+- **Role:** Admin
 
 ### How to Login
 1. Open Nebula Shield Frontend: http://localhost:3000

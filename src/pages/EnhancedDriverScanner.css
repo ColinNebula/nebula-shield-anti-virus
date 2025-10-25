@@ -666,6 +666,19 @@
   cursor: not-allowed;
 }
 
+.vulnerability-warning {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 8px;
+  color: #ef4444;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
 /* ==================== DOWNLOAD PROGRESS ==================== */
 
 .download-progress-container {

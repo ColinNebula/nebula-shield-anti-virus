@@ -25,9 +25,11 @@ const Login = () => {
     e.preventDefault();
     setLoading(true);
 
-    // Check if email is verified
+    // Check if email is verified (only for newly registered users)
     const verificationStatus = await emailVerificationService.getVerificationStatus(formData.email);
     
+    // Only enforce verification if a verification record exists AND it's not verified
+    // This allows pre-existing users (like admin accounts) to log in without verification
     if (verificationStatus.exists && !verificationStatus.verified) {
       toast.error('Please verify your email before logging in. Check your inbox for the verification link.');
       setLoading(false);

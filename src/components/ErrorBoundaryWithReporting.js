@@ -7,6 +7,11 @@ import React, { Component } from 'react';
 import { AlertTriangle, RefreshCw, Home } from 'lucide-react';
 import './ErrorBoundaryWithReporting.css';
 
+// In development with React dev server, use proxy (relative URLs)
+// In Electron or production, use direct backend URLs
+const isElectron = typeof window !== 'undefined' && window.electronAPI?.isElectron;
+const API_BASE_URL = isElectron ? 'http://localhost:8080' : '';
+
 class ErrorBoundaryWithReporting extends Component {
   constructor(props) {
     super(props);
@@ -60,7 +65,7 @@ class ErrorBoundaryWithReporting extends Component {
       };
 
       // Send to backend
-      await fetch('http://localhost:8080/api/analytics/error', {
+      await fetch(`${API_BASE_URL}/api/analytics/error`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

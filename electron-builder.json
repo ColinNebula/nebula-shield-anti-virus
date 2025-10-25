@@ -10,14 +10,24 @@
     "build/**/*",
     "!build/**/*.map",
     "public/electron.js",
+    "public/preload.js",
     "public/favicon.ico",
+    "public/icon.png",
+    "node_modules/electron-is-dev/**/*",
     "package.json"
   ],
-  "asarUnpack": [],
+  "asarUnpack": [
+    "build/**/*"
+  ],
   "extraResources": [
     {
       "from": "backend",
       "to": "backend",
+      "filter": ["**/*", "!node_modules/**/*"]
+    },
+    {
+      "from": "backend/node_modules",
+      "to": "backend/node_modules",
       "filter": ["**/*"]
     },
     {
@@ -37,7 +47,7 @@
         "arch": ["x64"]
       }
     ],
-    "icon": "build-resources/icon.ico",
+    "icon": "build-resources/icon.png",
     "verifyUpdateCodeSignature": false,
     "signAndEditExecutable": false,
     "forceCodeSigning": false
@@ -48,9 +58,6 @@
     "createDesktopShortcut": true,
     "createStartMenuShortcut": true,
     "shortcutName": "Nebula Shield Anti-Virus",
-    "installerIcon": "build-resources/icon.ico",
-    "uninstallerIcon": "build-resources/icon.ico",
-    "installerHeaderIcon": "build-resources/icon.ico",
     "license": "LICENSE"
   },
   "mac": {

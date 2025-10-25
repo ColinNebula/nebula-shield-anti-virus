@@ -58,8 +58,8 @@ class NotificationService {
     }
 
     const defaultOptions = {
-      icon: '/logo192.svg',
-      badge: '/logo32.svg',
+      icon: '/logo192.png',
+      badge: '/favicon.png',
       vibrate: [200, 100, 200],
       requireInteraction: false,
       ...options
@@ -86,7 +86,7 @@ class NotificationService {
       body: `${threatName} found in ${filePath}`,
       tag: 'threat-detected',
       requireInteraction: true,
-      icon: '/logo192.svg',
+      icon: '/logo192.png',
       actions: [
         { action: 'quarantine', title: 'Quarantine' },
         { action: 'ignore', title: 'Ignore' }
@@ -102,7 +102,7 @@ class NotificationService {
     return this.show('✅ Scan Complete', {
       body,
       tag: 'scan-complete',
-      icon: threatsFound > 0 ? '/logo192.svg' : '/logo192.svg'
+      icon: threatsFound > 0 ? '/logo192.png' : '/logo192.png'
     });
   }
 

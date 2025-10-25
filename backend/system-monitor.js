@@ -100,8 +100,12 @@ class SystemMonitor {
   async getCPUTemperature() {
     try {
       if (process.platform === 'win32') {
-        // Windows - use WMIC
-        const output = execSync('wmic /namespace:\\\\root\\wmi PATH MSAcpi_ThermalZoneTemperature get CurrentTemperature', { encoding: 'utf8' });
+        // Windows - use WMIC (requires admin privileges)
+        // Suppress stderr to avoid "Access denied" messages
+        const output = execSync('wmic /namespace:\\\\root\\wmi PATH MSAcpi_ThermalZoneTemperature get CurrentTemperature', { 
+          encoding: 'utf8',
+          stdio: ['pipe', 'pipe', 'ignore'] // Ignore stderr
+        });
         const temp = parseInt(output.split('\n')[1]);
         return temp ? (temp / 10 - 273.15).toFixed(1) : null;
       } else if (process.platform === 'linux') {
@@ -111,6 +115,7 @@ class SystemMonitor {
       }
       return null;
     } catch (error) {
+      // Silently fail - temperature monitoring is optional
       return null;
     }
   }
@@ -152,7 +157,10 @@ class SystemMonitor {
 
       if (process.platform === 'win32') {
         // Windows - use WMIC
-        const output = execSync('wmic logicaldisk get size,freespace,caption', { encoding: 'utf8' });
+        const output = execSync('wmic logicaldisk get size,freespace,caption', { 
+          encoding: 'utf8',
+          stdio: ['pipe', 'pipe', 'ignore'] // Ignore stderr
+        });
         const lines = output.split('\n').filter(line => line.trim());
         
         if (lines.length > 1) {

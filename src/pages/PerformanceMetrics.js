@@ -3,13 +3,42 @@
  * Displays real-time and historical performance metrics
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   Activity, Cpu, HardDrive, Zap, TrendingUp, TrendingDown,
   AlertTriangle, CheckCircle, Clock, BarChart3, Database,
-  Wifi, RefreshCw
+  Wifi, RefreshCw, Monitor, Thermometer, ArrowUpDown,
+  List, X
 } from 'lucide-react';
+import { Line } from 'react-chartjs-2';
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title,
+  Tooltip,
+  Legend,
+  Filler
+} from 'chart.js';
 import './PerformanceMetrics.css';
+
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title,
+  Tooltip,
+  Legend,
+  Filler
+);
+
+// In development with React dev server, use proxy (relative URLs)
+// In Electron or production, use direct backend URLs
+const isElectron = typeof window !== 'undefined' && window.electronAPI?.isElectron;
+const API_BASE_URL = isElectron ? 'http://localhost:8080' : '';
 
 const PerformanceMetrics = () => {
   const [metrics, setMetrics] = useState(null);
@@ -17,6 +46,15 @@ const PerformanceMetrics = () => {
   const [loading, setLoading] = useState(true);
   const [timeRange, setTimeRange] = useState('24h');
   const [autoRefresh, setAutoRefresh] = useState(true);
+  const [historicalData, setHistoricalData] = useState({
+    cpu: [],
+    memory: [],
+    disk: [],
+    timestamps: []
+  });
+  const [processes, setProcesses] = useState([]);
+  const [showProcesses, setShowProcesses] = useState(false);
+  const maxDataPoints = 60; // Keep last 60 data points (5 minutes at 5s interval)
 
   useEffect(() => {
     loadMetrics();
@@ -34,23 +72,61 @@ const PerformanceMetrics = () => {
 
   const loadMetrics = async () => {
     try {
-      const response = await fetch('http://localhost:8080/api/system/health');
+      const response = await fetch(`${API_BASE_URL}/api/system/health`);
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
       const data = await response.json();
-      setMetrics(data);
+      // Validate the response structure
+      if (data && data.health && data.cpu && data.memory && data.disk) {
+        setMetrics(data);
+        
+        // Update historical data
+        const now = new Date().toLocaleTimeString();
+        setHistoricalData(prev => {
+          const newData = {
+            cpu: [...prev.cpu, data.cpu.usage].slice(-maxDataPoints),
+            memory: [...prev.memory, data.memory.usagePercent].slice(-maxDataPoints),
+            disk: [...prev.disk, data.disk.usagePercent].slice(-maxDataPoints),
+            timestamps: [...prev.timestamps, now].slice(-maxDataPoints)
+          };
+          return newData;
+        });
+        
+        // Update processes if available
+        if (data.processes && data.processes.list) {
+          setProcesses(data.processes.list);
+        }
+      } else {
+        console.error('Invalid metrics data structure:', data);
+        setMetrics(null);
+      }
       setLoading(false);
     } catch (error) {
       console.error('Failed to load metrics:', error);
+      setMetrics(null);
       setLoading(false);
     }
   };
 
   const loadDashboard = async () => {
     try {
-      const response = await fetch(`http://localhost:8080/api/analytics/dashboard?timeRange=${timeRange}`);
+      const response = await fetch(`${API_BASE_URL}/api/analytics/dashboard?timeRange=${timeRange}`);
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
       const data = await response.json();
-      setDashboard(data);
+      // Validate the response structure
+      if (data && data.overview) {
+        setDashboard(data);
+      } else {
+        console.error('Invalid dashboard data structure:', data);
+        setDashboard(null);
+      }
     } catch (error) {
       console.error('Failed to load dashboard:', error);
+      // Set dashboard to null on error so UI can handle gracefully
+      setDashboard(null);
     }
   };
 
@@ -99,6 +175,20 @@ const PerformanceMetrics = () => {
     );
   }
 
+  if (!metrics) {
+    return (
+      <div className="performance-error">
+        <AlertTriangle size={48} color="#ef4444" />
+        <h2>Unable to Load Metrics</h2>
+        <p>Failed to connect to the backend server. Please ensure the server is running.</p>
+        <button onClick={loadMetrics} className="retry-button">
+          <RefreshCw size={20} />
+          Retry
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="performance-container">
       <div className="performance-header">
@@ -128,7 +218,7 @@ const PerformanceMetrics = () => {
       </div>
 
       {/* System Health Overview */}
-      {metrics && (
+      {metrics && metrics.health && (
         <div className="health-overview">
           <div className="health-score">
             <div 
@@ -168,7 +258,7 @@ const PerformanceMetrics = () => {
       )}
 
       {/* System Resources */}
-      {metrics && (
+      {metrics && metrics.cpu && metrics.memory && metrics.disk && metrics.network && (
         <div className="metrics-grid">
           {/* CPU */}
           <div className="metric-card">
@@ -291,6 +381,205 @@ const PerformanceMetrics = () => {
           </div>
         </div>
       )}
+
+      {/* Real-Time Performance Charts */}
+      {historicalData.timestamps.length > 0 && (
+        <div className="performance-charts">
+          <h2><BarChart3 size={24} /> Real-Time Performance</h2>
+          
+          <div className="charts-grid">
+            <div className="chart-card">
+              <h3><Cpu size={20} /> CPU Usage Over Time</h3>
+              <Line
+                data={{
+                  labels: historicalData.timestamps,
+                  datasets: [{
+                    label: 'CPU Usage (%)',
+                    data: historicalData.cpu,
+                    borderColor: 'rgb(99, 102, 241)',
+                    backgroundColor: 'rgba(99, 102, 241, 0.1)',
+                    fill: true,
+                    tension: 0.4,
+                    pointRadius: 2,
+                    pointHoverRadius: 5
+                  }]
+                }}
+                options={{
+                  responsive: true,
+                  maintainAspectRatio: false,
+                  plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                      mode: 'index',
+                      intersect: false,
+                    }
+                  },
+                  scales: {
+                    y: {
+                      beginAtZero: true,
+                      max: 100,
+                      ticks: {
+                        callback: (value) => value + '%'
+                      }
+                    },
+                    x: {
+                      display: false
+                    }
+                  },
+                  interaction: {
+                    mode: 'nearest',
+                    axis: 'x',
+                    intersect: false
+                  }
+                }}
+              />
+            </div>
+
+            <div className="chart-card">
+              <h3><Database size={20} /> Memory Usage Over Time</h3>
+              <Line
+                data={{
+                  labels: historicalData.timestamps,
+                  datasets: [{
+                    label: 'Memory Usage (%)',
+                    data: historicalData.memory,
+                    borderColor: 'rgb(16, 185, 129)',
+                    backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                    fill: true,
+                    tension: 0.4,
+                    pointRadius: 2,
+                    pointHoverRadius: 5
+                  }]
+                }}
+                options={{
+                  responsive: true,
+                  maintainAspectRatio: false,
+                  plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                      mode: 'index',
+                      intersect: false,
+                    }
+                  },
+                  scales: {
+                    y: {
+                      beginAtZero: true,
+                      max: 100,
+                      ticks: {
+                        callback: (value) => value + '%'
+                      }
+                    },
+                    x: {
+                      display: false
+                    }
+                  },
+                  interaction: {
+                    mode: 'nearest',
+                    axis: 'x',
+                    intersect: false
+                  }
+                }}
+              />
+            </div>
+
+            <div className="chart-card">
+              <h3><HardDrive size={20} /> Disk Usage Over Time</h3>
+              <Line
+                data={{
+                  labels: historicalData.timestamps,
+                  datasets: [{
+                    label: 'Disk Usage (%)',
+                    data: historicalData.disk,
+                    borderColor: 'rgb(245, 158, 11)',
+                    backgroundColor: 'rgba(245, 158, 11, 0.1)',
+                    fill: true,
+                    tension: 0.4,
+                    pointRadius: 2,
+                    pointHoverRadius: 5
+                  }]
+                }}
+                options={{
+                  responsive: true,
+                  maintainAspectRatio: false,
+                  plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                      mode: 'index',
+                      intersect: false,
+                    }
+                  },
+                  scales: {
+                    y: {
+                      beginAtZero: true,
+                      max: 100,
+                      ticks: {
+                        callback: (value) => value + '%'
+                      }
+                    },
+                    x: {
+                      display: false
+                    }
+                  },
+                  interaction: {
+                    mode: 'nearest',
+                    axis: 'x',
+                    intersect: false
+                  }
+                }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Process Monitor */}
+      <div className="process-monitor-section">
+        <div className="section-header">
+          <h2><List size={24} /> Process Monitor</h2>
+          <button 
+            className="toggle-processes-btn"
+            onClick={() => setShowProcesses(!showProcesses)}
+          >
+            {showProcesses ? <X size={20} /> : <Monitor size={20} />}
+            {showProcesses ? 'Hide Processes' : 'Show Processes'}
+          </button>
+        </div>
+
+        {showProcesses && processes.length > 0 && (
+          <div className="processes-table-container">
+            <table className="processes-table">
+              <thead>
+                <tr>
+                  <th>Process Name</th>
+                  <th>PID</th>
+                  <th>CPU %</th>
+                  <th>Memory</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {processes.slice(0, 15).map((proc, index) => (
+                  <tr key={index}>
+                    <td className="process-name">{proc.name}</td>
+                    <td>{proc.pid}</td>
+                    <td>
+                      <span className={`cpu-usage ${proc.cpu > 50 ? 'high' : proc.cpu > 25 ? 'medium' : 'low'}`}>
+                        {proc.cpu.toFixed(1)}%
+                      </span>
+                    </td>
+                    <td>{formatBytes(proc.memory)}</td>
+                    <td>
+                      <span className={`status-badge ${proc.status}`}>
+                        {proc.status}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
 
       {/* Process Metrics */}
       {metrics && metrics.processes && (

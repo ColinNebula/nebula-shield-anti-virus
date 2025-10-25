@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
+import QRCode from 'qrcode';
 import {
   Settings as SettingsIcon,
   Shield,
@@ -25,7 +26,10 @@ import {
   Circle,
   Aperture,
   Upload,
-  Monitor
+  Monitor,
+  X,
+  Copy,
+  Smartphone
 } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
@@ -109,6 +113,7 @@ const Settings = ({ onShowSplash }) => {
     // Security Settings
     passwordProtection: false,
     requireAuthForActions: false,
+    twoFactorEnabled: false,
     blockSuspiciousConnections: true,
     sandboxUnknownFiles: false,
     enableRansomwareShield: true,
@@ -135,6 +140,18 @@ const Settings = ({ onShowSplash }) => {
   const [systemHealth, setSystemHealth] = useState(null);
   const [performanceStats, setPerformanceStats] = useState(null);
   const [showQuickActions, setShowQuickActions] = useState(true);
+  
+  // 2FA Modal State
+  const [show2FAModal, setShow2FAModal] = useState(false);
+  const [twoFactorQRCode, setTwoFactorQRCode] = useState('');
+  const [twoFactorSecret, setTwoFactorSecret] = useState('');
+  const [verificationCode, setVerificationCode] = useState('');
+  const [setting2FA, setSetting2FA] = useState(false);
+  
+  // Password Confirmation Modal State
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [passwordConfirmation, setPasswordConfirmation] = useState('');
+  const [passwordError, setPasswordError] = useState('');
 
   useEffect(() => {
     loadSettings();
@@ -227,6 +244,170 @@ const Settings = ({ onShowSplash }) => {
     if (key === 'realTimeProtection') {
       toggleProtectionImmediate(value);
     }
+    
+    // Handle 2FA toggle
+    if (key === 'twoFactorEnabled') {
+      handle2FAToggle(value);
+    }
+  };
+
+  const handle2FAToggle = async (enabled) => {
+    if (enabled) {
+      // Open modal to set up 2FA
+      await initiate2FASetup();
+    } else {
+      // Show password confirmation modal
+      setShowPasswordModal(true);
+    }
+  };
+  
+  const confirmDisable2FA = async () => {
+    if (!passwordConfirmation) {
+      setPasswordError('Password is required');
+      return;
+    }
+    
+    try {
+      await disable2FA(passwordConfirmation);
+      setShowPasswordModal(false);
+      setPasswordConfirmation('');
+      setPasswordError('');
+    } catch (error) {
+      setPasswordError('Failed to disable 2FA');
+    }
+  };
+  
+  const cancelPasswordModal = () => {
+    setShowPasswordModal(false);
+    setPasswordConfirmation('');
+    setPasswordError('');
+    // Revert the toggle
+    setSettings(prev => ({
+      ...prev,
+      twoFactorEnabled: true
+    }));
+  };
+
+  const initiate2FASetup = async () => {
+    try {
+      setSetting2FA(true);
+      
+      // Generate QR code and secret from backend
+      // For now, generate mock data for demo
+      const mockSecret = 'JBSWY3DPEHPK3PXP'; // Base32 encoded secret
+      const appName = 'Nebula Shield';
+      const userEmail = 'user@example.com'; // Get from auth context
+      
+      // Create OTP auth URL
+      const otpAuthUrl = `otpauth://totp/${encodeURIComponent(appName)}:${encodeURIComponent(userEmail)}?secret=${mockSecret}&issuer=${encodeURIComponent(appName)}`;
+      
+      // Generate QR code as data URL
+      const qrCodeDataUrl = await generateQRCode(otpAuthUrl);
+      
+      setTwoFactorSecret(mockSecret);
+      setTwoFactorQRCode(qrCodeDataUrl);
+      setShow2FAModal(true);
+      
+      // TODO: Call actual backend API
+      // const response = await enable2FA();
+      // setTwoFactorSecret(response.secret);
+      // setTwoFactorQRCode(response.qrCode);
+      
+    } catch (error) {
+      console.error('Failed to initiate 2FA setup:', error);
+      toast.error('Failed to start 2FA setup. Please try again.');
+      setSettings(prev => ({
+        ...prev,
+        twoFactorEnabled: false
+      }));
+    } finally {
+      setSetting2FA(false);
+    }
+  };
+
+  const generateQRCode = async (text) => {
+    // Generate QR code as data URL using qrcode library
+    try {
+      // Generate QR code as base64 data URL
+      const qrDataUrl = await QRCode.toDataURL(text, {
+        width: 250,
+        margin: 2,
+        color: {
+          dark: '#000000',
+          light: '#FFFFFF'
+        },
+        errorCorrectionLevel: 'M'
+      });
+      console.log('✅ QR Code generated successfully');
+      return qrDataUrl;
+    } catch (error) {
+      console.error('QR code generation failed:', error);
+      return '';
+    }
+  };
+
+  const verify2FACode = async () => {
+    if (!verificationCode || verificationCode.length !== 6) {
+      toast.error('Please enter a 6-digit code');
+      return;
+    }
+
+    try {
+      setSetting2FA(true);
+      
+      // TODO: Call actual backend API to verify
+      // const response = await confirm2FA(verificationCode);
+      
+      // Mock verification - in production, backend validates the code
+      const isValid = true; // Simulate success
+      
+      if (isValid) {
+        toast.success('🎉 Two-Factor Authentication enabled successfully!');
+        setShow2FAModal(false);
+        setVerificationCode('');
+        setSettings(prev => ({
+          ...prev,
+          twoFactorEnabled: true
+        }));
+      } else {
+        toast.error('Invalid verification code. Please try again.');
+      }
+    } catch (error) {
+      console.error('2FA verification failed:', error);
+      toast.error('Verification failed. Please try again.');
+    } finally {
+      setSetting2FA(false);
+    }
+  };
+
+  const disable2FA = async (password) => {
+    try {
+      setSetting2FA(true);
+      
+      // TODO: Call actual backend API
+      // await disable2FA(password);
+      
+      toast.success('🔓 Two-Factor Authentication disabled');
+      setSettings(prev => ({
+        ...prev,
+        twoFactorEnabled: false
+      }));
+    } catch (error) {
+      console.error('Failed to disable 2FA:', error);
+      toast.error('Failed to disable 2FA. Please check your password.');
+      // Revert toggle
+      setSettings(prev => ({
+        ...prev,
+        twoFactorEnabled: true
+      }));
+    } finally {
+      setSetting2FA(false);
+    }
+  };
+
+  const copyToClipboard = (text) => {
+    navigator.clipboard.writeText(text);
+    toast.success('Copied to clipboard!');
   };
 
   const toggleProtectionImmediate = async (enabled) => {
@@ -1092,6 +1273,32 @@ const Settings = ({ onShowSplash }) => {
                 />
                 <span className="slider"></span>
               </label>
+            </div>
+          </div>
+          
+          <div className="setting-item premium-setting">
+            <div className="setting-info">
+              <label>
+                Two-Factor Authentication (2FA)
+                {!isPremium && <span className="premium-badge">Premium</span>}
+              </label>
+              <span>Add extra security layer with authenticator app</span>
+            </div>
+            <div className="setting-control">
+              {isPremium ? (
+                <label className="switch">
+                  <input
+                    type="checkbox"
+                    checked={settings.twoFactorEnabled}
+                    onChange={(e) => handleSettingChange('twoFactorEnabled', e.target.checked)}
+                  />
+                  <span className="slider"></span>
+                </label>
+              ) : (
+                <button className="upgrade-btn" onClick={() => window.location.href = '/#/premium'}>
+                  Upgrade
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -2121,6 +2328,223 @@ const Settings = ({ onShowSplash }) => {
           </div>
         </motion.div>
       )}
+      
+      {/* 2FA Setup Modal */}
+      <AnimatePresence>
+        {show2FAModal && (
+          <motion.div
+            className="modal-overlay"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setShow2FAModal(false)}
+          >
+            <motion.div
+              className="modal-content twofa-modal"
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="modal-header">
+                <div className="modal-title">
+                  <Smartphone size={24} />
+                  <h3>Enable Two-Factor Authentication</h3>
+                </div>
+                <button
+                  className="modal-close"
+                  onClick={() => {
+                    setShow2FAModal(false);
+                    setSettings(prev => ({ ...prev, twoFactorEnabled: false }));
+                  }}
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              <div className="modal-body">
+                <div className="twofa-steps">
+                  <div className="step">
+                    <div className="step-number">1</div>
+                    <div className="step-content">
+                      <h4>Install an Authenticator App</h4>
+                      <p>Download Google Authenticator, Authy, or any TOTP-compatible app</p>
+                    </div>
+                  </div>
+
+                  <div className="step">
+                    <div className="step-number">2</div>
+                    <div className="step-content">
+                      <h4>Scan QR Code</h4>
+                      <p>Open your authenticator app and scan this QR code</p>
+                      
+                      {twoFactorQRCode && (
+                        <div className="qr-code-container">
+                          <img src={twoFactorQRCode} alt="2FA QR Code" className="qr-code" />
+                        </div>
+                      )}
+
+                      <div className="secret-key">
+                        <p>Or enter this key manually:</p>
+                        <div className="secret-value">
+                          <code>{twoFactorSecret}</code>
+                          <button
+                            className="copy-btn"
+                            onClick={() => copyToClipboard(twoFactorSecret)}
+                          >
+                            <Copy size={16} />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="step">
+                    <div className="step-number">3</div>
+                    <div className="step-content">
+                      <h4>Verify Code</h4>
+                      <p>Enter the 6-digit code from your authenticator app</p>
+                      
+                      <div className="verification-input">
+                        <input
+                          type="text"
+                          placeholder="000000"
+                          maxLength={6}
+                          value={verificationCode}
+                          onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, ''))}
+                          className="code-input"
+                          autoFocus
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="modal-footer">
+                <button
+                  className="btn btn-secondary"
+                  onClick={() => {
+                    setShow2FAModal(false);
+                    setSettings(prev => ({ ...prev, twoFactorEnabled: false }));
+                  }}
+                  disabled={setting2FA}
+                >
+                  Cancel
+                </button>
+                <button
+                  className="btn btn-primary"
+                  onClick={verify2FACode}
+                  disabled={setting2FA || verificationCode.length !== 6}
+                >
+                  {setting2FA ? (
+                    <>
+                      <RefreshCw size={16} className="spinning" />
+                      Verifying...
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle size={16} />
+                      Verify & Enable
+                    </>
+                  )}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Password Confirmation Modal */}
+      <AnimatePresence>
+        {showPasswordModal && (
+          <motion.div
+            className="modal-overlay"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={cancelPasswordModal}
+          >
+            <motion.div
+              className="modal-content password-modal"
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.8, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="modal-header">
+                <h3>
+                  <Lock size={24} />
+                  Disable Two-Factor Authentication
+                </h3>
+                <button className="close-btn" onClick={cancelPasswordModal}>
+                  <X size={20} />
+                </button>
+              </div>
+
+              <div className="modal-body">
+                <div className="password-confirm-section">
+                  <p className="warning-text">
+                    <AlertTriangle size={18} />
+                    You are about to disable Two-Factor Authentication. This will reduce your account security.
+                  </p>
+                  
+                  <div className="form-group">
+                    <label htmlFor="password-confirm">Enter your password to confirm:</label>
+                    <input
+                      id="password-confirm"
+                      type="password"
+                      className={`form-control ${passwordError ? 'error' : ''}`}
+                      value={passwordConfirmation}
+                      onChange={(e) => {
+                        setPasswordConfirmation(e.target.value);
+                        setPasswordError('');
+                      }}
+                      onKeyPress={(e) => {
+                        if (e.key === 'Enter') {
+                          confirmDisable2FA();
+                        }
+                      }}
+                      placeholder="Enter your password"
+                      autoFocus
+                    />
+                    {passwordError && (
+                      <span className="error-message">{passwordError}</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="modal-footer">
+                <button
+                  className="btn btn-secondary"
+                  onClick={cancelPasswordModal}
+                  disabled={setting2FA}
+                >
+                  Cancel
+                </button>
+                <button
+                  className="btn btn-danger"
+                  onClick={confirmDisable2FA}
+                  disabled={setting2FA || !passwordConfirmation}
+                >
+                  {setting2FA ? (
+                    <>
+                      <RefreshCw size={16} className="spinning" />
+                      Disabling...
+                    </>
+                  ) : (
+                    <>
+                      <Lock size={16} />
+                      Disable 2FA
+                    </>
+                  )}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 };

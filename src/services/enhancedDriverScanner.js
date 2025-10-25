@@ -692,24 +692,60 @@ export const scanDrivers = async () => {
   });
 };
 
-export const updateDriver = async (driverId, createBackup = true) => {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      const driver = analyzer.drivers.find(d => d.id === driverId);
-      
-      let backup = null;
-      if (createBackup && driver) {
-        backup = backupManager.createBackup(driver);
-      }
+export const downloadDriverFromManufacturer = async (driverId) => {
+  const driver = analyzer.drivers.find(d => d.id === driverId);
+  
+  if (!driver || !driver.downloadUrl) {
+    throw new Error('Driver download URL not available');
+  }
 
-      resolve({
-        success: true,
-        driverId,
-        backup,
-        message: 'Driver updated successfully. Please restart your computer for changes to take effect.'
-      });
-    }, 3000);
-  });
+  // Open manufacturer's download page in default browser
+  const downloadUrl = driver.downloadUrl;
+  
+  // Check if running in Electron
+  if (window.electron && window.electron.shell && window.electron.shell.openExternal) {
+    await window.electron.shell.openExternal(downloadUrl);
+  } else if (window.electron && window.electron.openExternal) {
+    await window.electron.openExternal(downloadUrl);
+  } else if (typeof require !== 'undefined') {
+    // Direct Electron access (nodeIntegration mode)
+    const { shell } = require('electron');
+    await shell.openExternal(downloadUrl);
+  } else {
+    // Fallback for browser environment
+    window.open(downloadUrl, '_blank', 'noopener,noreferrer');
+  }
+
+  return {
+    success: true,
+    driverId,
+    downloadUrl,
+    message: `Opening ${driver.manufacturer} download page. Please download and install the driver manually from the manufacturer's website.`
+  };
+};
+
+export const updateDriver = async (driverId, createBackup = true) => {
+  const driver = analyzer.drivers.find(d => d.id === driverId);
+  
+  if (!driver) {
+    throw new Error('Driver not found');
+  }
+
+  let backup = null;
+  if (createBackup) {
+    backup = backupManager.createBackup(driver);
+  }
+
+  // Open the download page
+  await downloadDriverFromManufacturer(driverId);
+
+  return {
+    success: true,
+    driverId,
+    backup,
+    downloadUrl: driver.downloadUrl,
+    message: 'Driver download page opened. Please download and install the driver from the manufacturer\'s website, then restart your computer.'
+  };
 };
 
 export const getBackupManager = () => backupManager;

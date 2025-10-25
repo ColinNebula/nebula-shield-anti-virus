@@ -57,12 +57,31 @@ const FirewallLogs = () => {
     setLoading(true);
     try {
       const [logsData, statsData] = await Promise.all([
-        firewallLogger.getLogs({ limit: 1000 }),
-        firewallLogger.getStatistics()
+        firewallLogger.getLogs({ limit: 1000 }).catch(err => {
+          console.error('Error loading logs:', err);
+          return [];
+        }),
+        firewallLogger.getStatistics().catch(err => {
+          console.error('Error loading statistics:', err);
+          return {
+            totalThreats: 0,
+            threatsBlocked: 0,
+            criticalThreats: 0,
+            highThreats: 0,
+            mediumThreats: 0,
+            lowThreats: 0,
+            blockRate: 0,
+            topThreatTypes: [],
+            topSourceIPs: [],
+            topTargetPorts: [],
+            timeline: [],
+            severityDistribution: { critical: 0, high: 0, medium: 0, low: 0 }
+          };
+        })
       ]);
       
-      setLogs(logsData);
-      setFilteredLogs(logsData);
+      setLogs(logsData || []);
+      setFilteredLogs(logsData || []);
       setStatistics(statsData);
       
       if (logsData.length === 0) {
@@ -70,7 +89,24 @@ const FirewallLogs = () => {
       }
     } catch (error) {
       console.error('Failed to load logs:', error);
-      toast.error('Failed to load firewall logs: ' + error.message);
+      toast.error('Failed to load firewall logs: ' + (error.message || 'Internal error'));
+      // Set empty data to prevent UI crashes
+      setLogs([]);
+      setFilteredLogs([]);
+      setStatistics({
+        totalThreats: 0,
+        threatsBlocked: 0,
+        criticalThreats: 0,
+        highThreats: 0,
+        mediumThreats: 0,
+        lowThreats: 0,
+        blockRate: 0,
+        topThreatTypes: [],
+        topSourceIPs: [],
+        topTargetPorts: [],
+        timeline: [],
+        severityDistribution: { critical: 0, high: 0, medium: 0, low: 0 }
+      });
     } finally {
       setLoading(false);
     }

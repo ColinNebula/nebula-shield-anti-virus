@@ -123,52 +123,69 @@ class IndexedDBManager {
   
   async initialize() {
     return new Promise((resolve, reject) => {
-      const request = indexedDB.open(this.dbName, this.version);
-      
-      request.onerror = () => reject(request.error);
-      request.onsuccess = () => {
-        this.db = request.result;
-        resolve(this.db);
-      };
-      
-      request.onupgradeneeded = (event) => {
-        const db = event.target.result;
+      try {
+        const request = indexedDB.open(this.dbName, this.version);
         
-        // Logs store
-        if (!db.objectStoreNames.contains('logs')) {
-          const logsStore = db.createObjectStore('logs', { keyPath: 'id' });
-          logsStore.createIndex('timestamp', 'timestamp', { unique: false });
-          logsStore.createIndex('severity', 'severity', { unique: false });
-          logsStore.createIndex('threatType', 'threatType', { unique: false });
-          logsStore.createIndex('sourceIP', 'sourceIP', { unique: false });
-          logsStore.createIndex('blocked', 'blocked', { unique: false });
-        }
+        request.onerror = () => {
+          console.error('IndexedDB error:', request.error);
+          reject(new Error(`Failed to open database: ${request.error?.message || 'Unknown error'}`));
+        };
         
-        // Statistics store
-        if (!db.objectStoreNames.contains('statistics')) {
-          db.createObjectStore('statistics', { keyPath: 'date' });
-        }
+        request.onsuccess = () => {
+          this.db = request.result;
+          console.log('✅ IndexedDB opened successfully');
+          resolve(this.db);
+        };
         
-        // Critical alerts store
-        if (!db.objectStoreNames.contains('alerts')) {
-          const alertsStore = db.createObjectStore('alerts', { keyPath: 'id' });
-          alertsStore.createIndex('timestamp', 'timestamp', { unique: false });
-          alertsStore.createIndex('resolved', 'resolved', { unique: false });
-        }
-        
-        // Sessions store (for attack chain tracking)
-        if (!db.objectStoreNames.contains('sessions')) {
-          const sessionsStore = db.createObjectStore('sessions', { keyPath: 'sessionId' });
-          sessionsStore.createIndex('startTime', 'startTime', { unique: false });
-        }
-        
-        // Forensics store (detailed packet captures)
-        if (!db.objectStoreNames.contains('forensics')) {
-          const forensicsStore = db.createObjectStore('forensics', { keyPath: 'id' });
-          forensicsStore.createIndex('logId', 'logId', { unique: false });
-          forensicsStore.createIndex('timestamp', 'timestamp', { unique: false });
-        }
-      };
+        request.onupgradeneeded = (event) => {
+          try {
+            const db = event.target.result;
+            
+            // Logs store
+            if (!db.objectStoreNames.contains('logs')) {
+              const logsStore = db.createObjectStore('logs', { keyPath: 'id' });
+              logsStore.createIndex('timestamp', 'timestamp', { unique: false });
+              logsStore.createIndex('severity', 'severity', { unique: false });
+              logsStore.createIndex('threatType', 'threatType', { unique: false });
+              logsStore.createIndex('sourceIP', 'sourceIP', { unique: false });
+              logsStore.createIndex('blocked', 'blocked', { unique: false });
+            }
+            
+            // Statistics store
+            if (!db.objectStoreNames.contains('statistics')) {
+              db.createObjectStore('statistics', { keyPath: 'date' });
+            }
+            
+            // Critical alerts store
+            if (!db.objectStoreNames.contains('alerts')) {
+              const alertsStore = db.createObjectStore('alerts', { keyPath: 'id' });
+              alertsStore.createIndex('timestamp', 'timestamp', { unique: false });
+              alertsStore.createIndex('resolved', 'resolved', { unique: false });
+            }
+            
+            // Sessions store (for attack chain tracking)
+            if (!db.objectStoreNames.contains('sessions')) {
+              const sessionsStore = db.createObjectStore('sessions', { keyPath: 'sessionId' });
+              sessionsStore.createIndex('startTime', 'startTime', { unique: false });
+            }
+            
+            // Forensics store (detailed packet captures)
+            if (!db.objectStoreNames.contains('forensics')) {
+              const forensicsStore = db.createObjectStore('forensics', { keyPath: 'id' });
+              forensicsStore.createIndex('logId', 'logId', { unique: false });
+              forensicsStore.createIndex('timestamp', 'timestamp', { unique: false });
+            }
+            
+            console.log('✅ IndexedDB schema upgraded');
+          } catch (upgradeError) {
+            console.error('Schema upgrade error:', upgradeError);
+            reject(new Error(`Schema upgrade failed: ${upgradeError.message}`));
+          }
+        };
+      } catch (error) {
+        console.error('IndexedDB initialization error:', error);
+        reject(new Error(`Database initialization failed: ${error.message}`));
+      }
     });
   }
   
@@ -1165,6 +1182,9 @@ export class FirewallLogger {
       console.log('✅ Firewall Logger initialized');
     } catch (error) {
       console.error('❌ Failed to initialize Firewall Logger:', error);
+      // Mark as initialized anyway to prevent infinite retry loops
+      this.initialized = true;
+      throw error;
     }
   }
   
@@ -1212,8 +1232,21 @@ export class FirewallLogger {
    * Get logs with filters
    */
   async getLogs(filters = {}) {
-    if (!this.initialized) await this.initialize();
-    return await this.db.getLogs(filters);
+    if (!this.initialized) {
+      try {
+        await this.initialize();
+      } catch (error) {
+        console.error('Failed to initialize logger:', error);
+        return [];
+      }
+    }
+    
+    try {
+      return await this.db.getLogs(filters);
+    } catch (error) {
+      console.error('Failed to get logs:', error);
+      return [];
+    }
   }
   
   /**
@@ -1240,27 +1273,66 @@ export class FirewallLogger {
    * Get statistics
    */
   async getStatistics(filters = {}) {
-    if (!this.initialized) await this.initialize();
+    if (!this.initialized) {
+      try {
+        await this.initialize();
+      } catch (error) {
+        console.error('Failed to initialize logger:', error);
+        // Return empty statistics if initialization fails
+        return this.getEmptyStatistics();
+      }
+    }
     
-    const logs = await this.db.getLogs(filters);
-    
-    const stats = {
-      totalThreats: logs.length,
-      threatsBlocked: logs.filter(l => l.blocked).length,
-      criticalThreats: logs.filter(l => l.severity === 'critical').length,
-      highThreats: logs.filter(l => l.severity === 'high').length,
-      mediumThreats: logs.filter(l => l.severity === 'medium').length,
-      lowThreats: logs.filter(l => l.severity === 'low').length,
+    try {
+      const logs = await this.db.getLogs(filters);
       
-      topThreatTypes: this.getTopN(logs, 'threatType', 5),
-      topSourceIPs: this.getTopN(logs, 'sourceIP', 10),
-      topTargetPorts: this.getTopN(logs, 'port', 5),
+      const stats = {
+        totalThreats: logs.length,
+        threatsBlocked: logs.filter(l => l.blocked).length,
+        criticalThreats: logs.filter(l => l.severity === 'critical').length,
+        highThreats: logs.filter(l => l.severity === 'high').length,
+        mediumThreats: logs.filter(l => l.severity === 'medium').length,
+        lowThreats: logs.filter(l => l.severity === 'low').length,
+        blockRate: logs.length > 0 ? Math.round((logs.filter(l => l.blocked).length / logs.length) * 100) : 0,
+        
+        topThreatTypes: this.getTopN(logs, 'threatType', 5),
+        topSourceIPs: this.getTopN(logs, 'sourceIP', 10),
+        topTargetPorts: this.getTopN(logs, 'port', 5),
+        
+        timeline: this.generateTimeline(logs),
+        severityDistribution: this.getSeverityDistribution(logs)
+      };
       
-      timeline: this.generateTimeline(logs),
-      severityDistribution: this.getSeverityDistribution(logs)
+      return stats;
+    } catch (error) {
+      console.error('Failed to calculate statistics:', error);
+      return this.getEmptyStatistics();
+    }
+  }
+  
+  /**
+   * Return empty statistics object
+   */
+  getEmptyStatistics() {
+    return {
+      totalThreats: 0,
+      threatsBlocked: 0,
+      criticalThreats: 0,
+      highThreats: 0,
+      mediumThreats: 0,
+      lowThreats: 0,
+      blockRate: 0,
+      topThreatTypes: [],
+      topSourceIPs: [],
+      topTargetPorts: [],
+      timeline: [],
+      severityDistribution: {
+        critical: 0,
+        high: 0,
+        medium: 0,
+        low: 0
+      }
     };
-    
-    return stats;
   }
   
   getTopN(logs, field, n) {
@@ -1348,35 +1420,58 @@ export class FirewallLogger {
    * Cleanup old logs based on retention policy
    */
   async cleanupOldLogs() {
-    if (!this.initialized) await this.initialize();
+    if (!this.db || !this.db.db) {
+      console.warn('Database not initialized, skipping cleanup');
+      return 0;
+    }
     
-    const cutoffDate = new Date();
-    cutoffDate.setDate(cutoffDate.getDate() - LOGGING_CONFIG.retentionDays);
-    
-    // Use cursor to efficiently find and delete old logs without loading all
-    return new Promise(async (resolve, reject) => {
-      const transaction = this.db.db.transaction(['logs'], 'readwrite');
-      const store = transaction.objectStore('logs');
-      const index = store.index('timestamp');
+    try {
+      const cutoffDate = new Date();
+      cutoffDate.setDate(cutoffDate.getDate() - LOGGING_CONFIG.retentionDays);
       
-      let deletedCount = 0;
-      const range = IDBKeyRange.upperBound(cutoffDate.getTime());
-      const request = index.openCursor(range);
-      
-      request.onsuccess = (event) => {
-        const cursor = event.target.result;
-        if (cursor) {
-          cursor.delete();
-          deletedCount++;
-          cursor.continue();
-        } else {
-          console.log(`🗑️ Cleaned up ${deletedCount} old logs`);
-          resolve(deletedCount);
+      // Use cursor to efficiently find and delete old logs without loading all
+      return new Promise((resolve, reject) => {
+        try {
+          const transaction = this.db.db.transaction(['logs'], 'readwrite');
+          const store = transaction.objectStore('logs');
+          const index = store.index('timestamp');
+          
+          let deletedCount = 0;
+          const range = IDBKeyRange.upperBound(cutoffDate.toISOString());
+          const request = index.openCursor(range);
+          
+          request.onsuccess = (event) => {
+            const cursor = event.target.result;
+            if (cursor) {
+              cursor.delete();
+              deletedCount++;
+              cursor.continue();
+            } else {
+              if (deletedCount > 0) {
+                console.log(`🗑️ Cleaned up ${deletedCount} old logs`);
+              }
+              resolve(deletedCount);
+            }
+          };
+          
+          request.onerror = () => {
+            console.error('Cleanup cursor error:', request.error);
+            resolve(0); // Don't fail initialization on cleanup error
+          };
+          
+          transaction.onerror = () => {
+            console.error('Cleanup transaction error:', transaction.error);
+            resolve(0);
+          };
+        } catch (error) {
+          console.error('Cleanup error:', error);
+          resolve(0);
         }
-      };
-      
-      request.onerror = () => reject(request.error);
-    });
+      });
+    } catch (error) {
+      console.error('Failed to cleanup old logs:', error);
+      return 0;
+    }
   }
   
   /**
