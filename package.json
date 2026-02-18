@@ -112,7 +112,10 @@
     "pre-commit-security": "npm run security:check",
     "generate-icons": "node build-resources/generate-all-icons.js",
     "android": "expo run:android",
-    "ios": "expo run:ios"
+    "ios": "expo run:ios",
+    "deploy": "railway up",
+    "deploy:backend": "cd backend && railway up",
+    "deploy:railway": "powershell -ExecutionPolicy Bypass -File ./deploy-to-railway.ps1 -Deploy"
   },
   "eslintConfig": {
     "extends": [
