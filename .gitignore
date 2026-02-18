@@ -29,9 +29,30 @@
 # Electron dist
 /out/
 **/out/
+dist/win-unpacked/
+dist/mac/
+dist/linux-unpacked/
 
 # React build
 /public/build/
+
+# =======================
+# TAURI / RUST BUILD ARTIFACTS (VERY LARGE)
+# =======================
+
+# Rust target directory (can be 1GB+)
+src-tauri/target/
+**/target/debug/
+**/target/release/
+**/target/doc/
+
+# Rust build files
+*.rlib
+*.rmeta
+Cargo.lock
+
+# Tauri generated files
+src-tauri/gen/
 
 # =======================
 # SECURITY - CRITICAL - DO NOT COMMIT
