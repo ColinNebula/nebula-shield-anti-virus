@@ -3,11 +3,23 @@
  * 
  * Provides instant event-based updates instead of polling.
  * Eliminates 10-second delays and reduces server load by 90%.
+ * 
+ * Enhanced with:
+ * - Ransomware behavior detection
+ * - C++ backend file monitor integration
+ * - Memory scanning for code injection
+ * - Process tree monitoring
+ * - Registry monitoring for persistence
  */
 
 import firewallLogger from './firewallLogger';
 import AntivirusAPI from './antivirusApi';
 import mlAnomalyDetector from './mlAnomalyDetection';
+import ransomwareDetector from './ransomwareDetector';
+import fileMonitorBridge from './fileMonitorBridge';
+import memoryScanner from './memoryScanner';
+import processTreeMonitor from './processTreeMonitor';
+import registryMonitor from './registryMonitor';
 
 class RealtimeMonitor {
   constructor() {
@@ -31,14 +43,17 @@ class RealtimeMonitor {
     this.mlEnabled = true;
     this.trainingInterval = null;
     this.trainingPeriod = 24 * 60 * 60 * 1000; // Retrain every 24 hours
+    
+    // Enhanced protection modules
+    this.enhancedProtectionEnabled = true;
+    this.fileMonitorConnected = false;
+    this.unsubscribers = [];
   }
 
   /**
    * Start real-time monitoring
    */
   start() {
-    console.log('🚀 Starting real-time monitoring...');
-    
     // Subscribe to firewall events
     this.unsubscribeFirewall = firewallLogger.subscribe((event, data) => {
       this.handleFirewallEvent(event, data);
@@ -55,18 +70,19 @@ class RealtimeMonitor {
       this.initializeMLDetection();
     }
     
+    // Start enhanced protection modules (optional features)
+    if (this.enhancedProtectionEnabled) {
+      this.startEnhancedProtection();
+    }
+    
     this.connectionStatus = 'connected';
     this.notifyListeners('connection_status', { status: 'connected' });
-    
-    console.log('✅ Real-time monitoring active');
   }
 
   /**
    * Stop real-time monitoring
    */
   stop() {
-    console.log('🛑 Stopping real-time monitoring...');
-    
     if (this.unsubscribeFirewall) {
       this.unsubscribeFirewall();
       this.unsubscribeFirewall = null;
@@ -81,6 +97,9 @@ class RealtimeMonitor {
       clearInterval(this.trainingInterval);
       this.trainingInterval = null;
     }
+    
+    // Stop enhanced protection modules
+    this.stopEnhancedProtection();
     
     this.connectionStatus = 'disconnected';
     this.notifyListeners('connection_status', { status: 'disconnected' });
@@ -390,6 +409,268 @@ class RealtimeMonitor {
   }
 
   /**
+   * Start enhanced protection modules
+   */
+  startEnhancedProtection() {
+    if (!this.enhancedProtectionEnabled) return;
+    
+    try {
+      // 1. Start Ransomware Detection
+      if (ransomwareDetector && typeof ransomwareDetector.start === 'function') {
+        ransomwareDetector.start();
+        this.setupRansomwareListeners();
+      }
+      
+      // 2. Connect to C++ File Monitor via WebSocket (optional)
+      if (fileMonitorBridge && typeof fileMonitorBridge.connect === 'function') {
+        fileMonitorBridge.connect(8081);
+        this.setupFileMonitorListeners();
+      }
+      
+      // 3. Start Memory Scanner
+      if (memoryScanner && typeof memoryScanner.start === 'function') {
+        memoryScanner.start();
+        this.setupMemoryScannerListeners();
+      }
+      
+      // 4. Start Process Tree Monitor
+      if (processTreeMonitor && typeof processTreeMonitor.start === 'function') {
+        processTreeMonitor.start();
+        this.setupProcessTreeListeners();
+      }
+      
+      // 5. Start Registry Monitor
+      if (registryMonitor && typeof registryMonitor.start === 'function') {
+        registryMonitor.start();
+        this.setupRegistryListeners();
+      }
+      
+    } catch (error) {
+      console.warn('Some enhanced protection modules failed to start:', error);
+    }
+  }
+
+  /**
+   * Stop enhanced protection modules
+   */
+  stopEnhancedProtection() {
+    try {
+      if (ransomwareDetector && typeof ransomwareDetector.stop === 'function') {
+        ransomwareDetector.stop();
+      }
+      if (fileMonitorBridge && typeof fileMonitorBridge.disconnect === 'function') {
+        fileMonitorBridge.disconnect();
+      }
+      if (memoryScanner && typeof memoryScanner.stop === 'function') {
+        memoryScanner.stop();
+      }
+      if (processTreeMonitor && typeof processTreeMonitor.stop === 'function') {
+        processTreeMonitor.stop();
+      }
+      if (registryMonitor && typeof registryMonitor.stop === 'function') {
+        registryMonitor.stop();
+      }
+      
+      // Unsubscribe from all events
+      this.unsubscribers.forEach(unsub => {
+        try {
+          unsub();
+        } catch (err) {
+          // Ignore errors during cleanup
+        }
+      });
+      this.unsubscribers = [];
+    } catch (error) {
+      console.warn('Error stopping enhanced protection:', error);
+    }
+  }
+
+  /**
+   * Setup ransomware detector event listeners
+   */
+  setupRansomwareListeners() {
+    if (typeof window !== 'undefined') {
+      // Ransomware listeners would be set up here if needed
+    }
+  }
+
+  /**
+   * Setup file monitor bridge event listeners
+   */
+  setupFileMonitorListeners() {
+    if (!fileMonitorBridge || typeof fileMonitorBridge.on !== 'function') {
+      return;
+    }
+    
+    try {
+      // File event handler
+      const fileEventUnsub = fileMonitorBridge.on('file_event', (event) => {
+        // Check for ransomware patterns
+        if (ransomwareDetector && typeof ransomwareDetector.analyzeFileEvent === 'function') {
+          const ransomwareThreat = ransomwareDetector.analyzeFileEvent(event);
+          
+          if (ransomwareThreat) {
+            this.notifyListeners('ransomware_detected', {
+              timestamp: new Date().toISOString(),
+              fileEvent: event,
+              threat: ransomwareThreat
+            });
+          }
+        }
+        
+        // Notify listeners of file event
+        this.notifyListeners('file_monitor_event', event);
+      });
+      
+      // Connection status handler
+      const connectedUnsub = fileMonitorBridge.on('connected', () => {
+        this.fileMonitorConnected = true;
+        this.notifyListeners('file_monitor_connected', {
+          timestamp: new Date().toISOString()
+        });
+      });
+      
+      const disconnectedUnsub = fileMonitorBridge.on('disconnected', () => {
+        this.fileMonitorConnected = false;
+        // Don't notify listeners - this is expected when the C++ backend isn't running
+      });
+      
+      // Threat handlers
+      const threatUnsub = fileMonitorBridge.on('threat_detected', (threat) => {
+        this.notifyListeners('file_threat_detected', threat);
+      });
+      
+      const blockedUnsub = fileMonitorBridge.on('threat_blocked', (threat) => {
+        this.notifyListeners('file_threat_blocked', threat);
+      });
+      
+      // Statistics handler
+      const statsUnsub = fileMonitorBridge.on('statistics', (stats) => {
+        this.notifyListeners('file_monitor_stats', stats);
+      });
+      
+      this.unsubscribers.push(
+        fileEventUnsub,
+        connectedUnsub,
+        disconnectedUnsub,
+        threatUnsub,
+        blockedUnsub,
+        statsUnsub
+      );
+    } catch (error) {
+      console.warn('Error setting up file monitor listeners:', error);
+    }
+  }
+
+  /**
+   * Setup memory scanner event listeners
+   */
+  setupMemoryScannerListeners() {
+    if (typeof window !== 'undefined') {
+      const handler = (event) => {
+        const detection = event.detail;
+        this.notifyListeners('memory_threat_detected', {
+          timestamp: new Date().toISOString(),
+          detection,
+          severity: 'high'
+        });
+        
+        console.warn('🔬 MEMORY THREAT:', detection.threats[0]?.type);
+      };
+      
+      window.addEventListener('memory_threat_detected', handler);
+      this.unsubscribers.push(() => {
+        window.removeEventListener('memory_threat_detected', handler);
+      });
+    }
+  }
+
+  /**
+   * Setup process tree monitor listeners
+   */
+  setupProcessTreeListeners() {
+    // Monitor process registrations for suspicious patterns
+    const originalRegister = processTreeMonitor.registerProcess.bind(processTreeMonitor);
+    
+    processTreeMonitor.registerProcess = (processInfo) => {
+      const threats = originalRegister(processInfo);
+      
+      if (threats && threats.length > 0) {
+        this.notifyListeners('process_threat_detected', {
+          timestamp: new Date().toISOString(),
+          process: processInfo,
+          threats,
+          severity: threats[0].severity >= 0.8 ? 'critical' : 'high'
+        });
+        
+        console.warn('🌳 PROCESS THREAT:', threats[0].type);
+      }
+      
+      return threats;
+    };
+  }
+
+  /**
+   * Setup registry monitor event listeners
+   */
+  setupRegistryListeners() {
+    if (typeof window !== 'undefined') {
+      const handler = (event) => {
+        const detection = event.detail;
+        this.notifyListeners('registry_threat_detected', {
+          timestamp: new Date().toISOString(),
+          detection,
+          severity: detection.threat.severity >= 0.8 ? 'critical' : 'high'
+        });
+        
+        console.warn('📋 REGISTRY THREAT:', detection.threat.type);
+      };
+      
+      window.addEventListener('registry_threat_detected', handler);
+      this.unsubscribers.push(() => {
+        window.removeEventListener('registry_threat_detected', handler);
+      });
+    }
+  }
+
+  /**
+   * Get enhanced protection statistics
+   */
+  getEnhancedProtectionStats() {
+    if (!this.enhancedProtectionEnabled) {
+      return { enabled: false };
+    }
+    
+    return {
+      enabled: true,
+      ransomware: ransomwareDetector.getStatistics(),
+      fileMonitor: {
+        connected: this.fileMonitorConnected,
+        ...fileMonitorBridge.getStatistics()
+      },
+      memoryScanner: memoryScanner.getStatistics(),
+      processTree: processTreeMonitor.getStatistics(),
+      registry: registryMonitor.getStatistics()
+    };
+  }
+
+  /**
+   * Register a process with the process tree monitor
+   */
+  registerProcess(processInfo) {
+    if (!this.enhancedProtectionEnabled) return null;
+    return processTreeMonitor.registerProcess(processInfo);
+  }
+
+  /**
+   * Get process tree for a specific PID
+   */
+  getProcessTree(pid) {
+    if (!this.enhancedProtectionEnabled) return null;
+    return processTreeMonitor.getProcessTree(pid);
+  }
+
+  /**
    * Get current connection status
    */
   getStatus() {
@@ -398,7 +679,8 @@ class RealtimeMonitor {
       lastUpdate: this.lastUpdate,
       updateCount: this.updateCount,
       mlEnabled: this.mlEnabled,
-      mlStatistics: this.getMLStatistics()
+      mlStatistics: this.getMLStatistics(),
+      enhancedProtection: this.getEnhancedProtectionStats()
     };
   }
 

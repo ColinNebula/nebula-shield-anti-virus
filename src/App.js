@@ -1,19 +1,26 @@
 import React, { useState, useEffect, useCallback, lazy, Suspense } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
-import { ThemeProvider } from './context/ThemeContext';
+import { ThemeProvider } from './contexts/ThemeContext';
 import { ThemeProvider as MuiThemeProvider } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import { AuthProvider } from './contexts/AuthContext';
 import notificationService from './services/notificationService';
+import usbMonitorService from './services/usbMonitorService';
 import ProtectedRoute from './components/ProtectedRoute';
 import SplashScreen from './components/SplashScreen';
 import ErrorBoundary from './components/ErrorBoundary';
 import ErrorBoundaryWithReporting from './components/ErrorBoundaryWithReporting';
+import PWAInstallPrompt from './components/PWAInstallPrompt';
+import OfflineIndicator from './components/OfflineIndicator';
+import ThemeToggle from './components/ThemeToggle';
+import KeyboardShortcutsModal from './components/KeyboardShortcutsModal';
 import useKeyboardShortcuts from './hooks/useKeyboardShortcuts';
 import { preloadAfterLoad } from './utils/routePreload';
 import muiDarkTheme from './muiTheme';
+import './styles/themes.css';
 import './theme.css';
+import './styles/light-theme-fixes.css';
 import './App.css';
 
 /**
@@ -24,6 +31,7 @@ import './App.css';
  * 4. Service Worker - Offline capability and asset caching
  * 5. Bundle Optimization - Vendor chunks split for better caching
  * 6. Web Vitals - Performance metrics sent to analytics
+ * 7. PWA Support - Install prompt and offline indicators
  */
 
 // Lazy load all route components for optimal code splitting
@@ -42,6 +50,7 @@ const PaymentSuccess = lazy(() => import('./pages/PaymentSuccess'));
 const PaymentCancel = lazy(() => import('./pages/PaymentCancel'));
 const WebProtection = lazy(() => import('./pages/WebProtection'));
 const EnhancedWebProtection = lazy(() => import('./pages/EnhancedWebProtection'));
+const BrowserProtection = lazy(() => import('./pages/BrowserProtection'));
 const EmailProtection = lazy(() => import('./pages/EmailProtection'));
 const EnhancedDriverScanner = lazy(() => import('./pages/EnhancedDriverScanner'));
 const EnhancedNetworkProtection = lazy(() => import('./pages/EnhancedNetworkProtection'));
@@ -60,6 +69,8 @@ const TermsOfService = lazy(() => import('./pages/TermsOfService'));
 const LicenseActivation = lazy(() => import('./pages/LicenseActivation'));
 const CyberCapture = lazy(() => import('./components/CyberCapture'));
 const StartupManager = lazy(() => import('./pages/StartupManager'));
+const PasswordManager = lazy(() => import('./pages/PasswordManager'));
+const ParentalControls = lazy(() => import('./pages/ParentalControls'));
 const Sidebar = lazy(() => import('./components/Sidebar'));
 
 // Loading fallback component
@@ -88,9 +99,9 @@ const PageLoader = () => (
 );
 
 // Wrapper component to use keyboard shortcuts inside Router
-const AppContent = ({ showSplash, isMobileMenuOpen, closeMobileMenu, toggleMobileMenu, handleShowSplash }) => {
-  // Enable keyboard shortcuts (must be inside Router)
-  useKeyboardShortcuts(true);
+const AppContent = ({ showSplash, isMobileMenuOpen, closeMobileMenu, toggleMobileMenu, handleShowSplash, showShortcutsModal, setShowShortcutsModal }) => {
+  // Enable keyboard shortcuts (must be inside Router and ThemeProvider)
+  useKeyboardShortcuts(true, () => setShowShortcutsModal(true));
 
   return (
     <>
@@ -169,6 +180,16 @@ const AppContent = ({ showSplash, isMobileMenuOpen, closeMobileMenu, toggleMobil
                     <Sidebar isOpen={isMobileMenuOpen} onClose={closeMobileMenu} />
                     <main className="main-content">
                       <EnhancedWebProtection />
+                    </main>
+                  </>
+                </ProtectedRoute>
+              } />
+              <Route path="/browser-protection" element={
+                <ProtectedRoute>
+                  <>
+                    <Sidebar isOpen={isMobileMenuOpen} onClose={closeMobileMenu} />
+                    <main className="main-content">
+                      <BrowserProtection />
                     </main>
                   </>
                 </ProtectedRoute>
@@ -328,6 +349,26 @@ const AppContent = ({ showSplash, isMobileMenuOpen, closeMobileMenu, toggleMobil
                   </>
                 </ProtectedRoute>
               } />
+              <Route path="/password-manager" element={
+                <ProtectedRoute>
+                  <>
+                    <Sidebar isOpen={isMobileMenuOpen} onClose={closeMobileMenu} />
+                    <main className="main-content">
+                      <PasswordManager />
+                    </main>
+                  </>
+                </ProtectedRoute>
+              } />
+              <Route path="/parental-controls" element={
+                <ProtectedRoute>
+                  <>
+                    <Sidebar isOpen={isMobileMenuOpen} onClose={closeMobileMenu} />
+                    <main className="main-content">
+                      <ParentalControls />
+                    </main>
+                  </>
+                </ProtectedRoute>
+              } />
               <Route path="/terms-of-service" element={
                 <TermsOfService />
               } />
@@ -394,8 +435,21 @@ const AppContent = ({ showSplash, isMobileMenuOpen, closeMobileMenu, toggleMobil
   function App() {
       const [showSplash, setShowSplash] = useState(true);
       const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+      const [showShortcutsModal, setShowShortcutsModal] = useState(false);
 
   useEffect(() => {
+    // Initialize USB monitoring
+    const handleUSBEvent = (event, device) => {
+      if (event === 'connected') {
+        notificationService.notifyUSBDevice(device.name, device.scanning);
+      } else if (event === 'scan-complete') {
+        const { filesScanned, threatsFound } = device.scanResult || {};
+        notificationService.notifyScanComplete(filesScanned, threatsFound);
+      }
+    };
+
+    const cleanup = usbMonitorService.addListener(handleUSBEvent);
+
     // Defer notification permission request to not block initial load
     const requestNotifications = async () => {
       const granted = await notificationService.requestPermission();
@@ -412,6 +466,10 @@ const AppContent = ({ showSplash, isMobileMenuOpen, closeMobileMenu, toggleMobil
       // Preload critical routes after initial page load
       preloadAfterLoad([Dashboard, Scanner, Login], 2000);
     }, 1000);
+
+    return () => {
+      if (cleanup) cleanup();
+    };
   }, []);      const handleShowSplash = () => {
         setShowSplash(true);
       };
@@ -445,6 +503,8 @@ const AppContent = ({ showSplash, isMobileMenuOpen, closeMobileMenu, toggleMobil
                         closeMobileMenu={closeMobileMenu}
                         toggleMobileMenu={toggleMobileMenu}
                         handleShowSplash={handleShowSplash}
+                        showShortcutsModal={showShortcutsModal}
+                        setShowShortcutsModal={setShowShortcutsModal}
                       />
                       
                       <Toaster
@@ -470,12 +530,24 @@ const AppContent = ({ showSplash, isMobileMenuOpen, closeMobileMenu, toggleMobil
                           },
                         }}
                       />
-              </div>
-            </Router>
-          </ErrorBoundaryWithReporting>
-        </AuthProvider>
-      </ThemeProvider>
-    </ErrorBoundary>
-  </MuiThemeProvider>
-  );
-}export default App;
+                      
+                      {/* PWA Components */}
+                      <PWAInstallPrompt />
+                      <OfflineIndicator />
+                      
+                      {/* Keyboard Shortcuts Modal */}
+                      <KeyboardShortcutsModal 
+                        isOpen={showShortcutsModal}
+                        onClose={() => setShowShortcutsModal(false)}
+                      />
+                    </div>
+                  </Router>
+                </ErrorBoundaryWithReporting>
+              </AuthProvider>
+            </ThemeProvider>
+          </ErrorBoundary>
+        </MuiThemeProvider>
+      );
+    }
+
+export default App;

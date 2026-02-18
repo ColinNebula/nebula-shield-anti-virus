@@ -1,0 +1,3 @@
+web: node auth-server.js
+scanner: node real-scanner-api.js
+protection: node integrated-protection-service.js

@@ -1,18 +1,19 @@
 /**
- * Scan Worker
+ * Scan Worker - REAL SCANNER
  * 
- * Runs virus scanning operations in a Web Worker to keep the UI responsive.
- * This prevents the main thread from blocking during intensive scanning operations.
+ * Runs virus scanning operations using the backend real-scanner-api.js
+ * Connects to actual file scanner instead of simulation
  * 
  * Benefits:
  * - UI remains responsive during scans
  * - 60 FPS maintained
  * - Can scan thousands of files without UI lag
  * - Progress updates sent back to main thread
+ * - REAL virus detection using backend scanner
  */
 
-// Note: In a Web Worker, we don't have access to DOM or most browser APIs
-// We need to import the scanner service and communicate via messages
+// Backend scanner API configuration
+const SCANNER_API_URL = 'http://localhost:8081/api';
 
 let isScanning = false;
 let scanCancelled = false;
@@ -50,7 +51,7 @@ self.addEventListener('message', async (event) => {
 });
 
 /**
- * Handle single file scan
+ * Handle single file scan - REAL IMPLEMENTATION
  */
 async function handleFileScan(payload) {
   const { filePath } = payload;
@@ -72,13 +73,22 @@ async function handleFileScan(payload) {
       }
     });
 
-    // Simulate scanning (in production, this would use the actual scanner)
-    // Note: File system access in workers requires special handling
-    // You may need to pass file content from main thread
-    await simulateScan(filePath, 1000);
-
     if (scanCancelled) {
       throw new Error('Scan cancelled by user');
+    }
+
+    // REAL SCAN: Call backend scanner API
+    const response = await fetch(`${SCANNER_API_URL}/scan/file`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ file_path: filePath })
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Scan failed');
     }
 
     // Send progress update
@@ -90,24 +100,34 @@ async function handleFileScan(payload) {
       }
     });
 
-    // Simulate result
-    const result = {
-      file_path: filePath,
+    // Get REAL scan result from backend
+    const result = await response.json();
+    
+    // Format result for frontend
+    const formattedResult = {
+      file_path: result.file_path,
       file_name: filePath.split(/[\\/]/).pop(),
-      threat_type: Math.random() > 0.7 ? 'TROJAN' : 'CLEAN',
-      threat_name: Math.random() > 0.7 ? 'Trojan.Generic.Test' : null,
-      severity: Math.random() > 0.7 ? 'high' : 'clean',
-      file_hash: generateHash(filePath),
-      file_size: Math.floor(Math.random() * 10000000)
+      threat_type: result.threat_type || 'CLEAN',
+      threat_name: result.threat_name,
+      severity: getSeverityFromThreatType(result.threat_type),
+      file_hash: result.file_hash,
+      file_size: result.file_size,
+      scan_duration_ms: result.scan_duration_ms,
+      scanner_engine: result.scanner_engine,
+      confidence: result.confidence
     };
 
     // Send final result
     self.postMessage({
       type: 'SCAN_RESULT',
-      payload: result
+      payload: formattedResult
     });
 
   } catch (error) {
+    // If backend is unavailable, show helpful error
+    if (error.message.includes('fetch')) {
+      throw new Error('Scanner backend not running. Start with: cd backend && npm run start:scanner');
+    }
     throw error;
   } finally {
     isScanning = false;
@@ -115,10 +135,10 @@ async function handleFileScan(payload) {
 }
 
 /**
- * Handle directory scan
+ * Handle directory scan - REAL IMPLEMENTATION
  */
 async function handleDirectoryScan(payload) {
-  const { dirPath, recursive } = payload;
+  const { dirPath, recursive = true } = payload;
   
   if (!dirPath) {
     throw new Error('Directory path is required');
@@ -128,46 +148,53 @@ async function handleDirectoryScan(payload) {
   scanCancelled = false;
 
   try {
-    // Simulate directory traversal
-    const totalFiles = Math.floor(Math.random() * 50) + 10;
-    const results = [];
-
-    for (let i = 0; i < totalFiles; i++) {
-      if (scanCancelled) {
-        throw new Error('Scan cancelled by user');
-      }
-
-      const fileName = `file_${i + 1}.${['exe', 'dll', 'txt', 'doc'][Math.floor(Math.random() * 4)]}`;
-      const filePath = `${dirPath}\\${fileName}`;
-      
-      // Send progress update
-      const progress = Math.floor((i / totalFiles) * 100);
-      self.postMessage({
-        type: 'SCAN_PROGRESS',
-        payload: {
-          progress,
-          currentFile: filePath,
-          scannedFiles: i,
-          totalFiles
-        }
-      });
-
-      // Simulate scanning each file
-      await simulateScan(filePath, 50);
-
-      const isThreat = Math.random() > 0.8;
-      const result = {
-        file_path: filePath,
-        file_name: fileName,
-        threat_type: isThreat ? ['TROJAN', 'MALWARE', 'ADWARE'][Math.floor(Math.random() * 3)] : 'CLEAN',
-        threat_name: isThreat ? 'Threat.Generic.Test' : null,
-        severity: isThreat ? ['critical', 'high', 'medium'][Math.floor(Math.random() * 3)] : 'clean',
-        file_hash: generateHash(filePath),
-        file_size: Math.floor(Math.random() * 10000000)
-      };
-
-      results.push(result);
+    if (scanCancelled) {
+      throw new Error('Scan cancelled by user');
     }
+
+    // Send initial progress
+    self.postMessage({
+      type: 'SCAN_PROGRESS',
+      payload: {
+        progress: 10,
+        currentFile: dirPath,
+        scannedFiles: 0,
+        totalFiles: 0
+      }
+    });
+
+    // REAL SCAN: Call backend scanner API for directory
+    const response = await fetch(`${SCANNER_API_URL}/scan/directory`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ 
+        directory_path: dirPath,
+        recursive: recursive
+      })
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Directory scan failed');
+    }
+
+    // Get REAL scan results from backend
+    const data = await response.json();
+    
+    // Format results for frontend
+    const results = data.results.map(result => ({
+      file_path: result.file_path,
+      file_name: result.file_path.split(/[\\/]/).pop(),
+      threat_type: result.threat_type || 'CLEAN',
+      threat_name: result.threat_name,
+      severity: getSeverityFromThreatType(result.threat_type),
+      file_hash: result.file_hash,
+      file_size: result.file_size || 0,
+      scan_duration_ms: result.scan_duration_ms,
+      confidence: result.confidence
+    }));
 
     // Send final results
     self.postMessage({
@@ -175,15 +202,21 @@ async function handleDirectoryScan(payload) {
       payload: {
         results,
         summary: {
-          totalFiles,
-          scannedFiles: totalFiles,
-          threatsFound: results.filter(r => r.threat_type !== 'CLEAN').length,
-          cleanFiles: results.filter(r => r.threat_type === 'CLEAN').length
+          totalFiles: data.total_files,
+          scannedFiles: data.total_files,
+          threatsFound: data.threats_found,
+          cleanFiles: data.total_files - data.threats_found,
+          scanDuration: data.scan_duration_ms,
+          scannerEngine: data.scanner_engine
         }
       }
     });
 
   } catch (error) {
+    // If backend is unavailable, show helpful error
+    if (error.message.includes('fetch')) {
+      throw new Error('Scanner backend not running. Start with: cd backend && npm run start:scanner');
+    }
     throw error;
   } finally {
     isScanning = false;
@@ -204,27 +237,21 @@ function handleCancelScan() {
 }
 
 /**
- * Simulate scanning delay
+ * Helper: Map threat type to severity
  */
-function simulateScan(filePath, delay) {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      resolve();
-    }, delay);
-  });
-}
-
-/**
- * Generate simple hash for file path
- */
-function generateHash(str) {
-  let hash = 0;
-  for (let i = 0; i < str.length; i++) {
-    const char = str.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
-    hash = hash & hash; // Convert to 32-bit integer
-  }
-  return Math.abs(hash).toString(16).padStart(16, '0');
+function getSeverityFromThreatType(threatType) {
+  const severityMap = {
+    'CLEAN': 'clean',
+    'SUSPICIOUS': 'medium',
+    'MALWARE': 'high',
+    'VIRUS': 'high',
+    'TROJAN': 'critical',
+    'RANSOMWARE': 'critical',
+    'ROOTKIT': 'critical',
+    'ADWARE': 'low',
+    'SPYWARE': 'high'
+  };
+  return severityMap[threatType] || 'medium';
 }
 
 // Worker initialization

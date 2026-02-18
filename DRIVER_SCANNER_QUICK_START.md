@@ -478,7 +478,7 @@ All features available on all screen sizes!
 - Technical details: `DRIVER_SCANNER_ENHANCEMENT_SUMMARY.md`
 
 **Support:**
-- Email: colinnebula@gmail.com
+- Email: your-account@example.com
 - Premium users: Priority support available
 
 ---

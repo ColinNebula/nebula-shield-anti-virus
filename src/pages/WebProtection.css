@@ -1,0 +1,43 @@
+/* Web Protection Component Scoped Styles */
+
+.web-protection-page {
+  /* Isolation to prevent style bleeding */
+  isolation: isolate;
+  contain: layout style;
+}
+
+/* Ensure icons in this component don't affect sidebar */
+.web-protection-page svg {
+  vertical-align: middle !important;
+}
+
+.web-protection-page .MuiSvgIcon-root {
+  vertical-align: middle !important;
+}
+
+/* Override any global icon styles that might conflict */
+.web-protection-page .icon-wrapper {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Ensure Material-UI components stay scoped */
+.web-protection-page .MuiBox-root,
+.web-protection-page .MuiPaper-root,
+.web-protection-page .MuiCard-root {
+  /* Prevent style inheritance issues */
+  all: revert;
+}
+
+/* Preserve intended styles */
+.web-protection-page {
+  padding: 24px;
+  max-width: 100%;
+}
+
+@media (max-width: 768px) {
+  .web-protection-page {
+    padding: 16px;
+  }
+}

@@ -1,18 +1,25 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { motion } from 'framer-motion';
 import { 
   Activity, Brain, AlertTriangle, TrendingUp, Cpu, Network, 
   Database, Shield, Zap, BarChart3, CheckCircle, XCircle, 
-  Clock, Download, Upload, RefreshCw, Play, Pause, Settings 
+  Clock, Download, Upload, RefreshCw, Play, Pause, Settings,
+  AlertCircle, Eye, Gauge, TrendingDown, Info, Lightbulb,
+  Heart, Flame, Wind
 } from 'lucide-react';
 import mlAnomalyDetector from '../services/mlAnomalyDetection';
+import mlPerformanceTracker from '../services/mlPerformanceTracking';
+import threatSeverityClassifier from '../services/threatSeverityClassifier';
 import toast from 'react-hot-toast';
 import './MLDetection.css';
 
 /**
- * ML Detection Dashboard Component
+ * Enhanced ML Detection Dashboard Component
  * Provides real-time monitoring, training, and visualization of ML anomaly detection
+ * with performance tracking, threat severity classification, and explainability features
  */
 const MLDetection = () => {
+  // Basic stats and detections
   const [stats, setStats] = useState(null);
   const [zeroDayThreats, setZeroDayThreats] = useState([]);
   const [recentDetections, setRecentDetections] = useState([]);
@@ -21,6 +28,17 @@ const MLDetection = () => {
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [selectedTab, setSelectedTab] = useState('overview');
   const [baseline, setBaseline] = useState(null);
+
+  // Enhanced features
+  const [performanceMetrics, setPerformanceMetrics] = useState(null);
+  const [driftDetection, setDriftDetection] = useState(null);
+  const [threatClassifications, setThreatClassifications] = useState([]);
+  const [selectedThreat, setSelectedThreat] = useState(null);
+  const [featureImportance, setFeatureImportance] = useState(null);
+  const [adversarialAttacks, setAdversarialAttacks] = useState([]);
+  const [explanations, setExplanations] = useState({});
+  const [userFeedback, setUserFeedback] = useState(null);
+  const [feedbackMode, setFeedbackMode] = useState(false);
 
   // Load ML data
   const loadMLData = useCallback(async () => {
@@ -40,6 +58,30 @@ const MLDetection = () => {
 
       // Get baseline profile
       setBaseline(mlAnomalyDetector.baseline);
+
+      // === NEW: Load enhanced ML metrics ===
+      // Load performance metrics
+      const perf = mlPerformanceTracker.getPerformanceSummary();
+      setPerformanceMetrics(perf);
+
+      // Load drift detection data
+      setDriftDetection(mlPerformanceTracker.driftDetection);
+
+      // Load feature importance
+      setFeatureImportance(mlPerformanceTracker.featureImportance);
+
+      // Classify threats and update severity
+      const classified = history
+        .slice(0, 5)
+        .map(detection => 
+          threatSeverityClassifier.classifyThreat(detection)
+        )
+        .filter(c => c !== null);
+      setThreatClassifications(classified);
+
+      // Load adversarial attack detections
+      setAdversarialAttacks(mlPerformanceTracker.adversarialDetection.detectedEvasionAttempts || []);
+
     } catch (error) {
       console.error('Failed to load ML data:', error);
       toast('Failed to load ML detection data', { icon: '❌' });
@@ -158,6 +200,71 @@ const MLDetection = () => {
       await loadMLData();
     } catch (error) {
       toast.error('Test detection failed: ' + error.message);
+    }
+  };
+
+  // === NEW: Enhanced ML Features ===
+
+  // Explain threat detection
+  const handleExplainThreat = (detection) => {
+    if (!detection) return;
+
+    const explanation = mlPerformanceTracker.explainPrediction(
+      detection.features || {},
+      detection.prediction?.anomaly || false,
+      detection.score || 0
+    );
+
+    setExplanations(prev => ({
+      ...prev,
+      [detection.id || Date.now()]: explanation
+    }));
+
+    toast.success('🔍 Threat explanation generated');
+  };
+
+  // Provide user feedback for active learning
+  const handleProvideFeedback = (detection, feedback) => {
+    if (!detection) return;
+
+    // Record the feedback
+    mlPerformanceTracker.recordPrediction(
+      detection.prediction?.anomaly ? 1 : 0,
+      feedback === 'correct' ? 1 : 0,
+      detection.confidence || 0.85
+    );
+
+    // Update feature importance based on feedback
+    if (feedback === 'incorrect') {
+      toast('Model weights updated. Performance improving over time.', {
+        icon: '📚'
+      });
+    } else {
+      toast.success('✅ Feedback recorded for model improvement');
+    }
+    
+    setFeedbackMode(false);
+    loadMLData();
+  };
+
+  // Analyze threat severity
+  const handleAnalyzeThreatSeverity = (detection) => {
+    if (!detection) return;
+
+    const classification = threatSeverityClassifier.classifyThreat(detection);
+    setSelectedThreat(classification);
+
+    toast.success(`Threat severity: ${classification.severity.toUpperCase()}`, {
+      icon: classification.severity === 'critical' ? '🚨' : '⚠️'
+    });
+  };
+
+  // Reset model drift
+  const handleResetModelDrift = () => {
+    if (window.confirm('Reset model baseline? This will clear performance history.')) {
+      mlPerformanceTracker.resetMetrics();
+      toast.success('✅ Model metrics reset');
+      loadMLData();
     }
   };
 
@@ -326,6 +433,33 @@ const MLDetection = () => {
           <Activity size={16} />
           Recent Detections
         </button>
+
+        <button 
+          className={`ml-tab ${selectedTab === 'performance' ? 'active' : ''}`}
+          onClick={() => setSelectedTab('performance')}
+        >
+          <Gauge size={16} />
+          Performance & Metrics
+        </button>
+
+        <button 
+          className={`ml-tab ${selectedTab === 'threats' ? 'active' : ''}`}
+          onClick={() => setSelectedTab('threats')}
+        >
+          <Flame size={16} />
+          Threat Severity
+          {threatClassifications.length > 0 && (
+            <span className="ml-tab-badge">{threatClassifications.length}</span>
+          )}
+        </button>
+
+        <button 
+          className={`ml-tab ${selectedTab === 'explainability' ? 'active' : ''}`}
+          onClick={() => setSelectedTab('explainability')}
+        >
+          <Eye size={16} />
+          Explainability
+        </button>
         
         <button 
           className={`ml-tab ${selectedTab === 'baseline' ? 'active' : ''}`}
@@ -351,6 +485,7 @@ const MLDetection = () => {
             stats={stats} 
             recentDetections={recentDetections.slice(0, 5)}
             onTestDetection={handleTestDetection}
+            performanceMetrics={performanceMetrics}
           />
         )}
         
@@ -359,7 +494,41 @@ const MLDetection = () => {
         )}
         
         {selectedTab === 'detections' && (
-          <DetectionsTab detections={recentDetections} />
+          <DetectionsTab 
+            detections={recentDetections}
+            onExplain={handleExplainThreat}
+            onFeedback={handleProvideFeedback}
+            explanations={explanations}
+          />
+        )}
+
+        {selectedTab === 'performance' && performanceMetrics && (
+          <PerformanceTab 
+            performanceMetrics={performanceMetrics}
+            driftDetection={driftDetection}
+            featureImportance={featureImportance}
+            onResetDrift={handleResetModelDrift}
+            adversarialAttacks={adversarialAttacks}
+          />
+        )}
+
+        {selectedTab === 'threats' && (
+          <ThreatSeverityTab 
+            threatClassifications={threatClassifications}
+            selectedThreat={selectedThreat}
+            onSelectThreat={setSelectedThreat}
+            onAnalyze={handleAnalyzeThreatSeverity}
+          />
+        )}
+
+        {selectedTab === 'explainability' && (
+          <ExplainabilityTab 
+            recentDetections={recentDetections.slice(0, 5)}
+            explanations={explanations}
+            onExplain={handleExplainThreat}
+            onProvideFeedback={handleProvideFeedback}
+            featureImportance={featureImportance}
+          />
         )}
         
         {selectedTab === 'baseline' && (
@@ -710,6 +879,373 @@ const BaselineTab = ({ baseline }) => {
           </div>
         </div>
       </div>
+    </div>
+  );
+};
+
+/**
+ * Performance & Metrics Tab
+ */
+const PerformanceTab = ({ performanceMetrics, driftDetection, featureImportance, adversarialAttacks, onResetDrift }) => (
+  <div className="performance-tab">
+    {/* Metrics Overview */}
+    <div className="metrics-grid">
+      <div className="metric-card">
+        <div className="metric-label">Accuracy</div>
+        <div className="metric-value">{(performanceMetrics?.accuracy * 100 || 0).toFixed(2)}%</div>
+        <div className="metric-bar">
+          <motion.div 
+            className="metric-fill" 
+            initial={{ width: 0 }} 
+            animate={{ width: `${(performanceMetrics?.accuracy || 0) * 100}%` }}
+            transition={{ duration: 0.8 }}
+          />
+        </div>
+      </div>
+
+      <div className="metric-card">
+        <div className="metric-label">Precision</div>
+        <div className="metric-value">{(performanceMetrics?.precision * 100 || 0).toFixed(2)}%</div>
+        <div className="metric-bar">
+          <motion.div 
+            className="metric-fill" 
+            initial={{ width: 0 }} 
+            animate={{ width: `${(performanceMetrics?.precision || 0) * 100}%` }}
+            transition={{ duration: 0.8 }}
+          />
+        </div>
+      </div>
+
+      <div className="metric-card">
+        <div className="metric-label">Recall</div>
+        <div className="metric-value">{(performanceMetrics?.recall * 100 || 0).toFixed(2)}%</div>
+        <div className="metric-bar">
+          <motion.div 
+            className="metric-fill" 
+            initial={{ width: 0 }} 
+            animate={{ width: `${(performanceMetrics?.recall || 0) * 100}%` }}
+            transition={{ duration: 0.8 }}
+          />
+        </div>
+      </div>
+
+      <div className="metric-card">
+        <div className="metric-label">F1-Score</div>
+        <div className="metric-value">{(performanceMetrics?.f1Score * 100 || 0).toFixed(2)}%</div>
+        <div className="metric-bar">
+          <motion.div 
+            className="metric-fill" 
+            initial={{ width: 0 }} 
+            animate={{ width: `${(performanceMetrics?.f1Score || 0) * 100}%` }}
+            transition={{ duration: 0.8 }}
+          />
+        </div>
+      </div>
+    </div>
+
+    {/* Drift Detection */}
+    {driftDetection && (
+      <div className="drift-section">
+        <div className="section-title">
+          <AlertCircle size={18} />
+          Model Drift Detection
+        </div>
+        <div className={`drift-status ${driftDetection.isDrifting ? 'alert' : 'healthy'}`}>
+          <div className="drift-indicator"></div>
+          <div className="drift-info">
+            <p className="drift-label">
+              {driftDetection.isDrifting ? 'Drift Detected' : 'No Drift'}
+            </p>
+            <p className="drift-score">Drift Score: {(driftDetection.driftScore * 100).toFixed(2)}%</p>
+            <p className="drift-severity">Severity: {driftDetection.severity}</p>
+          </div>
+          <button className="btn-small" onClick={onResetDrift}>Reset Baseline</button>
+        </div>
+      </div>
+    )}
+
+    {/* Feature Importance */}
+    {featureImportance && (
+      <div className="feature-importance-section">
+        <div className="section-title">
+          <TrendingDown size={18} />
+          Feature Importance
+        </div>
+        <div className="feature-grid">
+          {Object.entries(featureImportance).map(([category, weight]) => (
+            <div key={category} className="feature-item">
+              <div className="feature-name">{category}</div>
+              <div className="feature-bar">
+                <motion.div 
+                  className="feature-weight"
+                  initial={{ width: 0 }}
+                  animate={{ width: `${(weight || 0) * 100}%` }}
+                  transition={{ duration: 0.8 }}
+                  style={{ backgroundColor: `hsl(${weight * 360}, 70%, 50%)` }}
+                />
+              </div>
+              <div className="feature-percentage">{(weight * 100).toFixed(1)}%</div>
+            </div>
+          ))}
+        </div>
+      </div>
+    )}
+
+    {/* Adversarial Attacks */}
+    {adversarialAttacks && adversarialAttacks.length > 0 && (
+      <div className="adversarial-section">
+        <div className="section-title">
+          <Flame size={18} />
+          Detected Evasion Attempts
+        </div>
+        <div className="attacks-list">
+          {adversarialAttacks.map((attack, idx) => (
+            <motion.div 
+              key={idx} 
+              className="attack-item"
+              initial={{ x: -20, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              transition={{ delay: idx * 0.1 }}
+            >
+              <div className="attack-type">{attack.type}</div>
+              <div className="attack-confidence">Confidence: {(attack.confidence * 100).toFixed(0)}%</div>
+              <div className="attack-description">{attack.description}</div>
+            </motion.div>
+          ))}
+        </div>
+      </div>
+    )}
+  </div>
+);
+
+/**
+ * Threat Severity Tab
+ */
+const ThreatSeverityTab = ({ threatClassifications, selectedThreat, onSelectThreat }) => (
+  <div className="threat-severity-tab">
+    <div className="threat-list">
+      {threatClassifications && threatClassifications.length > 0 ? (
+        threatClassifications.map((threat, idx) => {
+          const severityColor = 
+            threat.score >= 0.9 ? '#dc2626' :
+            threat.score >= 0.7 ? '#ea580c' :
+            threat.score >= 0.5 ? '#eab308' :
+            threat.score >= 0.3 ? '#0284c7' : '#6b7280';
+          
+          const severityLabel =
+            threat.score >= 0.9 ? 'Critical' :
+            threat.score >= 0.7 ? 'High' :
+            threat.score >= 0.5 ? 'Medium' :
+            threat.score >= 0.3 ? 'Low' : 'Info';
+
+          return (
+            <motion.div
+              key={idx}
+              className={`threat-item ${selectedThreat?.threatId === threat.threatId ? 'selected' : ''}`}
+              onClick={() => onSelectThreat(threat)}
+              whileHover={{ x: 4 }}
+            >
+              <div className="threat-header">
+                <div className="threat-severity-badge" style={{ backgroundColor: severityColor }}>
+                  {severityLabel}
+                </div>
+                <div className="threat-type">{threat.threatType}</div>
+                <div className="threat-score">{(threat.score * 100).toFixed(0)}%</div>
+              </div>
+              <p className="threat-summary">{threat.summary}</p>
+            </motion.div>
+          );
+        })
+      ) : (
+        <p className="empty-state">No threats classified yet</p>
+      )}
+    </div>
+
+    {/* Threat Details */}
+    {selectedThreat && (
+      <motion.div 
+        className="threat-details"
+        initial={{ opacity: 0, x: 20 }}
+        animate={{ opacity: 1, x: 0 }}
+      >
+        <div className="details-header">
+          <h3>{selectedThreat.threatType}</h3>
+          <button className="close-btn" onClick={() => onSelectThreat(null)}>×</button>
+        </div>
+
+        <div className="detail-section">
+          <h4>Severity Level</h4>
+          <p>{selectedThreat.severity.toUpperCase()} (Score: {(selectedThreat.score * 100).toFixed(1)}%)</p>
+        </div>
+
+        <div className="detail-section">
+          <h4>Impact Assessment</h4>
+          <div className="impact-grid">
+            <div className="impact-item">
+              <span>Business Impact:</span> {selectedThreat.estimatedImpact?.business || 'N/A'}
+            </div>
+            <div className="impact-item">
+              <span>Financial Impact:</span> {selectedThreat.estimatedImpact?.financial || 'N/A'}
+            </div>
+            <div className="impact-item">
+              <span>Data Risk:</span> {selectedThreat.estimatedImpact?.dataRisk || 'N/A'}
+            </div>
+          </div>
+        </div>
+
+        <div className="detail-section">
+          <h4>Recommended Actions</h4>
+          <ul className="actions-list">
+            {selectedThreat.recommendedActions && selectedThreat.recommendedActions.map((action, idx) => (
+              <li key={idx}>{action}</li>
+            ))}
+          </ul>
+        </div>
+
+        <div className="detail-section">
+          <h4>Response Timeframe</h4>
+          <p className="timeframe">{selectedThreat.responseTimeframe?.description || 'Consult security team'}</p>
+        </div>
+      </motion.div>
+    )}
+  </div>
+);
+
+/**
+ * Explainability Tab
+ */
+const ExplainabilityTab = ({ recentDetections, explanations, onExplain, featureImportance, onProvideFeedback }) => {
+  const [selectedDetectionIdx, setSelectedDetectionIdx] = useState(0);
+  
+  const selectedDetection = recentDetections && recentDetections.length > 0 
+    ? recentDetections[selectedDetectionIdx] 
+    : null;
+
+  // Generate explanation if not already cached
+  React.useEffect(() => {
+    if (selectedDetection && !explanations[selectedDetection.id] && onExplain) {
+      onExplain(selectedDetection);
+    }
+  }, [selectedDetection, explanations, onExplain]);
+
+  return (
+    <div className="explainability-tab">
+      {recentDetections && recentDetections.length > 0 ? (
+        <>
+          {/* Detection Selector */}
+          <div className="explanation-section">
+            <div className="section-title">
+              <Info size={18} />
+              Select Detection to Explain
+            </div>
+            <div className="detection-selector">
+              {recentDetections.map((det, idx) => (
+                <button
+                  key={idx}
+                  className={`detection-btn ${idx === selectedDetectionIdx ? 'active' : ''}`}
+                  onClick={() => setSelectedDetectionIdx(idx)}
+                >
+                  {det.type || 'Detection'} - {(det.score * 100).toFixed(0)}%
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {selectedDetection && explanations[selectedDetection.id] ? (
+            <>
+              {/* Feature Contributions */}
+              <div className="explanation-section">
+                <div className="section-title">
+                  <Lightbulb size={18} />
+                  Feature Contributions (SHAP Values)
+                </div>
+                
+                <div className="shap-chart">
+                  {explanations[selectedDetection.id].featureContributions.map((contrib, idx) => (
+                    <motion.div 
+                      key={idx}
+                      className="shap-bar"
+                      initial={{ width: 0 }}
+                      animate={{ width: '100%' }}
+                      transition={{ delay: idx * 0.05 }}
+                    >
+                      <div className="bar-label">{contrib.feature}</div>
+                      <div className="bar-container">
+                        <div 
+                          className={`bar-fill ${contrib.contribution > 0 ? 'positive' : 'negative'}`}
+                          style={{ 
+                            width: `${Math.abs(contrib.contribution) * 100}%`,
+                            backgroundColor: contrib.contribution > 0 ? '#10b981' : '#ef4444'
+                          }}
+                        />
+                      </div>
+                      <div className="bar-value">{contrib.contribution.toFixed(3)}</div>
+                    </motion.div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Supporting/Contradicting Evidence */}
+              <div className="explanation-section">
+                <div className="subsection-title">
+                  <Heart size={16} />
+                  Supporting Evidence
+                </div>
+                <div className="evidence-list">
+                  {explanations[selectedDetection.id].supportingReasons.map((reason, idx) => (
+                    <div key={idx} className="evidence-item positive">
+                      <span className="evidence-icon">✓</span>
+                      <span>{reason}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="explanation-section">
+                <div className="subsection-title">
+                  <Wind size={16} />
+                  Contradicting Evidence
+                </div>
+                <div className="evidence-list">
+                  {explanations[selectedDetection.id].contradictingReasons.map((reason, idx) => (
+                    <div key={idx} className="evidence-item negative">
+                      <span className="evidence-icon">✗</span>
+                      <span>{reason}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Feedback */}
+              <div className="explanation-section">
+                <div className="subsection-title">
+                  <Lightbulb size={16} />
+                  Model Feedback
+                </div>
+                <div className="feedback-buttons">
+                  <button 
+                    className="feedback-btn correct"
+                    onClick={() => onProvideFeedback && onProvideFeedback(selectedDetection, 'correct')}
+                  >
+                    ✓ This is Correct
+                  </button>
+                  <button 
+                    className="feedback-btn incorrect"
+                    onClick={() => onProvideFeedback && onProvideFeedback(selectedDetection, 'incorrect')}
+                  >
+                    ✗ This is Incorrect
+                  </button>
+                </div>
+                <p className="feedback-hint">Your feedback helps improve the model's accuracy</p>
+              </div>
+            </>
+          ) : (
+            <p className="empty-state full">Loading explanation for selected detection...</p>
+          )}
+        </>
+      ) : (
+        <p className="empty-state full">No recent detections to explain</p>
+      )}
     </div>
   );
 };

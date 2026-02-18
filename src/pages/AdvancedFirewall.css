@@ -285,11 +285,41 @@
   max-height: 400px;
   overflow-y: auto;
   padding-right: 1rem;
+.app-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 1rem 0 1.5rem;
+  flex-wrap: wrap;
+}
+
+.app-input {
+  flex: 1;
+  min-width: 240px;
+  padding: 0.75rem 1rem;
+  border: 2px solid #e0e0e0;
+  border-radius: 10px;
+  font-size: 0.95rem;
+  color: #2c3e50;
+}
+
+.app-input:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.15);
+}
+
 }
 
 .threat-item {
   display: flex;
   align-items: center;
+.app-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
   gap: 1rem;
   padding: 1rem;
   background: #f8f9fa;
@@ -300,6 +330,11 @@
 
 .threat-item:hover {
   background: #e9ecef;
+.btn-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  box-shadow: none;
+}
   transform: translateX(4px);
 }
 

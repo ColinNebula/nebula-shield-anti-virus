@@ -1,4 +1,66 @@
 {
-  "name": "NebulaShield",
-  "displayName": "Nebula Shield"
+  "expo": {
+    "name": "Nebula Shield Mobile",
+    "slug": "nebula-shield-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "icon": "./assets/icon.png",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#1a1a2e"
+    },
+    "platforms": [
+      "ios",
+      "android"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.nebulashield.mobile",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Nebula Shield needs camera access to scan QR codes for device pairing.",
+        "NSLocalNetworkUsageDescription": "Nebula Shield needs local network access to communicate with your desktop antivirus.",
+        "NSAppTransportSecurity": {
+          "NSAllowsArbitraryLoads": true,
+          "NSAllowsLocalNetworking": true
+        },
+        "NSBonjourServices": [
+          "_http._tcp",
+          "_http._tcp"
+        ],
+        "ITSAppUsesNonExemptEncryption": false
+      },
+      "buildNumber": "1.0.0"
+    },
+    "android": {
+      "package": "com.nebulashield.mobile",
+      "permissions": [
+        "INTERNET",
+        "ACCESS_NETWORK_STATE",
+        "CAMERA"
+      ],
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#1a1a2e"
+      },
+      "versionCode": 1,
+      "usesCleartextTraffic": true
+    },
+    "scheme": "nebulashield",
+    "plugins": [
+      "expo-asset"
+    ],
+    "updates": {
+      "url": "https://u.expo.dev/7d6eed38-f9b1-4168-b685-aee3198e202c"
+    },
+    "runtimeVersion": "1.0.0",
+    "extra": {
+      "eas": {
+        "projectId": "7d6eed38-f9b1-4168-b685-aee3198e202c"
+      },
+      "apiUrl": "http://10.0.0.72:3001/api",
+      "wsUrl": "ws://10.0.0.72:3001"
+    }
+  }
 }

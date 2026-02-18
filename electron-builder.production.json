@@ -1,0 +1,109 @@
+{
+  "appId": "com.nebulashield.antivirus",
+  "productName": "Nebula Shield Anti-Virus",
+  "copyright": "Copyright © 2025 ColinNebula",
+  "directories": {
+    "buildResources": "build-resources",
+    "output": "dist"
+  },
+  "files": [
+    "build/**/*",
+    "!build/**/*.map",
+    "!build/**/*.LICENSE.txt",
+    "public/electron.js",
+    "public/preload.js",
+    "public/favicon.ico",
+    "public/icon.png",
+    "build-resources/icon.ico",
+    "build-resources/icon.png",
+    "node_modules/electron-is-dev/**/*",
+    "package.json"
+  ],
+  "asar": true,
+  "asarUnpack": [],
+  "extraResources": [
+    {
+      "from": "build-resources/icon.ico",
+      "to": "icon.ico"
+    },
+    {
+      "from": "build-resources/icon.png",
+      "to": "icon.png"
+    },
+    {
+      "from": "backend",
+      "to": "backend",
+      "filter": [
+        "**/*",
+        "!*.md",
+        "!*.log",
+        "!test/**",
+        "!tests/**",
+        "!*.test.js",
+        "!*.spec.js",
+        "!coverage/**",
+        "!.nyc_output/**",
+        "!node_modules/**/test/**",
+        "!node_modules/**/tests/**",
+        "!node_modules/**/*.md",
+        "!node_modules/**/.bin/**",
+        "!node_modules/**/LICENSE*",
+        "!node_modules/**/README*",
+        "!node_modules/**/*.d.ts",
+        "!node_modules/**/*.map"
+      ]
+    },
+    {
+      "from": "data",
+      "to": "data",
+      "filter": [
+        "**/*",
+        "!*.db",
+        "!*.db-journal",
+        "!*.db-shm",
+        "!*.db-wal",
+        "!settings-backups/**"
+      ]
+    }
+  ],
+  "compression": "maximum",
+  "removePackageScripts": true,
+  "win": {
+    "target": [
+      {
+        "target": "nsis",
+        "arch": ["x64"]
+      },
+      {
+        "target": "portable",
+        "arch": ["x64"]
+      }
+    ],
+    "icon": "build-resources/icon.ico",
+    "verifyUpdateCodeSignature": false,
+    "signAndEditExecutable": false,
+    "forceCodeSigning": false,
+    "requestedExecutionLevel": "asInvoker",
+    "artifactName": "${productName}-${version}-${arch}.${ext}"
+  },
+  "nsis": {
+    "oneClick": false,
+    "allowToChangeInstallationDirectory": true,
+    "createDesktopShortcut": true,
+    "createStartMenuShortcut": true,
+    "shortcutName": "Nebula Shield Anti-Virus",
+    "license": "LICENSE",
+    "perMachine": false
+  },
+  "mac": {
+    "target": ["dmg", "zip"],
+    "icon": "build-resources/icon.icns",
+    "category": "public.app-category.utilities"
+  },
+  "linux": {
+    "target": ["AppImage", "deb"],
+    "icon": "build-resources/icon.png",
+    "category": "Utility"
+  },
+  "publish": null
+}

@@ -1,7 +1,7 @@
 // VirusTotal API Integration Service
 import CryptoJS from 'crypto-js';
 
-const VIRUSTOTAL_API_KEY = process.env.REACT_APP_VIRUSTOTAL_API_KEY || 'demo-key';
+const VIRUSTOTAL_API_KEY = import.meta.env.VITE_VIRUSTOTAL_API_KEY || 'demo-key';
 const VIRUSTOTAL_API_URL = 'https://www.virustotal.com/api/v3';
 
 class VirusTotalService {

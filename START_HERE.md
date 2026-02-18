@@ -46,7 +46,7 @@ Or press `Ctrl+C` in each terminal window.
 ## Login Credentials
 
 ```
-Email:    colinnebula@gmail.com
+Email:    your-account@example.com
 Password: Nebula2025!
 ```
 

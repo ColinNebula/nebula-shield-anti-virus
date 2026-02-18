@@ -1,0 +1,11 @@
+[phases.setup]
+nixPkgs = ['nodejs-18_x']
+
+[phases.install]
+cmds = ['npm install --production']
+
+[phases.build]
+cmds = ['echo "Backend ready for deployment"']
+
+[start]
+cmd = 'node auth-server.js'

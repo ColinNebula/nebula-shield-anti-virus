@@ -10,6 +10,7 @@ const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
+const crypto = require('crypto');
 require('dotenv').config();
 
 const app = express();
@@ -22,11 +23,22 @@ const io = socketIo(server, {
 });
 
 const PORT = process.env.PORT || 3001;
+const isProduction = process.env.NODE_ENV === 'production';
+
+if (!process.env.JWT_SECRET) {
+  if (isProduction) {
+    throw new Error('JWT_SECRET must be set in production');
+  }
+
+  process.env.JWT_SECRET = crypto.randomBytes(32).toString('hex');
+  console.warn('JWT_SECRET not set. Generated a temporary development secret.');
+}
 
 // Middleware
 app.use(helmet());
 app.use(cors());
-app.use(express.json());
+app.disable('x-powered-by');
+app.use(express.json({ limit: '1mb' }));
 app.use(morgan('combined'));
 
 // Rate limiting

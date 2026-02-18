@@ -6,26 +6,35 @@
 const express = require('express');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
+const rateLimit = require('express-rate-limit');
+const inputSanitizer = require('../../backend/security/input-sanitizer');
 const router = express.Router();
+
+const JWT_ISSUER = process.env.JWT_ISSUER || 'nebula-shield';
+const JWT_AUDIENCE = process.env.JWT_AUDIENCE || 'nebula-shield-app';
+
+const authLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    success: false,
+    error: 'Too many login attempts. Please try again later.'
+  }
+});
 
 // Temporary in-memory user store (replace with database)
 const users = new Map();
 
-// Initialize demo user
-const demoPasswordHash = bcrypt.hashSync('admin', 10);
-users.set('admin@test.com', {
-  id: '1',
-  email: 'admin@test.com',
-  passwordHash: demoPasswordHash,
-  fullName: 'Test Admin',
-  createdAt: new Date()
-});
+// Note: Users can register through /api/auth/register endpoint
+// In production, replace with a proper database (PostgreSQL, MongoDB, etc.)
 
 /**
  * POST /api/auth/login
  * Authenticate user and return JWT token
  */
-router.post('/login', async (req, res) => {
+router.post('/login', authLimiter, async (req, res) => {
   try {
     const { email, password } = req.body;
 
@@ -36,7 +45,24 @@ router.post('/login', async (req, res) => {
       });
     }
 
-    const user = users.get(email);
+    if (typeof password !== 'string' || password.length > 256) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid password format'
+      });
+    }
+
+    let normalizedEmail;
+    try {
+      normalizedEmail = inputSanitizer.sanitizeEmail(email);
+    } catch (error) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid email format'
+      });
+    }
+
+    const user = users.get(normalizedEmail);
     if (!user) {
       return res.status(401).json({
         success: false,
@@ -56,7 +82,11 @@ router.post('/login', async (req, res) => {
     const token = jwt.sign(
       { id: user.id, email: user.email },
       process.env.JWT_SECRET,
-      { expiresIn: '7d' }
+      {
+        expiresIn: '7d',
+        issuer: JWT_ISSUER,
+        audience: JWT_AUDIENCE
+      }
     );
 
     res.json({
@@ -82,7 +112,7 @@ router.post('/login', async (req, res) => {
  * POST /api/auth/register
  * Register new user
  */
-router.post('/register', async (req, res) => {
+router.post('/register', authLimiter, async (req, res) => {
   try {
     const { email, password, fullName } = req.body;
 
@@ -93,7 +123,39 @@ router.post('/register', async (req, res) => {
       });
     }
 
-    if (users.has(email)) {
+    let normalizedEmail;
+    try {
+      normalizedEmail = inputSanitizer.sanitizeEmail(email);
+    } catch (error) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid email format'
+      });
+    }
+
+    if (typeof password !== 'string' || password.length > 256) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid password format'
+      });
+    }
+
+    const passwordCheck = inputSanitizer.validatePassword(password);
+    if (!passwordCheck.valid) {
+      return res.status(400).json({
+        success: false,
+        error: passwordCheck.message
+      });
+    }
+
+    const sanitizedName = inputSanitizer.sanitizeString(fullName, {
+      trim: true,
+      maxLength: 80,
+      escapeHtml: true,
+      preventXSS: true
+    });
+
+    if (users.has(normalizedEmail)) {
       return res.status(400).json({
         success: false,
         error: 'Email already registered'
@@ -107,19 +169,23 @@ router.post('/register', async (req, res) => {
     const userId = (users.size + 1).toString();
     const user = {
       id: userId,
-      email,
+      email: normalizedEmail,
       passwordHash,
-      fullName,
+      fullName: sanitizedName,
       createdAt: new Date()
     };
 
-    users.set(email, user);
+    users.set(normalizedEmail, user);
 
     // Generate token
     const token = jwt.sign(
       { id: user.id, email: user.email },
       process.env.JWT_SECRET,
-      { expiresIn: '7d' }
+      {
+        expiresIn: '7d',
+        issuer: JWT_ISSUER,
+        audience: JWT_AUDIENCE
+      }
     );
 
     res.status(201).json({
@@ -156,7 +222,10 @@ router.post('/verify', (req, res) => {
       });
     }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const decoded = jwt.verify(token, process.env.JWT_SECRET, {
+      issuer: JWT_ISSUER,
+      audience: JWT_AUDIENCE
+    });
     const user = Array.from(users.values()).find(u => u.id === decoded.id);
 
     if (!user) {

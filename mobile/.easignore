@@ -1,0 +1,36 @@
+# Node modules (will be reinstalled on build server)
+node_modules
+
+# Build outputs
+.expo
+dist
+build
+
+# iOS build artifacts
+ios/build
+ios/Pods
+
+# Android build artifacts
+android/build
+android/app/build
+android/.gradle
+
+# Git
+.git
+
+# IDE
+.vscode
+.idea
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Test coverage
+coverage

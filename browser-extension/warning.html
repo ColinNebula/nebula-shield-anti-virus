@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>⚠️ Nebula Shield - Threat Blocked</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: linear-gradient(135deg, #F44336, #D32F2F);
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 20px;
+    }
+    
+    .container {
+      max-width: 600px;
+      background: white;
+      border-radius: 16px;
+      padding: 48px;
+      text-align: center;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    }
+    
+    .icon {
+      width: 120px;
+      height: 120px;
+      margin: 0 auto 24px;
+      background: linear-gradient(135deg, #F44336, #D32F2F);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 64px;
+      animation: pulse 2s infinite;
+    }
+    
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.05); }
+    }
+    
+    h1 {
+      font-size: 32px;
+      color: #F44336;
+      margin-bottom: 16px;
+    }
+    
+    .threat-type {
+      display: inline-block;
+      background: #FFF3E0;
+      color: #F57C00;
+      padding: 8px 16px;
+      border-radius: 20px;
+      font-size: 14px;
+      font-weight: bold;
+      text-transform: uppercase;
+      margin-bottom: 24px;
+    }
+    
+    p {
+      font-size: 18px;
+      color: #666;
+      margin-bottom: 32px;
+      line-height: 1.6;
+    }
+    
+    .url-box {
+      background: #f5f5f5;
+      padding: 16px;
+      border-radius: 8px;
+      margin-bottom: 32px;
+      word-break: break-all;
+      font-family: monospace;
+      font-size: 14px;
+      color: #333;
+    }
+    
+    .actions {
+      display: flex;
+      gap: 16px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+    
+    .btn {
+      padding: 14px 32px;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: all 0.3s;
+      text-decoration: none;
+      display: inline-block;
+    }
+    
+    .btn-primary {
+      background: linear-gradient(135deg, #4CAF50, #45a049);
+      color: white;
+    }
+    
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(76, 175, 80, 0.4);
+    }
+    
+    .btn-secondary {
+      background: #f5f5f5;
+      color: #333;
+    }
+    
+    .btn-secondary:hover {
+      background: #e0e0e0;
+    }
+    
+    .btn-danger {
+      background: transparent;
+      color: #F44336;
+      border: 2px solid #F44336;
+    }
+    
+    .btn-danger:hover {
+      background: #F44336;
+      color: white;
+    }
+    
+    .info {
+      margin-top: 32px;
+      padding-top: 32px;
+      border-top: 1px solid #e0e0e0;
+      font-size: 14px;
+      color: #999;
+    }
+    
+    .shield-logo {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      margin-top: 16px;
+      font-size: 14px;
+      color: #999;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="icon">⚠️</div>
+    <h1>Threat Blocked</h1>
+    <div class="threat-type" id="threatType">Malicious Site</div>
+    <p id="message">
+      Nebula Shield has blocked access to this website because it has been identified as a security threat.
+    </p>
+    
+    <div class="url-box" id="blockedUrl"></div>
+    
+    <div class="actions">
+      <button class="btn btn-primary" onclick="goBack()">🏠 Go Back to Safety</button>
+      <button class="btn btn-secondary" onclick="reportFalsePositive()">📝 Report False Positive</button>
+      <button class="btn btn-danger" id="proceedBtn" onclick="proceedAnyway()">⚠️ Proceed Anyway (Not Recommended)</button>
+    </div>
+    
+    <div class="info">
+      <p>This site was blocked because it matched known threat signatures in our database.</p>
+      <p><strong>Why was this site blocked?</strong></p>
+      <ul style="text-align: left; margin: 12px auto; max-width: 400px;">
+        <li>Matches known malicious patterns</li>
+        <li>Reported by multiple security sources</li>
+        <li>Contains suspicious content or code</li>
+      </ul>
+      
+      <div class="shield-logo">
+        <span>🛡️</span>
+        <span>Protected by Nebula Shield</span>
+      </div>
+    </div>
+  </div>
+  
+  <script>
+    // Get URL parameters
+    const params = new URLSearchParams(window.location.search);
+    const blockedUrl = params.get('url');
+    const threatType = params.get('type');
+    
+    // Update UI
+    if (blockedUrl) {
+      document.getElementById('blockedUrl').textContent = decodeURIComponent(blockedUrl);
+    }
+    
+    if (threatType) {
+      const typeElement = document.getElementById('threatType');
+      const messageElement = document.getElementById('message');
+      
+      if (threatType === 'phishing') {
+        typeElement.textContent = 'Phishing Site';
+        typeElement.style.background = '#FFF3E0';
+        typeElement.style.color = '#F57C00';
+        messageElement.textContent = 'This website has been identified as a phishing attempt designed to steal your personal information, passwords, or financial data.';
+      } else if (threatType === 'malware') {
+        typeElement.textContent = 'Malware Site';
+        typeElement.style.background = '#FFEBEE';
+        typeElement.style.color = '#C62828';
+        messageElement.textContent = 'This website has been flagged for distributing malicious software that could harm your device or steal your data.';
+      }
+    }
+    
+    function goBack() {
+      window.history.back();
+    }
+    
+    function reportFalsePositive() {
+      if (confirm('Report this site as safe?\n\nOur team will review this URL and update our threat database if necessary.')) {
+        chrome.runtime.sendMessage({
+          action: 'reportFalsePositive',
+          url: blockedUrl,
+        }, (response) => {
+          alert('Thank you for your feedback! Our team will review this report.');
+        });
+      }
+    }
+    
+    function proceedAnyway() {
+      if (confirm('⚠️ WARNING ⚠️\n\nProceeding to this site could expose you to:\n• Identity theft\n• Malware infection\n• Data loss\n• Financial fraud\n\nAre you absolutely sure you want to continue?')) {
+        if (confirm('Final Warning: Nebula Shield strongly recommends against visiting this site.\n\nContinue at your own risk?')) {
+          window.location.href = blockedUrl;
+        }
+      }
+    }
+  </script>
+</body>
+</html>

@@ -11,9 +11,9 @@ You now have a **full-featured Admin Panel** with multi-user management, role-ba
 ### 1. Access Admin Panel
 
 1. Navigate to **http://localhost:3000**
-2. Login with admin credentials:
-   - **Email:** `colinnebula@gmail.com`
-   - **Password:** `Nebula2025!`
+2. Login with your admin credentials:
+   - Create admin account during first-time setup
+   - Or use database-configured admin account
    - **Role:** Admin
    - **Tier:** Premium
 
@@ -384,13 +384,13 @@ You now have a **production-ready Admin Panel** with:
 ✅ CSV export functionality
 ✅ Mock data for demonstration
 
-**Your admin account is ready to use:**
-- Email: `colinnebula@gmail.com`
-- Password: `Nebula2025!`
+**To set up your admin account:**
+- Register through the application
+- Or configure directly in the database
 - Role: Admin
 - Access: Full system control
 
-Navigate to **http://localhost:3000**, login, and click the **👑 Admin Panel** menu item to start managing your antivirus system!
+Navigate to **http://localhost:3000**, login with your admin account, and click the **👑 Admin Panel** menu item to start managing your antivirus system!
 
 ---
 

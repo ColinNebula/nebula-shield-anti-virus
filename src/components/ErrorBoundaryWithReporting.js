@@ -161,7 +161,7 @@ Time: ${new Date().toISOString()}
 
   render() {
     if (this.state.hasError) {
-      const isDevelopment = process.env.NODE_ENV === 'development';
+      const isDevelopment = import.meta.env.DEV;
 
       return (
         <div className="error-boundary-container">

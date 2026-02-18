@@ -1,7 +1,7 @@
 # Clear Browser Cache & Login Fresh
 
 ## The ONLY valid admin account is:
-- **Email**: `colinnebula@gmail.com`
+- **Email**: `your-account@example.com`
 - **Password**: `Nebula2025!`
 
 ## ⚠️ `colinnebula@nebula3ddev.com` does NOT exist in the database!
@@ -32,7 +32,7 @@ location.reload();
 ```
 1. Right-click the email field
 2. Select "Clear form data" or similar
-3. Type email manually: colinnebula@gmail.com
+3. Type your email address
 ```
 
 ### 4. Hard Refresh
@@ -46,7 +46,7 @@ location.reload();
 ## ✅ Verification
 
 After clearing, login with:
-- Email: `colinnebula@gmail.com`
+- Email: `your-account@example.com`
 - Password: `Nebula2025!`
 
 You should see:

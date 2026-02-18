@@ -1,5 +1,6 @@
-import React, { createContext, useState, useContext, useEffect, useCallback } from 'react';
+import React, { createContext, useState, useContext, useEffect, useCallback, useRef } from 'react';
 import axios from 'axios';
+import toast from 'react-hot-toast';
 
 const AuthContext = createContext(null);
 
@@ -7,15 +8,25 @@ const AuthContext = createContext(null);
 // In Electron or production, use direct backend URLs
 const isElectron = typeof window !== 'undefined' && window.electronAPI?.isElectron;
 const API_BASE = isElectron ? 'http://localhost:8080' : (import.meta.env.VITE_API_URL || '');
+const AUTH_API_BASE = isElectron
+  ? 'http://localhost:8082'
+  : (import.meta.env.VITE_AUTH_API_URL || '');
 
-const AUTH_API_URL = `${API_BASE}/api/auth`;
-const SUBSCRIPTION_API_URL = `${API_BASE}/api/subscription`;
+const AUTH_API_URL = `${AUTH_API_BASE}/api/auth`;
+const SUBSCRIPTION_API_URL = `${AUTH_API_BASE}/api/subscription`;
 
 // Configure axios defaults for better error handling
 axios.defaults.timeout = 10000; // 10 second timeout
 axios.defaults.headers.common['Content-Type'] = 'application/json';
 
 export const AuthProvider = ({ children }) => {
+  useEffect(() => {
+    console.log('[Auth] API bases:', {
+      apiBase: API_BASE || '(relative)',
+      authApiBase: AUTH_API_BASE
+    });
+  }, []);
+
   // Initialize from localStorage to persist across restarts
   const [user, setUser] = useState(() => {
     try {
@@ -29,6 +40,8 @@ export const AuthProvider = ({ children }) => {
   const [token, setToken] = useState(localStorage.getItem('token'));
   const [loading, setLoading] = useState(true);
   const [isOnline, setIsOnline] = useState(true); // Track backend connectivity
+  const [authServerDown, setAuthServerDown] = useState(false);
+  const authDownToastShown = useRef(false);
   const [subscription, setSubscription] = useState(() => {
     try {
       const savedSubscription = localStorage.getItem('subscription');
@@ -64,6 +77,31 @@ export const AuthProvider = ({ children }) => {
     initAuth();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
+
+  // Startup check for auth server availability
+  useEffect(() => {
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      return;
+    }
+
+    const checkAuthServer = async () => {
+      try {
+        await axios.get(`${AUTH_API_BASE}/api/health`, { timeout: 3000 });
+        setAuthServerDown(false);
+        authDownToastShown.current = false;
+      } catch (error) {
+        if (!authDownToastShown.current) {
+          authDownToastShown.current = true;
+          setAuthServerDown(true);
+          toast.error('Auth server not running. Start backend auth server on port 8082.', {
+            duration: 6000
+          });
+        }
+      }
+    };
+
+    checkAuthServer();
+  }, []);
 
   // Retry token verification periodically when offline
   useEffect(() => {
@@ -130,6 +168,8 @@ export const AuthProvider = ({ children }) => {
         console.log('✅ Token verified, user:', response.data.user);
         setUser(response.data.user);
         setIsOnline(true); // Backend is available
+        setAuthServerDown(false);
+        authDownToastShown.current = false;
         // Persist user data to localStorage
         localStorage.setItem('user', JSON.stringify(response.data.user));
       } else {
@@ -143,6 +183,13 @@ export const AuthProvider = ({ children }) => {
       if (error.code === 'ECONNREFUSED' || error.code === 'ENOTFOUND' || error.code === 'ERR_NETWORK' || error.message.includes('timeout')) {
         console.log('⚠️ Backend not available - this might be temporary during startup');
         setIsOnline(false); // Mark as offline
+        if (!authDownToastShown.current) {
+          authDownToastShown.current = true;
+          setAuthServerDown(true);
+          toast.error('Auth server not running. Start backend auth server on port 8082.', {
+            duration: 6000
+          });
+        }
         // Keep user logged in with saved data from localStorage
         // User data was already loaded in state initialization
         if (user) {
@@ -169,17 +216,20 @@ export const AuthProvider = ({ children }) => {
     try {
       const response = await axios.get(SUBSCRIPTION_API_URL, {
         headers: { Authorization: `Bearer ${token}` },
-        timeout: 5000
+        timeout: 5000,
+        // Suppress axios default error logging for 404s
+        validateStatus: (status) => status < 500
       });
       
-      if (response.data.success) {
+      // Only process if we got a successful response
+      if (response.status === 200 && response.data.success) {
         setSubscription(response.data.subscription);
         // Persist subscription data to localStorage
         localStorage.setItem('subscription', JSON.stringify(response.data.subscription));
       }
     } catch (error) {
       // Silently fail if subscription endpoint doesn't exist or auth fails
-      if (error.response?.status !== 404) {
+      if (error.response?.status !== 404 && error.response?.status !== 401) {
         console.warn('Failed to load subscription:', error.message);
       }
     }
@@ -226,6 +276,33 @@ export const AuthProvider = ({ children }) => {
     try {
       console.log('🔑 Attempting login for:', email);
       console.log('🌐 API URL:', `${AUTH_API_URL}/login`);
+      
+      // First, check if backend is accessible (with retry logic for Electron startup)
+      if (isElectron) {
+        let backendReady = false;
+        const maxRetries = 5;
+        
+        for (let i = 0; i < maxRetries; i++) {
+          try {
+            await axios.get(`${API_BASE}/api/health`, { timeout: 2000 });
+            backendReady = true;
+            console.log('✅ Backend health check passed');
+            break;
+          } catch (err) {
+            console.warn(`⏳ Backend not ready yet (attempt ${i + 1}/${maxRetries}), waiting...`);
+            if (i < maxRetries - 1) {
+              await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second
+            }
+          }
+        }
+        
+        if (!backendReady) {
+          return {
+            success: false,
+            message: 'Backend server is not responding. Please wait a moment and try again.'
+          };
+        }
+      }
       
       const response = await axios.post(`${AUTH_API_URL}/login`, {
         email,
@@ -416,6 +493,7 @@ export const AuthProvider = ({ children }) => {
     token,
     loading,
     isOnline,
+    authServerDown,
     subscription,
     isAuthenticated: !!user,
     isPremium: user?.tier === 'premium' || user?.role === 'admin',

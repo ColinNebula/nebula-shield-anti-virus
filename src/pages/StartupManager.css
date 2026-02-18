@@ -219,6 +219,9 @@
   border-radius: 12px;
   margin-bottom: 24px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  position: relative;
+  z-index: 10;
+  pointer-events: auto;
 }
 
 .filters,
@@ -226,6 +229,7 @@
   display: flex;
   align-items: center;
   gap: 12px;
+  pointer-events: auto;
 }
 
 .filters label,
@@ -244,18 +248,33 @@
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  pointer-events: auto;
+  position: relative;
+  z-index: 1;
+  user-select: none;
+  outline: none;
 }
 
 .filters button:hover {
   border-color: #d1d5db;
   background: #f9fafb;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.filters button:active {
+  transform: translateY(0);
+  transition: all 0.1s;
 }
 
 .filters button.active {
-  border-color: #3b82f6;
-  background: #eff6ff;
-  color: #1e40af;
+  border-color: #3b82f6 !important;
+  background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%) !important;
+  color: #1e40af !important;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15), 0 4px 6px rgba(59, 130, 246, 0.1) !important;
+  transform: translateY(-2px) !important;
+  font-weight: 700 !important;
 }
 
 .sort-controls select {
@@ -266,12 +285,22 @@
   font-weight: 500;
   background: white;
   cursor: pointer;
-  transition: border-color 0.2s;
+  transition: all 0.2s;
+  pointer-events: auto;
+  position: relative;
+  z-index: 1;
+  color: #4b5563;
+}
+
+.sort-controls select:hover {
+  border-color: #d1d5db;
+  background: #f9fafb;
 }
 
 .sort-controls select:focus {
   outline: none;
   border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
 /* Startup Items Container */
@@ -302,6 +331,19 @@
   padding: 20px 24px;
   transition: all 0.2s;
   border-left: 4px solid transparent;
+  animation: slideInItem 0.3s ease-out;
+  animation-fill-mode: both;
+}
+
+@keyframes slideInItem {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .startup-item:hover {

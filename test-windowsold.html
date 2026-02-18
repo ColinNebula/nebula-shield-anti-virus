@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Windows.old Cleaning</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #1a1a1a;
+            color: #fff;
+        }
+        .container {
+            background: #2a2a2a;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+        button {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 5px;
+        }
+        button:hover {
+            background: #2563eb;
+        }
+        button:disabled {
+            background: #4b5563;
+            cursor: not-allowed;
+        }
+        #result {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 6px;
+            white-space: pre-wrap;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+        }
+        .success {
+            background: #065f46;
+            border: 2px solid #10b981;
+        }
+        .error {
+            background: #7f1d1d;
+            border: 2px solid #ef4444;
+        }
+        .warning {
+            background: #78350f;
+            border: 2px solid #f59e0b;
+        }
+        .info {
+            background: #1e3a8a;
+            border: 2px solid #3b82f6;
+        }
+        h1 {
+            color: #3b82f6;
+            margin-top: 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧹 Windows.old Cleaning Test</h1>
+        <p>Test the Windows.old cleaning endpoint directly</p>
+        
+        <button onclick="testCleanWindowsOld()">Clean Windows.old</button>
+        <button onclick="clearResult()">Clear</button>
+        
+        <div id="result"></div>
+    </div>
+
+    <script>
+        const API_BASE_URL = 'http://localhost:8080';
+
+        async function testCleanWindowsOld() {
+            const resultDiv = document.getElementById('result');
+            resultDiv.className = 'info';
+            resultDiv.textContent = 'Testing Windows.old cleaning...\n';
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/disk/clean/windowsold`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                resultDiv.textContent += `HTTP Status: ${response.status} ${response.statusText}\n\n`;
+
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
+                    if (data.requiresAdmin) {
+                        resultDiv.className = 'warning';
+                        resultDiv.textContent += '⚠️ REQUIRES ADMIN\n\n';
+                    } else {
+                        resultDiv.className = 'success';
+                        resultDiv.textContent += '✅ SUCCESS\n\n';
+                    }
+                } else {
+                    resultDiv.className = 'error';
+                    resultDiv.textContent += '❌ FAILED\n\n';
+                }
+
+                resultDiv.textContent += 'Response:\n' + JSON.stringify(data, null, 2);
+                
+            } catch (error) {
+                resultDiv.className = 'error';
+                resultDiv.textContent += `\n❌ ERROR: ${error.message}\n`;
+                console.error('Test failed:', error);
+            }
+        }
+
+        function clearResult() {
+            document.getElementById('result').textContent = '';
+            document.getElementById('result').className = '';
+        }
+
+        // Auto-run test on load
+        window.addEventListener('load', () => {
+            console.log('Test page loaded. Click "Clean Windows.old" to test the endpoint.');
+        });
+    </script>
+</body>
+</html>

@@ -24,7 +24,15 @@ import {
   Wifi,
   Volume2,
   Bluetooth,
-  Database
+  Database,
+  Layers,
+  Filter,
+  TrendingUp,
+  Cloud,
+  List,
+  Ban,
+  Star,
+  BarChart
 } from 'lucide-react';
 import {
   scanDrivers,
@@ -33,7 +41,11 @@ import {
   getScheduler,
   getUpdateRecommendations,
   runHardwareDiagnostics,
-  getRestorePointAdvice
+  getRestorePointAdvice,
+  getBulkUpdateManager,
+  getFilterManager,
+  getPerformanceTracker,
+  checkWindowsUpdate
 } from '../services/enhancedDriverScanner';
 import './EnhancedDriverScanner.css';
 
@@ -51,13 +63,31 @@ const EnhancedDriverScanner = () => {
   const [downloadProgress, setDownloadProgress] = useState({});
   const [installDialog, setInstallDialog] = useState(null);
   const [downloadedDrivers, setDownloadedDrivers] = useState({});
+  
+  // New state for enhanced features
+  const [bulkQueue, setBulkQueue] = useState([]);
+  const [bulkProgress, setBulkProgress] = useState(null);
+  const [filters, setFilters] = useState(null);
+  const [windowsUpdateResults, setWindowsUpdateResults] = useState({});
+  const [selectedDrivers, setSelectedDrivers] = useState(new Set());
 
   const backupManager = getBackupManager();
   const scheduler = getScheduler();
+  const bulkUpdateManager = getBulkUpdateManager();
+  const filterManager = getFilterManager();
+  const performanceTracker = getPerformanceTracker();
 
   useEffect(() => {
     setBackups(backupManager.backups);
     setSchedule(scheduler.schedule);
+    setFilters(filterManager.filters);
+    
+    // Subscribe to bulk update queue changes
+    const unsubscribe = bulkUpdateManager.subscribe((queue) => {
+      setBulkQueue(queue);
+    });
+    
+    return () => unsubscribe();
   }, []);
 
   useEffect(() => {
@@ -180,6 +210,128 @@ const EnhancedDriverScanner = () => {
     }
   };
 
+  // ==================== NEW BULK UPDATE HANDLERS ====================
+  
+  const toggleDriverSelection = (driverId) => {
+    const newSelection = new Set(selectedDrivers);
+    if (newSelection.has(driverId)) {
+      newSelection.delete(driverId);
+    } else {
+      newSelection.add(driverId);
+    }
+    setSelectedDrivers(newSelection);
+  };
+
+  const selectAllUpdatable = () => {
+    if (!scanResults) return;
+    const updatable = scanResults.results
+      .filter(d => d.status === 'update-available' && !filterManager.isBlacklisted(d.id))
+      .map(d => d.id);
+    setSelectedDrivers(new Set(updatable));
+  };
+
+  const clearSelection = () => {
+    setSelectedDrivers(new Set());
+  };
+
+  const addSelectedToBulkQueue = () => {
+    if (selectedDrivers.size === 0) return;
+    
+    const driversToAdd = scanResults.results.filter(d => selectedDrivers.has(d.id));
+    bulkUpdateManager.addToQueue(driversToAdd);
+    showNotification(`${driversToAdd.length} drivers added to update queue`, 'success');
+    clearSelection();
+  };
+
+  const executeBulkUpdates = async () => {
+    if (bulkQueue.length === 0) return;
+    
+    setBulkProgress({ started: true, percentage: 0 });
+    
+    try {
+      const result = await bulkUpdateManager.executeQueue((progress) => {
+        setBulkProgress(progress);
+      });
+      
+      showNotification(
+        `Bulk update complete: ${result.completed} succeeded, ${result.failed} failed`,
+        result.failed === 0 ? 'success' : 'warning'
+      );
+      
+      setTimeout(() => {
+        setBulkProgress(null);
+        bulkUpdateManager.clearQueue();
+        performScan();
+      }, 2000);
+    } catch (error) {
+      showNotification('Bulk update failed: ' + error.message, 'error');
+      setBulkProgress(null);
+    }
+  };
+
+  // ==================== FILTER MANAGEMENT HANDLERS ====================
+  
+  const handleToggleBlacklist = (driverId) => {
+    if (filterManager.isBlacklisted(driverId)) {
+      filterManager.removeFromBlacklist(driverId);
+      showNotification('Driver removed from blacklist', 'info');
+    } else {
+      filterManager.addToBlacklist(driverId, 'User blacklisted');
+      showNotification('Driver added to blacklist', 'info');
+    }
+    setFilters(filterManager.filters);
+    performScan();
+  };
+
+  const handleToggleTrusted = (driverId) => {
+    if (filterManager.isTrusted(driverId)) {
+      filterManager.unmarkAsTrusted(driverId);
+      showNotification('Driver unmarked as trusted', 'info');
+    } else {
+      filterManager.markAsTrusted(driverId);
+      showNotification('Driver marked as trusted', 'info');
+    }
+    setFilters(filterManager.filters);
+    performScan();
+  };
+
+  const handleToggleAutoUpdateExclusion = (driverId) => {
+    if (filterManager.isExcludedFromAutoUpdate(driverId)) {
+      filterManager.includeInAutoUpdate(driverId);
+      showNotification('Driver included in auto-updates', 'info');
+    } else {
+      filterManager.excludeFromAutoUpdate(driverId, 'User excluded');
+      showNotification('Driver excluded from auto-updates', 'info');
+    }
+    setFilters(filterManager.filters);
+    performScan();
+  };
+
+  // ==================== WINDOWS UPDATE HANDLER ====================
+  
+  const checkDriverWindowsUpdate = async (driver) => {
+    try {
+      const result = await checkWindowsUpdate(driver);
+      setWindowsUpdateResults(prev => ({
+        ...prev,
+        [driver.id]: result
+      }));
+      
+      if (result.available) {
+        showNotification(
+          `Windows Update available: ${result.version} (${result.kb})`,
+          'info'
+        );
+      } else {
+        showNotification('No Windows Update available for this driver', 'info');
+      }
+    } catch (error) {
+      showNotification('Failed to check Windows Update: ' + error.message, 'error');
+    }
+  };
+
+  // ==================== EXISTING HANDLERS ====================
+
   const handleDeleteBackup = (backupId) => {
     backupManager.deleteBackup(backupId);
     setBackups(backupManager.backups);
@@ -281,6 +433,10 @@ const EnhancedDriverScanner = () => {
       <div className="scanner-tabs">
         {[
           { id: 'scan', label: 'Driver Scan', icon: Activity },
+          { id: 'bulk', label: 'Bulk Updates', icon: Layers, badge: bulkQueue.length || null },
+          { id: 'conflicts', label: 'Conflicts', icon: AlertTriangle, badge: scanResults?.conflicts?.length || null },
+          { id: 'filters', label: 'Filters', icon: Filter },
+          { id: 'performance', label: 'Performance', icon: TrendingUp },
           { id: 'backups', label: 'Backups', icon: Archive },
           { id: 'schedule', label: 'Auto-Update', icon: Calendar },
           { id: 'diagnostics', label: 'Diagnostics', icon: Settings }
@@ -292,6 +448,7 @@ const EnhancedDriverScanner = () => {
           >
             <tab.icon size={18} />
             <span>{tab.label}</span>
+            {tab.badge > 0 && <span className="tab-badge">{tab.badge}</span>}
           </button>
         ))}
       </div>
@@ -589,6 +746,14 @@ const EnhancedDriverScanner = () => {
                                 
                                 <button
                                   className="action-button action-secondary"
+                                  onClick={() => checkDriverWindowsUpdate(driver)}
+                                >
+                                  <Cloud size={16} />
+                                  <span>Check Windows Update</span>
+                                </button>
+                                
+                                <button
+                                  className="action-button action-secondary"
                                   onClick={() => runDiagnostics(driver)}
                                   disabled={runningDiagnostics}
                                 >
@@ -596,12 +761,40 @@ const EnhancedDriverScanner = () => {
                                   <span>Run Diagnostics</span>
                                 </button>
 
+                                {windowsUpdateResults[driver.id] && windowsUpdateResults[driver.id].available && (
+                                  <div className="windows-update-info">
+                                    <Cloud size={14} />
+                                    <span>Windows Update: {windowsUpdateResults[driver.id].version} ({windowsUpdateResults[driver.id].kb})</span>
+                                  </div>
+                                )}
+
                                 {driver.vulnerability && (
                                   <div className="vulnerability-warning">
                                     <AlertTriangle size={14} />
                                     <span>Security update available</span>
                                   </div>
                                 )}
+
+                                <div className="driver-filter-badges">
+                                  {driver.isTrusted && (
+                                    <span className="filter-badge trusted">
+                                      <Star size={12} />
+                                      Trusted
+                                    </span>
+                                  )}
+                                  {driver.isBlacklisted && (
+                                    <span className="filter-badge blacklisted">
+                                      <Ban size={12} />
+                                      Blacklisted
+                                    </span>
+                                  )}
+                                  {driver.isExcludedFromAutoUpdate && (
+                                    <span className="filter-badge excluded">
+                                      <Pause size={12} />
+                                      No Auto-Update
+                                    </span>
+                                  )}
+                                </div>
                               </div>
                             </motion.div>
                           )}
@@ -890,6 +1083,453 @@ const EnhancedDriverScanner = () => {
                     <RefreshCw size={16} />
                     <span>Run Another Test</span>
                   </button>
+                </div>
+              )}
+            </motion.div>
+          )}
+
+          {/* ==================== BULK UPDATES TAB ==================== */}
+          {activeTab === 'bulk' && (
+            <motion.div
+              key="bulk"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              className="tab-content"
+            >
+              <div className="bulk-header">
+                <h3>
+                  <Layers size={20} />
+                  Bulk Driver Updates
+                </h3>
+                <p>Update multiple drivers at once</p>
+              </div>
+
+              {scanResults && scanResults.updatesAvailable > 0 && (
+                <div className="bulk-selection">
+                  <div className="selection-actions">
+                    <button className="action-button" onClick={selectAllUpdatable}>
+                      <CheckCircle size={16} />
+                      Select All Updatable ({scanResults.results.filter(d => d.status === 'update-available').length})
+                    </button>
+                    <button className="action-button action-secondary" onClick={clearSelection}>
+                      <XCircle size={16} />
+                      Clear Selection
+                    </button>
+                    <button 
+                      className="action-button action-update" 
+                      onClick={addSelectedToBulkQueue}
+                      disabled={selectedDrivers.size === 0}
+                    >
+                      <Download size={16} />
+                      Add Selected to Queue ({selectedDrivers.size})
+                    </button>
+                  </div>
+
+                  <div className="selectable-drivers-list">
+                    {scanResults.results
+                      .filter(d => d.status === 'update-available')
+                      .map(driver => (
+                        <div 
+                          key={driver.id} 
+                          className={`selectable-driver-card ${selectedDrivers.has(driver.id) ? 'selected' : ''}`}
+                          onClick={() => toggleDriverSelection(driver.id)}
+                        >
+                          <input 
+                            type="checkbox" 
+                            checked={selectedDrivers.has(driver.id)}
+                            readOnly
+                          />
+                          {getCategoryIcon(driver.category)}
+                          <div className="driver-info">
+                            <h4>{driver.name}</h4>
+                            <span>{driver.currentVersion} → {driver.latestVersion}</span>
+                          </div>
+                          {getPriorityBadge(driver.updatePriority)}
+                          <span className="driver-size">{driver.updateSize}</span>
+                        </div>
+                      ))}
+                  </div>
+                </div>
+              )}
+
+              {bulkQueue.length > 0 && (
+                <div className="bulk-queue">
+                  <div className="queue-header">
+                    <h4>
+                      <List size={18} />
+                      Update Queue ({bulkQueue.length})
+                    </h4>
+                    {!bulkProgress && (
+                      <div className="queue-actions">
+                        <button 
+                          className="action-button action-update" 
+                          onClick={executeBulkUpdates}
+                        >
+                          <Download size={16} />
+                          Start Bulk Update
+                        </button>
+                        <button 
+                          className="action-button action-danger" 
+                          onClick={() => bulkUpdateManager.clearQueue()}
+                        >
+                          <Trash2 size={16} />
+                          Clear Queue
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  {bulkProgress && (
+                    <div className="bulk-progress">
+                      <div className="progress-info">
+                        <h5>Updating: {bulkProgress.current}</h5>
+                        <span>{bulkProgress.completed}/{bulkProgress.total} completed</span>
+                      </div>
+                      <div className="progress-bar">
+                        <motion.div 
+                          className="progress-fill"
+                          initial={{ width: 0 }}
+                          animate={{ width: `${bulkProgress.percentage}%` }}
+                        />
+                      </div>
+                      <span className="progress-percentage">{bulkProgress.percentage}%</span>
+                    </div>
+                  )}
+
+                  <div className="queue-items">
+                    {bulkQueue.map(driver => (
+                      <div key={driver.id} className={`queue-item status-${driver.status}`}>
+                        {getCategoryIcon(driver.category)}
+                        <div className="queue-item-info">
+                          <h5>{driver.name}</h5>
+                          <span>{driver.currentVersion} → {driver.latestVersion}</span>
+                        </div>
+                        <span className={`queue-status status-${driver.status}`}>
+                          {driver.status}
+                        </span>
+                        {!bulkProgress && (
+                          <button 
+                            className="remove-button"
+                            onClick={() => bulkUpdateManager.removeFromQueue(driver.id)}
+                          >
+                            <XCircle size={16} />
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {bulkQueue.length === 0 && (!scanResults || scanResults.updatesAvailable === 0) && (
+                <div className="empty-state">
+                  <Layers size={48} />
+                  <h4>No Updates Available</h4>
+                  <p>All drivers are up to date</p>
+                </div>
+              )}
+            </motion.div>
+          )}
+
+          {/* ==================== CONFLICTS TAB ==================== */}
+          {activeTab === 'conflicts' && (
+            <motion.div
+              key="conflicts"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              className="tab-content"
+            >
+              <div className="conflicts-header">
+                <h3>
+                  <AlertTriangle size={20} />
+                  Driver Conflicts
+                </h3>
+                <p>Detected conflicts and incompatibilities between drivers</p>
+              </div>
+
+              {scanResults && scanResults.conflicts && scanResults.conflicts.length > 0 ? (
+                <div className="conflicts-list">
+                  {scanResults.conflicts.map(conflict => (
+                    <div key={conflict.id} className={`conflict-card conflict-${conflict.severity.toLowerCase()}`}>
+                      <div className="conflict-header">
+                        <AlertTriangle size={24} />
+                        <div>
+                          <h4>Conflict Detected</h4>
+                          <span className={`severity-badge severity-${conflict.severity.toLowerCase()}`}>
+                            {conflict.severity}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="conflict-drivers">
+                        <div className="conflict-driver">
+                          <h5>{conflict.driver1Name}</h5>
+                          <span className="conflict-category">{conflict.category}</span>
+                        </div>
+                        <XCircle size={20} className="conflict-icon" />
+                        <div className="conflict-driver">
+                          <h5>{conflict.driver2Name}</h5>
+                          <span className="conflict-category">{conflict.category}</span>
+                        </div>
+                      </div>
+
+                      <div className="conflict-info">
+                        <p><strong>Issue:</strong> {conflict.description}</p>
+                        <p><strong>Recommendation:</strong> {conflict.recommendation}</p>
+                        <p><strong>Can coexist:</strong> {conflict.canCoexist ? 'Yes (with caution)' : 'No'}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="empty-state">
+                  <CheckCircle size={48} className="success-icon" />
+                  <h4>No Conflicts Detected</h4>
+                  <p>All drivers appear to be compatible with each other</p>
+                </div>
+              )}
+            </motion.div>
+          )}
+
+          {/* ==================== FILTERS TAB ==================== */}
+          {activeTab === 'filters' && filters && (
+            <motion.div
+              key="filters"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              className="tab-content"
+            >
+              <div className="filters-header">
+                <h3>
+                  <Filter size={20} />
+                  Driver Filters & Management
+                </h3>
+                <p>Blacklist, whitelist, and configure driver update preferences</p>
+              </div>
+
+              <div className="filter-sections">
+                <div className="filter-section">
+                  <h4>
+                    <Star size={18} />
+                    Trusted Drivers ({filters.trustedDrivers.length})
+                  </h4>
+                  <p>Drivers marked as always safe to update</p>
+                  {scanResults && scanResults.results.filter(d => filterManager.isTrusted(d.id)).length > 0 ? (
+                    scanResults.results.filter(d => filterManager.isTrusted(d.id)).map(driver => (
+                      <div key={driver.id} className="filter-item">
+                        {getCategoryIcon(driver.category)}
+                        <span>{driver.name}</span>
+                        <button 
+                          className="action-button action-danger"
+                          onClick={() => handleToggleTrusted(driver.id)}
+                        >
+                          <XCircle size={14} />
+                          Remove
+                        </button>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="filter-empty">No trusted drivers</p>
+                  )}
+                </div>
+
+                <div className="filter-section">
+                  <h4>
+                    <Ban size={18} />
+                    Blacklisted Drivers ({filters.blacklist.length})
+                  </h4>
+                  <p>Drivers excluded from all updates</p>
+                  {filters.blacklist.length > 0 ? (
+                    filters.blacklist.map(item => {
+                      const driver = scanResults?.results.find(d => d.id === item.driverId);
+                      return driver ? (
+                        <div key={item.driverId} className="filter-item">
+                          {getCategoryIcon(driver.category)}
+                          <div className="filter-item-info">
+                            <span>{driver.name}</span>
+                            <small>{item.reason}</small>
+                          </div>
+                          <button 
+                            className="action-button action-success"
+                            onClick={() => handleToggleBlacklist(item.driverId)}
+                          >
+                            <CheckCircle size={14} />
+                            Remove
+                          </button>
+                        </div>
+                      ) : null;
+                    })
+                  ) : (
+                    <p className="filter-empty">No blacklisted drivers</p>
+                  )}
+                </div>
+
+                <div className="filter-section">
+                  <h4>
+                    <Pause size={18} />
+                    Auto-Update Exclusions ({filters.autoUpdateExclusions.length})
+                  </h4>
+                  <p>Drivers excluded from automatic updates</p>
+                  {filters.autoUpdateExclusions.length > 0 ? (
+                    filters.autoUpdateExclusions.map(item => {
+                      const driver = scanResults?.results.find(d => d.id === item.driverId);
+                      return driver ? (
+                        <div key={item.driverId} className="filter-item">
+                          {getCategoryIcon(driver.category)}
+                          <div className="filter-item-info">
+                            <span>{driver.name}</span>
+                            <small>{item.reason}</small>
+                          </div>
+                          <button 
+                            className="action-button action-success"
+                            onClick={() => handleToggleAutoUpdateExclusion(item.driverId)}
+                          >
+                            <Play size={14} />
+                            Include
+                          </button>
+                        </div>
+                      ) : null;
+                    })
+                  ) : (
+                    <p className="filter-empty">No exclusions</p>
+                  )}
+                </div>
+              </div>
+
+              {scanResults && (
+                <div className="filter-management">
+                  <h4>Manage Driver Filters</h4>
+                  <div className="drivers-filter-list">
+                    {scanResults.results.map(driver => (
+                      <div key={driver.id} className="driver-filter-card">
+                        {getCategoryIcon(driver.category)}
+                        <div className="driver-filter-info">
+                          <h5>{driver.name}</h5>
+                          <span>{driver.category} • {driver.manufacturer}</span>
+                        </div>
+                        <div className="filter-actions">
+                          <button
+                            className={`filter-toggle ${filterManager.isTrusted(driver.id) ? 'active' : ''}`}
+                            onClick={() => handleToggleTrusted(driver.id)}
+                            title="Mark as trusted"
+                          >
+                            <Star size={14} />
+                            {filterManager.isTrusted(driver.id) ? 'Trusted' : 'Trust'}
+                          </button>
+                          <button
+                            className={`filter-toggle ${filterManager.isExcludedFromAutoUpdate(driver.id) ? 'active' : ''}`}
+                            onClick={() => handleToggleAutoUpdateExclusion(driver.id)}
+                            title="Exclude from auto-update"
+                          >
+                            <Pause size={14} />
+                            {filterManager.isExcludedFromAutoUpdate(driver.id) ? 'Excluded' : 'Exclude'}
+                          </button>
+                          <button
+                            className={`filter-toggle ${filterManager.isBlacklisted(driver.id) ? 'active danger' : ''}`}
+                            onClick={() => handleToggleBlacklist(driver.id)}
+                            title="Blacklist driver"
+                          >
+                            <Ban size={14} />
+                            {filterManager.isBlacklisted(driver.id) ? 'Blacklisted' : 'Blacklist'}
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </motion.div>
+          )}
+
+          {/* ==================== PERFORMANCE TAB ==================== */}
+          {activeTab === 'performance' && (
+            <motion.div
+              key="performance"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              className="tab-content"
+            >
+              <div className="performance-header">
+                <h3>
+                  <TrendingUp size={20} />
+                  Driver Performance Tracking
+                </h3>
+                <p>Monitor driver performance metrics over time</p>
+              </div>
+
+              {scanResults && scanResults.results.filter(d => d.performanceMetrics?.history?.length > 0).length > 0 ? (
+                <div className="performance-list">
+                  {scanResults.results
+                    .filter(d => d.performanceMetrics?.history?.length > 0)
+                    .map(driver => {
+                      const metrics = driver.performanceMetrics;
+                      return (
+                        <div key={driver.id} className="performance-card">
+                          <div className="perf-header">
+                            {getCategoryIcon(driver.category)}
+                            <div>
+                              <h4>{driver.name}</h4>
+                              <span className="perf-category">{driver.category}</span>
+                            </div>
+                          </div>
+
+                          <div className="perf-metrics">
+                            <h5>Average Performance Metrics</h5>
+                            <div className="metrics-grid">
+                              {Object.entries(metrics.averages || {}).map(([key, value]) => (
+                                <div key={key} className="metric-item">
+                                  <label>{key.replace(/_/g, ' ')}</label>
+                                  <span>{typeof value === 'number' ? value.toFixed(2) : value}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+
+                          <div className="perf-history">
+                            <h5>Recent History ({metrics.history.length} records)</h5>
+                            <div className="history-timeline">
+                              {metrics.history.slice(-5).reverse().map((record, idx) => (
+                                <div key={idx} className="history-record">
+                                  <span className="history-time">
+                                    {new Date(record.timestamp).toLocaleString()}
+                                  </span>
+                                  <div className="history-values">
+                                    {Object.entries(record)
+                                      .filter(([k]) => k !== 'timestamp')
+                                      .map(([key, value]) => (
+                                        <span key={key}>
+                                          {key}: {typeof value === 'number' ? value.toFixed(2) : value}
+                                        </span>
+                                      ))}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+
+                          <button 
+                            className="action-button action-danger"
+                            onClick={() => {
+                              performanceTracker.clearMetrics(driver.id);
+                              performScan();
+                            }}
+                          >
+                            <Trash2 size={14} />
+                            Clear History
+                          </button>
+                        </div>
+                      );
+                    })}
+                </div>
+              ) : (
+                <div className="empty-state">
+                  <BarChart size={48} />
+                  <h4>No Performance Data</h4>
+                  <p>Performance metrics will be collected over time as you use your system</p>
                 </div>
               )}
             </motion.div>

@@ -52,7 +52,7 @@ Stop-Process -Name "node" -Force -ErrorAction SilentlyContinue
 Use one of these credentials:
 
 **Option 1: Colin's Account**
-- Email: `colinnebula@gmail.com`
+- Email: `your-account@example.com`
 - Password: `Nebula2025!`
 
 **Option 2: Test Admin**

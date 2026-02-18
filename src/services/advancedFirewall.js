@@ -632,12 +632,61 @@ export class ApplicationFirewall {
     this.blockedApps = new Set();
   }
 
+  normalizeProcessName(processName) {
+    if (!processName || typeof processName !== 'string') return '';
+    const trimmed = processName.trim();
+    if (!trimmed) return '';
+    const normalized = trimmed.replace(/\\/g, '/');
+    const parts = normalized.split('/');
+    return (parts[parts.length - 1] || '').toLowerCase();
+  }
+
+  normalizeDestination(destination) {
+    if (!destination || typeof destination !== 'string') return '';
+    return destination.trim().toLowerCase();
+  }
+
+  matchDestination(destination, ruleDest) {
+    if (!ruleDest) return false;
+    const dest = this.normalizeDestination(destination);
+
+    if (ruleDest instanceof RegExp) {
+      return ruleDest.test(dest);
+    }
+
+    if (typeof ruleDest === 'string') {
+      const trimmed = ruleDest.trim();
+      if (!trimmed) return false;
+      if (trimmed.startsWith('/') && trimmed.endsWith('/') && trimmed.length > 2) {
+        try {
+          const pattern = trimmed.slice(1, -1);
+          return new RegExp(pattern, 'i').test(dest);
+        } catch (error) {
+          return false;
+        }
+      }
+      return dest.includes(trimmed.toLowerCase());
+    }
+
+    return false;
+  }
+
   /**
    * Check if application is allowed to access network
    */
   checkApplicationAccess(processName, destination) {
+    const normalizedName = this.normalizeProcessName(processName);
+    if (!normalizedName) {
+      return {
+        allowed: false,
+        reason: 'Missing or invalid process name',
+        action: 'prompt',
+        promptRequired: true
+      };
+    }
+
     // Blocked apps
-    if (this.blockedApps.has(processName.toLowerCase())) {
+    if (this.blockedApps.has(normalizedName)) {
       return {
         allowed: false,
         reason: 'Application is blacklisted',
@@ -646,7 +695,7 @@ export class ApplicationFirewall {
     }
 
     // Trusted apps
-    if (this.trustedApps.has(processName.toLowerCase())) {
+    if (this.trustedApps.has(normalizedName)) {
       return {
         allowed: true,
         reason: 'Trusted application',
@@ -655,7 +704,7 @@ export class ApplicationFirewall {
     }
 
     // Check custom rules
-    const rule = this.appRules.get(processName.toLowerCase());
+    const rule = this.appRules.get(normalizedName);
     if (rule) {
       return this.evaluateAppRule(rule, destination);
     }
@@ -673,49 +722,49 @@ export class ApplicationFirewall {
    * Add application rule
    */
   addApplicationRule(processName, rule) {
-    this.appRules.set(processName.toLowerCase(), {
-      ...rule,
-      createdAt: new Date().toISOString()
-    });
+    const normalizedName = this.normalizeProcessName(processName);
+    if (!normalizedName) return;
+
+    const normalizedRule = {
+      action: rule && rule.action ? rule.action : 'allow',
+      allowedDestinations: (rule && rule.allowedDestinations) || [],
+      blockedDestinations: (rule && rule.blockedDestinations) || [],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+
+    this.appRules.set(normalizedName, normalizedRule);
   }
 
   /**
    * Block application
    */
   blockApplication(processName) {
-    this.blockedApps.add(processName.toLowerCase());
-    this.trustedApps.delete(processName.toLowerCase());
+    const normalizedName = this.normalizeProcessName(processName);
+    if (!normalizedName) return;
+    this.blockedApps.add(normalizedName);
+    this.trustedApps.delete(normalizedName);
   }
 
   /**
    * Trust application
    */
   trustApplication(processName) {
-    this.trustedApps.add(processName.toLowerCase());
-    this.blockedApps.delete(processName.toLowerCase());
+    const normalizedName = this.normalizeProcessName(processName);
+    if (!normalizedName) return;
+    this.trustedApps.add(normalizedName);
+    this.blockedApps.delete(normalizedName);
   }
 
   /**
    * Evaluate application rule
    */
   evaluateAppRule(rule, destination) {
-    if (rule.allowedDestinations && rule.allowedDestinations.length > 0) {
-      const allowed = rule.allowedDestinations.some(dest => 
-        destination.includes(dest) || new RegExp(dest).test(destination)
-      );
-      
-      if (!allowed) {
-        return {
-          allowed: false,
-          reason: 'Destination not in whitelist',
-          action: 'block'
-        };
-      }
-    }
+    const dest = this.normalizeDestination(destination);
 
     if (rule.blockedDestinations && rule.blockedDestinations.length > 0) {
-      const blocked = rule.blockedDestinations.some(dest =>
-        destination.includes(dest) || new RegExp(dest).test(destination)
+      const blocked = rule.blockedDestinations.some(ruleDest =>
+        this.matchDestination(dest, ruleDest)
       );
 
       if (blocked) {
@@ -725,6 +774,37 @@ export class ApplicationFirewall {
           action: 'block'
         };
       }
+    }
+
+    if (rule.allowedDestinations && rule.allowedDestinations.length > 0) {
+      const allowed = rule.allowedDestinations.some(ruleDest =>
+        this.matchDestination(dest, ruleDest)
+      );
+
+      if (!allowed) {
+        return {
+          allowed: false,
+          reason: 'Destination not in whitelist',
+          action: 'block'
+        };
+      }
+    }
+
+    if (rule.action === 'prompt') {
+      return {
+        allowed: false,
+        reason: 'Application rule requires user approval',
+        action: 'prompt',
+        promptRequired: true
+      };
+    }
+
+    if (rule.action === 'block') {
+      return {
+        allowed: false,
+        reason: 'Application rule blocked request',
+        action: 'block'
+      };
     }
 
     return {

@@ -125,25 +125,25 @@ db.serialize(() => {
     }
   });
 
-  // Set first user (colinnebula@gmail.com) as admin
+  // Set admin user (replace with your admin email)
   db.run(`
     UPDATE users 
     SET role = 'admin', tier = 'premium'
-    WHERE email = 'colinnebula@gmail.com'
+    WHERE email = 'admin@example.com'
   `, (err) => {
     if (err) {
       console.error('❌ Error setting admin user:', err);
     } else {
-      console.log('✅ Set colinnebula@gmail.com as admin with premium tier');
+      console.log('✅ Set admin@example.com as admin with premium tier');
     }
   });
 
   // Insert sample audit log entries
   const sampleLogs = [
-    ['colinnebula@gmail.com', 'DATABASE_MIGRATION', 'Admin features migration completed', new Date().toISOString().replace('T', ' ').substring(0, 19), 'success']
+    ['admin@example.com', 'DATABASE_MIGRATION', 'Admin features migration completed', new Date().toISOString().replace('T', ' ').substring(0, 19), 'success']
   ];
 
-  db.get('SELECT id FROM users WHERE email = ?', ['colinnebula@gmail.com'], (err, user) => {
+  db.get('SELECT id FROM users WHERE email = ?', ['admin@example.com'], (err, user) => {
     if (!err && user) {
       const stmt = db.prepare('INSERT INTO audit_logs (user_id, action, details, timestamp, status) VALUES (?, ?, ?, ?, ?)');
       sampleLogs.forEach(log => {

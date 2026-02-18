@@ -134,7 +134,7 @@ Interactive country cards with:
 ## 🚀 How to Access
 
 1. **Login** with your admin credentials:
-   - Email: `colinnebula@gmail.com`
+   - Email: `your-account@example.com`
    - Password: `Nebula2025!`
 
 2. **Navigate to Advanced Firewall**:

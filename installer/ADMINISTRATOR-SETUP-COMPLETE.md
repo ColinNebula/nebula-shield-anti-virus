@@ -3,7 +3,7 @@
 ## Your Administrator Account
 
 ### Account Details:
-- **Email**: colinnebula@gmail.com
+- **Email**: your-registered-email@example.com
 - **Status**: ✅ Registered
 - **Tier**: Premium (with Admin role)
 
@@ -14,7 +14,7 @@
 1. **Open Nebula Shield**: http://localhost:3000
 2. **Click**: "Sign In" or "Login"
 3. **Enter Credentials**:
-   - Email: `colinnebula@gmail.com`
+   - Email: `your-registered-email@example.com`
    - Password: `Nebula2025!`
 4. **Click**: "Sign In"
 
@@ -108,7 +108,7 @@ cd Z:\Directory\projects\nebula-shield-anti-virus\installer
 ### Check Your Account Status
 ```powershell
 # Login and check subscription
-$body = '{"email":"colinnebula@gmail.com","password":"Nebula2025!"}' | ConvertTo-Json
+$body = '{"email":"your-email@example.com","password":"YourPassword123!"}' | ConvertTo-Json
 $response = Invoke-RestMethod -Uri "http://localhost:8081/api/auth/login" -Method POST -Body $body -ContentType "application/json"
 $token = $response.token
 
@@ -270,7 +270,7 @@ Get-Content "C:\Program Files\Nebula Shield\data\logs\auth-service.log" -Tail 20
 
 **Access Nebula Shield**: http://localhost:3000
 
-**Email**: colinnebula@gmail.com  
+**Email**: admin@example.com  
 **Password**: Nebula2025!  
 **Role**: Admin  
 **Tier**: Premium

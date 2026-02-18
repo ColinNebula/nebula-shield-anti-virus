@@ -1,0 +1,139 @@
+{
+  "appId": "com.nebulashield.antivirus",
+  "productName": "Nebula Shield Anti-Virus",
+  "copyright": "Copyright © 2025 ColinNebula",
+  "directories": {
+    "buildResources": "build-resources",
+    "output": "dist"
+  },
+  "files": [
+    "build/**/*",
+    "!build/**/*.map",
+    "!build/**/*.LICENSE.txt",
+    "public/electron.js",
+    "public/preload.js", 
+    "public/favicon.ico",
+    "public/icon.png",
+    "build-resources/icon.ico",
+    "build-resources/icon.png",
+    "node_modules/electron-is-dev/**/*",
+    "package.json"
+  ],
+  "asar": true,
+  "asarUnpack": [
+    "node_modules/sqlite3/**"
+  ],
+  "extraResources": [
+    {
+      "from": "build-resources/icon.ico",
+      "to": "icon.ico"
+    },
+    {
+      "from": "build-resources/icon.png", 
+      "to": "icon.png"
+    },
+    {
+      "from": "backend",
+      "to": "backend"
+    },
+    {
+      "from": "data",
+      "to": "data",
+      "filter": [
+        "**/*",
+        "!*.db-journal",
+        "!*.db-shm", 
+        "!*.db-wal",
+        "!settings-backups/**",
+        "!temp/**"
+      ]
+    },
+    {
+      "from": "config",
+      "to": "config",
+      "filter": ["**/*"]
+    }
+  ],
+  "compression": "maximum",
+  "removePackageScripts": true,
+  "nodeGypRebuild": false,
+  "buildDependenciesFromSource": false,
+  "win": {
+    "target": [
+      {
+        "target": "nsis",
+        "arch": ["x64"]
+      },
+      {
+        "target": "portable", 
+        "arch": ["x64"]
+      },
+      {
+        "target": "zip",
+        "arch": ["x64"] 
+      }
+    ],
+    "icon": "build-resources/icon.ico",
+    "verifyUpdateCodeSignature": false,
+    "signAndEditExecutable": false,
+    "forceCodeSigning": false,
+    "requestedExecutionLevel": "asInvoker",
+    "artifactName": "${productName}-${version}-${os}-${arch}.${ext}",
+    "extraFiles": [
+      {
+        "from": "LICENSE",
+        "to": "LICENSE.txt"
+      },
+      {
+        "from": "README.md", 
+        "to": "README.txt"
+      }
+    ]
+  },
+  "nsis": {
+    "oneClick": false,
+    "allowElevation": true,
+    "allowToChangeInstallationDirectory": true,
+    "installerIcon": "build-resources/icon.ico",
+    "uninstallerIcon": "build-resources/icon.ico", 
+    "installerHeaderIcon": "build-resources/icon.ico",
+    "createDesktopShortcut": true,
+    "createStartMenuShortcut": true,
+    "shortcutName": "Nebula Shield Anti-Virus",
+    "runAfterFinish": true,
+    "deleteAppDataOnUninstall": false,
+    "perMachine": false,
+    "artifactName": "${productName}-Setup-${version}.${ext}",
+    "warningsAsErrors": false
+  },
+  "portable": {
+    "artifactName": "${productName}-Portable-${version}.${ext}"
+  },
+  "mac": {
+    "target": ["dmg", "zip"],
+    "icon": "build-resources/icon.icns",
+    "category": "public.app-category.utilities",
+    "darkModeSupport": true
+  },
+  "linux": {
+    "target": [
+      {
+        "target": "AppImage",
+        "arch": ["x64"]
+      },
+      {
+        "target": "deb", 
+        "arch": ["x64"]
+      },
+      {
+        "target": "rpm",
+        "arch": ["x64"]
+      }
+    ],
+    "icon": "build-resources/icon.png",
+    "category": "Security",
+    "synopsis": "Advanced anti-virus protection",
+    "description": "Advanced anti-virus protection with real-time threat detection, firewall, email protection, and comprehensive security monitoring"
+  },
+  "publish": null
+}

@@ -15,30 +15,78 @@ import {
   TrendingUp,
   Globe,
   Zap,
-  Filter,
-  Settings
+  Filter
 } from 'lucide-react';
 import { dpi, ips, appFirewall, THREAT_DATABASE, GEO_IP_DATABASE } from '../services/advancedFirewall';
 import './AdvancedFirewall.css';
 
 const AdvancedFirewall = () => {
-  const [activeTab, setActiveTab] = useState(0);
-  const [dpiEnabled, setDpiEnabled] = useState(true);
-  const [ipsEnabled, setIpsEnabled] = useState(true);
-  const [appFirewallEnabled, setAppFirewallEnabled] = useState(true);
-  const [geoBlockingEnabled, setGeoBlockingEnabled] = useState(false);
+  // Load saved settings from localStorage (persists across crashes/refreshes/disconnects)
+  const loadSavedSettings = () => {
+    try {
+      const saved = localStorage.getItem('nebula_firewall_settings');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        console.log('Loaded firewall settings from localStorage');
+        return parsed;
+      }
+    } catch (error) {
+      console.error('Failed to load firewall settings from localStorage:', error);
+    }
+    return null;
+  };
+
+  const savedSettings = loadSavedSettings();
+
+  const normalizeAppList = (list) => {
+    if (!Array.isArray(list)) return [];
+    const normalized = list
+      .map((value) => {
+        if (typeof appFirewall.normalizeProcessName === 'function') {
+          return appFirewall.normalizeProcessName(value);
+        }
+        return (value || '').trim().toLowerCase();
+      })
+      .filter(Boolean);
+
+    return Array.from(new Set(normalized));
+  };
+
+  const getInitialTrustedApps = () => {
+    const source = Array.isArray(savedSettings?.trustedApps)
+      ? savedSettings.trustedApps
+      : Array.from(appFirewall.trustedApps);
+    return normalizeAppList(source);
+  };
+
+  const getInitialBlockedApps = () => {
+    const source = Array.isArray(savedSettings?.blockedApps)
+      ? savedSettings.blockedApps
+      : Array.from(appFirewall.blockedApps);
+    const normalizedBlocked = normalizeAppList(source);
+    const trusted = new Set(getInitialTrustedApps());
+    return normalizedBlocked.filter(app => !trusted.has(app));
+  };
+
+  const [activeTab, setActiveTab] = useState(savedSettings?.activeTab ?? 0);
+  const [dpiEnabled, setDpiEnabled] = useState(savedSettings?.dpiEnabled ?? true);
+  const [ipsEnabled, setIpsEnabled] = useState(savedSettings?.ipsEnabled ?? true);
+  const [appFirewallEnabled, setAppFirewallEnabled] = useState(savedSettings?.appFirewallEnabled ?? true);
+  const [geoBlockingEnabled, setGeoBlockingEnabled] = useState(savedSettings?.geoBlockingEnabled ?? false);
   
-  const [realtimeThreats, setRealtimeThreats] = useState([]);
-  const [blockedCountries, setBlockedCountries] = useState([]);
-  const [trustedApps, setTrustedApps] = useState([]);
-  const [dpiStats, setDpiStats] = useState({
+  const [realtimeThreats, setRealtimeThreats] = useState(savedSettings?.realtimeThreats ?? []);
+  const [blockedCountries, setBlockedCountries] = useState(savedSettings?.blockedCountries ?? []);
+  const [trustedApps, setTrustedApps] = useState(() => getInitialTrustedApps());
+  const [blockedApps, setBlockedApps] = useState(() => getInitialBlockedApps());
+  const [newTrustedApp, setNewTrustedApp] = useState('');
+  const [dpiStats, setDpiStats] = useState(savedSettings?.dpiStats ?? {
     packetsInspected: 15847,
     threatsDetected: 23,
     threatsBlocked: 23,
     cleanPackets: 15824
   });
 
-  const [ipsAlerts, setIpsAlerts] = useState([
+  const [ipsAlerts, setIpsAlerts] = useState(savedSettings?.ipsAlerts ?? [
     {
       id: 1,
       timestamp: new Date(Date.now() - 300000).toISOString(),
@@ -96,6 +144,69 @@ const AdvancedFirewall = () => {
         return <CheckCircle2 size={18} />;
     }
   };
+
+  const normalizeAppName = (value) => {
+    if (typeof appFirewall.normalizeProcessName === 'function') {
+      return appFirewall.normalizeProcessName(value);
+    }
+    return (value || '').trim().toLowerCase();
+  };
+
+  const handleAddTrustedApp = () => {
+    const normalized = normalizeAppName(newTrustedApp);
+    if (!normalized) return;
+
+    appFirewall.trustApplication(normalized);
+    setTrustedApps(prev => (prev.includes(normalized) ? prev : [normalized, ...prev]));
+    setBlockedApps(prev => prev.filter(app => app !== normalized));
+    setNewTrustedApp('');
+  };
+
+  const handleUntrustApp = (app) => {
+    setTrustedApps(prev => prev.filter(item => item !== app));
+  };
+
+  const handleBlockApp = (app) => {
+    appFirewall.blockApplication(app);
+    setTrustedApps(prev => prev.filter(item => item !== app));
+    setBlockedApps(prev => (prev.includes(app) ? prev : [app, ...prev]));
+  };
+
+  const handleUnblockApp = (app) => {
+    setBlockedApps(prev => prev.filter(item => item !== app));
+  };
+
+  useEffect(() => {
+    appFirewall.trustedApps.clear();
+    trustedApps.forEach(app => appFirewall.trustedApps.add(app));
+    appFirewall.blockedApps.clear();
+    blockedApps.forEach(app => appFirewall.blockedApps.add(app));
+  }, [trustedApps, blockedApps]);
+
+  // Auto-save all firewall settings to localStorage (persists across crashes/refreshes/disconnects)
+  useEffect(() => {
+    try {
+      const firewallSettings = {
+        activeTab,
+        dpiEnabled,
+        ipsEnabled,
+        appFirewallEnabled,
+        geoBlockingEnabled,
+        realtimeThreats,
+        blockedCountries,
+        trustedApps,
+        blockedApps,
+        dpiStats,
+        ipsAlerts,
+        lastSaved: new Date().toISOString()
+      };
+      localStorage.setItem('nebula_firewall_settings', JSON.stringify(firewallSettings));
+      console.log('Firewall settings auto-saved to localStorage');
+    } catch (error) {
+      console.error('Failed to save firewall settings to localStorage:', error);
+    }
+  }, [activeTab, dpiEnabled, ipsEnabled, appFirewallEnabled, geoBlockingEnabled, 
+      realtimeThreats, blockedCountries, trustedApps, blockedApps, dpiStats, ipsAlerts]);
 
   useEffect(() => {
     // Simulate real-time threat detection
@@ -418,38 +529,72 @@ const AdvancedFirewall = () => {
                 </p>
               </div>
 
-              <h3>Trusted Applications ({appFirewall.trustedApps.size})</h3>
-              <div className="apps-list">
-                {Array.from(appFirewall.trustedApps).map((app) => (
-                  <motion.div
-                    key={app}
-                    className="app-card trusted"
-                    whileHover={{ scale: 1.02 }}
-                  >
-                    <div className="app-icon">
-                      <CheckCircle2 size={24} />
-                    </div>
-                    <div className="app-info">
-                      <h4>{app}</h4>
-                      <p>Full network access</p>
-                    </div>
-                    <button className="btn-secondary">
-                      <Settings size={16} />
-                      Configure
-                    </button>
-                  </motion.div>
-                ))}
+              <div className="app-controls">
+                <input
+                  className="app-input"
+                  type="text"
+                  placeholder="Add trusted app (e.g., chrome.exe or C:\\Program Files\\App\\app.exe)"
+                  value={newTrustedApp}
+                  onChange={(event) => setNewTrustedApp(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter') {
+                      event.preventDefault();
+                      handleAddTrustedApp();
+                    }
+                  }}
+                />
+                <button
+                  className="btn-primary"
+                  onClick={handleAddTrustedApp}
+                  disabled={!newTrustedApp.trim()}
+                >
+                  Trust App
+                </button>
               </div>
 
-              <h3>Blocked Applications ({appFirewall.blockedApps.size})</h3>
-              {appFirewall.blockedApps.size === 0 ? (
+              <h3>Trusted Applications ({trustedApps.length})</h3>
+              <div className="apps-list">
+                {trustedApps.length === 0 ? (
+                  <div className="empty-state">
+                    <CheckCircle2 size={48} />
+                    <p>No trusted applications configured</p>
+                  </div>
+                ) : (
+                  trustedApps.map((app) => (
+                    <motion.div
+                      key={app}
+                      className="app-card trusted"
+                      whileHover={{ scale: 1.02 }}
+                    >
+                      <div className="app-icon">
+                        <CheckCircle2 size={24} />
+                      </div>
+                      <div className="app-info">
+                        <h4>{app}</h4>
+                        <p>Full network access</p>
+                      </div>
+                      <div className="app-actions">
+                        <button className="btn-secondary" onClick={() => handleUntrustApp(app)}>
+                          Untrust
+                        </button>
+                        <button className="btn-primary" onClick={() => handleBlockApp(app)}>
+                          Block
+                        </button>
+                      </div>
+                    </motion.div>
+                  ))
+                )}
+              </div>
+
+              <h3>Blocked Applications ({blockedApps.length})</h3>
+              {blockedApps.length === 0 ? (
                 <div className="empty-state">
                   <Unlock size={48} />
                   <p>No applications currently blocked</p>
                 </div>
               ) : (
                 <div className="apps-list">
-                  {Array.from(appFirewall.blockedApps).map((app) => (
+                  {blockedApps.map((app) => (
                     <motion.div
                       key={app}
                       className="app-card blocked"
@@ -462,7 +607,7 @@ const AdvancedFirewall = () => {
                         <h4>{app}</h4>
                         <p>Network access denied</p>
                       </div>
-                      <button className="btn-primary">
+                      <button className="btn-primary" onClick={() => handleUnblockApp(app)}>
                         Unblock
                       </button>
                     </motion.div>

@@ -5,6 +5,22 @@
   background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
   color: #fff;
   padding: 2rem;
+  /* Isolate this component's styles from affecting sidebar */
+  isolation: isolate;
+  contain: layout style;
+}
+
+/* Prevent this page's styles from affecting sidebar components */
+.enhanced-web-protection * {
+  /* Reset any global animations/styles that might leak */
+  animation-name: revert;
+}
+
+/* Explicitly scope animations to this component only */
+.enhanced-web-protection .setting-icon,
+.enhanced-web-protection .setting-item.protection-featured {
+  /* These animations should NOT affect sidebar */
+  will-change: transform, box-shadow;
 }
 
 /* ==================== HEADER ==================== */
@@ -819,8 +835,8 @@
   margin-bottom: 2rem;
 }
 
-/* Featured Protection Card (Sidebar Style) */
-@keyframes protectionPulse {
+/* Featured Protection Card (Scoped to this page only) */
+@keyframes ewpProtectionPulse {
   0%, 100% {
     box-shadow: 
       0 4px 12px rgba(79, 70, 229, 0.4),
@@ -896,7 +912,7 @@
     0 4px 12px rgba(79, 70, 229, 0.4),
     0 0 20px rgba(79, 70, 229, 0.2);
   flex-shrink: 0;
-  animation: protectionPulse 3s ease-in-out infinite;
+  animation: ewpProtectionPulse 3s ease-in-out infinite;
 }
 
 .enhanced-web-protection .setting-item.protection-featured .setting-icon svg {
@@ -939,7 +955,7 @@
   text-shadow: 
     0 0 10px rgba(16, 185, 129, 0.6),
     0 0 20px rgba(16, 185, 129, 0.3);
-  animation: statusGlow 2s ease-in-out infinite;
+  animation: ewpStatusGlow 2s ease-in-out infinite;
 }
 
 .enhanced-web-protection .setting-item.protection-featured .setting-info p.inactive {
@@ -949,7 +965,7 @@
     0 0 20px rgba(239, 68, 68, 0.3);
 }
 
-@keyframes statusGlow {
+@keyframes ewpStatusGlow {
   0%, 100% {
     opacity: 1;
   }

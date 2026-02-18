@@ -23,6 +23,7 @@ const StartupManager = () => {
   const [sortBy, setSortBy] = useState('impact'); // name, impact, memory
   const [selectedItems, setSelectedItems] = useState(new Set());
   const [showBackupModal, setShowBackupModal] = useState(false);
+  const [, forceUpdate] = useState({});
 
   // Load startup items on mount
   useEffect(() => {
@@ -45,6 +46,36 @@ const StartupManager = () => {
       setLoading(false);
     }
   }, []);
+
+  // Force rescan (clears cache)
+  const forceRescan = useCallback(async () => {
+    setScanning(true);
+    try {
+      const result = await startupManager.rescanStartupPrograms();
+      if (result.success) {
+        setStartupItems(result.items);
+        setSummary(result.summary);
+      }
+    } catch (error) {
+      console.error('Startup scan error:', error);
+    } finally {
+      setScanning(false);
+    }
+  }, []);
+
+  // Handle filter change with forced update
+  const handleFilterChange = useCallback((newFilter) => {
+    console.log('Filter changed from', filter, 'to', newFilter);
+    setFilter(newFilter);
+    forceUpdate({}); // Force re-render
+  }, [filter]);
+
+  // Handle sort change with forced update
+  const handleSortChange = useCallback((newSort) => {
+    console.log('Sort changed from', sortBy, 'to', newSort);
+    setSortBy(newSort);
+    forceUpdate({}); // Force re-render
+  }, [sortBy]);
 
   // Filter and sort items
   const filteredItems = useMemo(() => {
@@ -87,13 +118,16 @@ const StartupManager = () => {
             : item
         ));
         
-        // Refresh summary
-        await scanStartup();
+        // Rescan to update summary stats
+        const refreshedData = await startupManager.scanStartupPrograms();
+        if (refreshedData.success) {
+          setSummary(refreshedData.summary);
+        }
       }
     } catch (error) {
       console.error('Toggle error:', error);
     }
-  }, [scanStartup]);
+  }, []);
 
   // Apply recommended optimizations
   const applyOptimizations = useCallback(async () => {
@@ -111,6 +145,7 @@ const StartupManager = () => {
               `Boot time saved: ${result.timeSaved.toFixed(1)}s\n` +
               `Memory saved: ${result.memorySaved}MB`);
         
+        // Refresh data from cache
         await scanStartup();
       }
     } catch (error) {
@@ -144,12 +179,12 @@ const StartupManager = () => {
       const result = await startupManager.restoreStartupConfig();
       if (result.success) {
         alert('✅ Configuration restored successfully!');
-        await scanStartup();
+        await forceRescan();
       }
     } catch (error) {
       alert('Restore failed: ' + error.message);
     }
-  }, [scanStartup]);
+  }, [forceRescan]);
 
   // Calculate optimization score
   const optimizationScore = useMemo(() => {
@@ -213,13 +248,28 @@ const StartupManager = () => {
       <div className="startup-header">
         <div className="header-content">
           <h1>🚀 Startup Manager</h1>
-          <p>Optimize your boot time by managing startup programs</p>
+          <p>
+            Optimize your boot time by managing startup programs
+            {filter !== 'all' && (
+              <span style={{ 
+                marginLeft: '10px', 
+                padding: '2px 8px', 
+                background: '#eff6ff', 
+                color: '#1e40af',
+                borderRadius: '6px',
+                fontSize: '13px',
+                fontWeight: '600'
+              }}>
+                Showing: {filter.charAt(0).toUpperCase() + filter.slice(1)} ({filteredItems.length})
+              </span>
+            )}
+          </p>
         </div>
         
         <div className="header-actions">
           <button 
             className="btn-scan"
-            onClick={scanStartup}
+            onClick={forceRescan}
             disabled={scanning}
           >
             {scanning ? '🔄 Scanning...' : '🔍 Rescan'}
@@ -319,36 +369,71 @@ const StartupManager = () => {
       )}
 
       {/* Filters and Sort */}
-      <div className="controls-bar">
+      <div className="controls-bar" key={`controls-${filter}-${sortBy}`}>
         <div className="filters">
-          <label>Filter:</label>
+          <label>
+            Filter: 
+            <span style={{
+              marginLeft: '8px',
+              fontSize: '12px',
+              color: '#6b7280',
+              fontWeight: 'normal'
+            }}>
+              ({filteredItems.length} items)
+            </span>
+          </label>
           <button 
+            type="button"
             className={filter === 'all' ? 'active' : ''}
-            onClick={() => setFilter('all')}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              handleFilterChange('all');
+            }}
           >
             All ({startupItems.length})
           </button>
           <button 
+            type="button"
             className={filter === 'bloatware' ? 'active' : ''}
-            onClick={() => setFilter('bloatware')}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              handleFilterChange('bloatware');
+            }}
           >
             🗑️ Bloatware ({startupItems.filter(i => i.category === 'bloatware').length})
           </button>
           <button 
+            type="button"
             className={filter === 'optional' ? 'active' : ''}
-            onClick={() => setFilter('optional')}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              handleFilterChange('optional');
+            }}
           >
             ⚙️ Optional ({startupItems.filter(i => i.category === 'optional').length})
           </button>
           <button 
+            type="button"
             className={filter === 'recommended' ? 'active' : ''}
-            onClick={() => setFilter('recommended')}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              handleFilterChange('recommended');
+            }}
           >
             👍 Recommended ({startupItems.filter(i => i.category === 'recommended').length})
           </button>
           <button 
+            type="button"
             className={filter === 'critical' ? 'active' : ''}
-            onClick={() => setFilter('critical')}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              handleFilterChange('critical');
+            }}
           >
             🛡️ Critical ({startupItems.filter(i => i.category === 'critical').length})
           </button>
@@ -356,7 +441,13 @@ const StartupManager = () => {
 
         <div className="sort-controls">
           <label>Sort by:</label>
-          <select value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
+          <select 
+            value={sortBy} 
+            onChange={(e) => {
+              e.preventDefault();
+              handleSortChange(e.target.value);
+            }}
+          >
             <option value="impact">Impact (High to Low)</option>
             <option value="name">Name (A-Z)</option>
             <option value="memory">Memory Usage</option>
@@ -365,16 +456,32 @@ const StartupManager = () => {
       </div>
 
       {/* Startup Items List */}
-      <div className="startup-items-container">
+      <div className="startup-items-container" key={`items-${filter}-${filteredItems.length}`}>
         {filteredItems.length === 0 ? (
           <div className="empty-state">
             <p>No startup items found in this category</p>
+            <button 
+              type="button"
+              onClick={() => handleFilterChange('all')}
+              style={{
+                marginTop: '12px',
+                padding: '8px 16px',
+                background: '#3b82f6',
+                color: 'white',
+                border: 'none',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                fontWeight: '600'
+              }}
+            >
+              Show All Items
+            </button>
           </div>
         ) : (
           <div className="startup-items-list">
             {filteredItems.map(item => (
               <div 
-                key={item.id} 
+                key={`${item.id}-${filter}`} 
                 className={`startup-item ${item.status.toLowerCase()}`}
               >
                 <div className="item-header">

@@ -59,7 +59,7 @@ This starts all services on the correct ports.
    - Press `Ctrl+Shift+R`
 
 4. **Login with**:
-   - Email: `colinnebula@gmail.com`
+   - Email: `your-account@example.com`
    - Password: `Nebula2025!`
 
 ## 🎯 Root Cause

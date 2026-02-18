@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   Shield,
   Home,
@@ -8,6 +8,7 @@ import {
   Archive,
   Settings,
   ChevronRight,
+  ChevronDown,
   Power,
   Wifi,
   WifiOff,
@@ -26,7 +27,10 @@ import {
   BarChart3,
   Key,
   Cloud,
-  Zap
+  Zap,
+  Cookie,
+  UserCheck,
+  KeyRound
 } from 'lucide-react';
 import AntivirusAPI from '../services/antivirusApi';
 import { useAuth } from '../contexts/AuthContext';
@@ -42,6 +46,14 @@ const Sidebar = ({ isOpen = false, onClose = () => {} }) => {
   const [isConnected, setIsConnected] = useState(false);
   const [systemStatus, setSystemStatus] = useState(null);
   const [showShutdownDialog, setShowShutdownDialog] = useState(false);
+  const [expandedSections, setExpandedSections] = useState({
+    main: true,
+    protection: true,
+    privacy: false,
+    advanced: false,
+    system: false,
+    settings: true
+  });
 
   useEffect(() => {
     checkConnection();
@@ -88,148 +100,218 @@ const Sidebar = ({ isOpen = false, onClose = () => {} }) => {
     }
   };
 
-  const menuItems = [
+  const toggleSection = (section) => {
+    setExpandedSections(prev => ({
+      ...prev,
+      [section]: !prev[section]
+    }));
+  };
+
+  const menuSections = [
     {
-      path: '/',
+      id: 'main',
+      label: 'Main',
       icon: Home,
-      label: 'Dashboard',
-      badge: null
+      items: [
+        {
+          path: '/',
+          icon: Home,
+          label: 'Dashboard',
+          badge: null
+        },
+        {
+          path: '/scanner',
+          icon: Search,
+          label: 'Scanner',
+          badge: null
+        },
+        {
+          path: '/quarantine',
+          icon: Archive,
+          label: 'Quarantine',
+          badge: systemStatus?.quarantined_files || null
+        }
+      ]
     },
     {
-      path: '/scanner',
-      icon: Search,
-      label: 'Scanner',
-      badge: null
-    },
-    {
-      path: '/web-protection',
-      icon: Globe,
-      label: 'Web Protection',
-      badge: null,
-      premium: false
-    },
-    {
-      path: '/email-protection',
-      icon: Mail,
-      label: 'Email Protection',
-      badge: null,
-      premium: false
-    },
-    {
-      path: '/hacker-protection',
-      icon: ShieldAlert,
-      label: 'Hacker Protection',
-      badge: null,
-      premium: false
-    },
-    {
-      path: '/ransomware-protection',
-      icon: FileKey,
-      label: 'Ransomware Protection',
-      badge: null,
-      premium: false
-    },
-    {
-      path: '/driver-scanner',
-      icon: HardDrive,
-      label: 'Driver Scanner',
-      badge: null,
-      premium: false
-    },
-    {
-      path: '/network-protection',
-      icon: Wifi,
-      label: 'Network Protection',
-      badge: null,
-      premium: false
-    },
-    {
-      path: '/advanced-firewall',
+      id: 'protection',
+      label: 'Protection',
       icon: Shield,
-      label: 'Advanced Firewall',
-      badge: null,
-      premium: true
+      items: [
+        {
+          path: '/web-protection',
+          icon: Globe,
+          label: 'Web Protection',
+          badge: null,
+          premium: false
+        },
+        {
+          path: '/browser-protection',
+          icon: Cookie,
+          label: 'Browser Protection',
+          badge: null,
+          premium: false
+        },
+        {
+          path: '/email-protection',
+          icon: Mail,
+          label: 'Email Protection',
+          badge: null,
+          premium: false
+        },
+        {
+          path: '/hacker-protection',
+          icon: ShieldAlert,
+          label: 'Hacker Protection',
+          badge: null,
+          premium: false
+        },
+        {
+          path: '/ransomware-protection',
+          icon: FileKey,
+          label: 'Ransomware Protection',
+          badge: null,
+          premium: false
+        },
+        {
+          path: '/network-protection',
+          icon: Wifi,
+          label: 'Network Protection',
+          badge: null,
+          premium: false
+        },
+        {
+          path: '/data-protection',
+          icon: Database,
+          label: 'Data Protection',
+          badge: null,
+          premium: false
+        }
+      ]
     },
     {
-      path: '/firewall-logs',
-      icon: FileText,
-      label: 'Firewall Logs',
-      badge: null,
-      premium: true
+      id: 'privacy',
+      label: 'Privacy & Family',
+      icon: UserCheck,
+      items: [
+        {
+          path: '/password-manager',
+          icon: KeyRound,
+          label: 'Password Manager',
+          badge: null,
+          premium: false
+        },
+        {
+          path: '/parental-controls',
+          icon: UserCheck,
+          label: 'Parental Controls',
+          badge: null,
+          premium: false
+        }
+      ]
     },
     {
-      path: '/ml-detection',
+      id: 'advanced',
+      label: 'Advanced Features',
       icon: Brain,
-      label: 'ML Detection',
-      badge: null,
-      premium: true
+      items: [
+        {
+          path: '/advanced-firewall',
+          icon: Shield,
+          label: 'Advanced Firewall',
+          badge: null,
+          premium: true
+        },
+        {
+          path: '/firewall-logs',
+          icon: FileText,
+          label: 'Firewall Logs',
+          badge: null,
+          premium: true
+        },
+        {
+          path: '/ml-detection',
+          icon: Brain,
+          label: 'ML Detection',
+          badge: null,
+          premium: true
+        },
+        {
+          path: '/ml-dashboard',
+          icon: Brain,
+          label: 'ML Dashboard',
+          badge: '🧠',
+          premium: false
+        },
+        {
+          path: '/cyber-capture',
+          icon: Cloud,
+          label: 'CyberCapture',
+          badge: null,
+          premium: false
+        }
+      ]
     },
     {
-      path: '/cyber-capture',
-      icon: Cloud,
-      label: 'CyberCapture',
-      badge: null,
-      premium: false
-    },
-    {
-      path: '/ml-dashboard',
-      icon: Brain,
-      label: 'ML Dashboard',
-      badge: '🧠',
-      premium: false
-    },
-    {
-      path: '/data-protection',
-      icon: Database,
-      label: 'Data Protection',
-      badge: null,
-      premium: false
-    },
-    {
-      path: '/disk-cleanup',
+      id: 'system',
+      label: 'System Tools',
       icon: HardDrive,
-      label: 'Disk Cleanup',
-      badge: null,
-      premium: false
+      items: [
+        {
+          path: '/driver-scanner',
+          icon: HardDrive,
+          label: 'Driver Scanner',
+          badge: null,
+          premium: false
+        },
+        {
+          path: '/disk-cleanup',
+          icon: HardDrive,
+          label: 'Disk Cleanup',
+          badge: null,
+          premium: false
+        },
+        {
+          path: '/startup-manager',
+          icon: Zap,
+          label: 'Startup Manager',
+          badge: null,
+          premium: false
+        },
+        {
+          path: '/performance-metrics',
+          icon: BarChart3,
+          label: 'Performance Metrics',
+          badge: null,
+          premium: false
+        }
+      ]
     },
     {
-      path: '/startup-manager',
-      icon: Zap,
-      label: 'Startup Manager',
-      badge: null,
-      premium: false
-    },
-    {
-      path: '/performance-metrics',
-      icon: BarChart3,
-      label: 'Performance Metrics',
-      badge: null,
-      premium: false
-    },
-    {
-      path: '/quarantine',
-      icon: Archive,
-      label: 'Quarantine',
-      badge: systemStatus?.quarantined_files || null
-    },
-    {
-      path: '/admin',
-      icon: Crown,
-      label: 'Admin Panel',
-      badge: null,
-      adminOnly: true
-    },
-    {
-      path: '/license',
-      icon: Key,
-      label: 'License',
-      badge: null
-    },
-    {
-      path: '/settings',
+      id: 'settings',
+      label: 'Settings & Admin',
       icon: Settings,
-      label: 'Settings',
-      badge: null
+      items: [
+        {
+          path: '/admin',
+          icon: Crown,
+          label: 'Admin Panel',
+          badge: null,
+          adminOnly: true
+        },
+        {
+          path: '/license',
+          icon: Key,
+          label: 'License',
+          badge: null
+        },
+        {
+          path: '/settings',
+          icon: Settings,
+          label: 'Settings',
+          badge: null
+        }
+      ]
     }
   ];
 
@@ -289,45 +371,95 @@ const Sidebar = ({ isOpen = false, onClose = () => {} }) => {
       {/* Navigation Menu */}
       <nav className="sidebar-nav">
         <ul className="nav-list">
-          {menuItems
-            .filter(item => !item.adminOnly || (item.adminOnly && isAdmin))
-            .map((item, index) => {
-            const isActive = location.pathname === item.path;
-            const Icon = item.icon;
+          {menuSections.map((section, sectionIndex) => {
+            const SectionIcon = section.icon;
+            const isExpanded = expandedSections[section.id];
+            const filteredItems = section.items.filter(
+              item => !item.adminOnly || (item.adminOnly && isAdmin)
+            );
+
+            // Don't render empty sections
+            if (filteredItems.length === 0) return null;
 
             return (
-              <motion.li
-                key={item.path}
-                className="nav-item"
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: index * 0.1 }}
-              >
-                <Link to={item.path} className={`nav-link ${isActive ? 'active' : ''}`}>
+              <li key={section.id} className="nav-section">
+                <motion.button
+                  className={`section-header ${isExpanded ? 'expanded' : ''}`}
+                  onClick={() => toggleSection(section.id)}
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: sectionIndex * 0.05 }}
+                  whileHover={{ x: 2 }}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  <div className="section-header-content">
+                    <SectionIcon size={18} />
+                    <span className="section-label">{section.label}</span>
+                  </div>
                   <motion.div
-                    className="nav-content"
-                    whileHover={{ x: 4 }}
-                    whileTap={{ scale: 0.98 }}
+                    animate={{ rotate: isExpanded ? 180 : 0 }}
+                    transition={{ duration: 0.2 }}
                   >
-                    <div className="nav-icon">
-                      <Icon size={20} />
-                    </div>
-                    <span className="nav-label">{item.label}</span>
-                    {item.badge && (
-                      <span className="nav-badge">{item.badge}</span>
-                    )}
-                    <ChevronRight size={16} className="nav-arrow" />
+                    <ChevronDown size={16} />
                   </motion.div>
-                  {isActive && (
-                    <motion.div
-                      className="active-indicator"
-                      layoutId="activeIndicator"
-                      initial={false}
-                      transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                    />
+                </motion.button>
+
+                <AnimatePresence initial={false}>
+                  {isExpanded && (
+                    <motion.ul
+                      className="section-items"
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: "auto", opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={{ duration: 0.2 }}
+                    >
+                      {filteredItems.map((item, index) => {
+                        const isActive = location.pathname === item.path;
+                        const Icon = item.icon;
+
+                        return (
+                          <motion.li
+                            key={item.path}
+                            className="nav-item"
+                            initial={{ opacity: 0, x: -10 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            exit={{ opacity: 0, x: -10 }}
+                            transition={{ delay: index * 0.03 }}
+                          >
+                            <Link to={item.path} className={`nav-link ${isActive ? 'active' : ''}`}>
+                              <motion.div
+                                className="nav-content"
+                                whileHover={{ x: 4 }}
+                                whileTap={{ scale: 0.98 }}
+                              >
+                                <div className="nav-icon">
+                                  <Icon size={18} />
+                                </div>
+                                <span className="nav-label">{item.label}</span>
+                                {item.badge && (
+                                  <span className="nav-badge">{item.badge}</span>
+                                )}
+                                {item.premium && !isPremium && (
+                                  <Crown size={14} className="premium-icon" />
+                                )}
+                                <ChevronRight size={14} className="nav-arrow" />
+                              </motion.div>
+                              {isActive && (
+                                <motion.div
+                                  className="active-indicator"
+                                  layoutId="activeIndicator"
+                                  initial={false}
+                                  transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                                />
+                              )}
+                            </Link>
+                          </motion.li>
+                        );
+                      })}
+                    </motion.ul>
                   )}
-                </Link>
-              </motion.li>
+                </AnimatePresence>
+              </li>
             );
           })}
         </ul>

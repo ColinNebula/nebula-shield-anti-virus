@@ -1,0 +1,130 @@
+{
+  "$schema": "https://schema.tauri.app/config/2.0.0",
+  "productName": "Nebula Shield Anti-Virus",
+  "version": "1.0.0",
+  "identifier": "com.nebulashield.antivirus",
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "beforeBuildCommand": "npm run build",
+    "devUrl": "http://localhost:3003",
+    "frontendDist": "../dist"
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["msi", "nsis"],
+    "icon": [
+      "icons/icon.ico"
+    ],
+    "publisher": "Nebula Shield",
+    "copyright": "Copyright © 2025 Nebula Shield",
+    "category": "Security",
+    "shortDescription": "Advanced Anti-Virus Protection",
+    "longDescription": "Nebula Shield provides comprehensive real-time protection with AI-powered threat detection, advanced firewall, ransomware protection, and multi-platform security.",
+    "windows": {
+      "certificateThumbprint": null,
+      "digestAlgorithm": "sha256",
+      "timestampUrl": "",
+      "wix": {
+        "language": ["en-US"]
+      },
+      "nsis": null,
+      "webviewInstallMode": {
+        "type": "downloadBootstrapper"
+      }
+    },
+    "resources": [
+      "signatures/**/*",
+      "quarantine/**/*"
+    ]
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "Nebula Shield Anti-Virus",
+        "width": 1200,
+        "height": 800,
+        "minWidth": 1000,
+        "minHeight": 700,
+        "resizable": true,
+        "fullscreen": false,
+        "decorations": true,
+        "transparent": false,
+        "alwaysOnTop": false,
+        "skipTaskbar": false,
+        "theme": "Dark",
+        "titleBarStyle": "Visible",
+        "hiddenTitle": false,
+        "center": true
+      }
+    ],
+    "security": {
+      "csp": {
+        "default-src": "'self'",
+        "script-src": "'self' 'unsafe-inline' 'unsafe-eval'",
+        "style-src": "'self' 'unsafe-inline'",
+        "img-src": "'self' data: https:",
+        "connect-src": "'self' http://localhost:8080 ws://localhost:8080",
+        "font-src": "'self' data:",
+        "media-src": "'self'"
+      },
+      "assetProtocol": {
+        "enable": true,
+        "scope": ["**"]
+      }
+    },
+    "macOSPrivateApi": false,
+    "withGlobalTauri": true
+  },
+  "plugins": {
+    "updater": {
+      "active": true,
+      "endpoints": [
+        "https://updates.nebulashield.com/{{target}}/{{arch}}/{{current_version}}"
+      ],
+      "pubkey": "",
+      "windows": {
+        "installMode": "passive"
+      }
+    },
+    "notification": {
+      "active": true
+    },
+    "dialog": {
+      "active": true
+    },
+    "fs": {
+      "scope": [
+        "$APPDATA/**",
+        "$LOCALDATA/**",
+        "$TEMP/**",
+        "$HOME/Downloads/**",
+        "$HOME/Documents/**",
+        "$HOME/Desktop/**",
+        "**"
+      ]
+    },
+    "shell": {
+      "open": ".*",
+      "scope": [
+        {
+          "name": "powershell",
+          "cmd": "powershell",
+          "args": ["-NoProfile", "-Command", "$args"],
+          "sidecar": false
+        },
+        {
+          "name": "cmd",
+          "cmd": "cmd",
+          "args": ["/C", "$args"],
+          "sidecar": false
+        }
+      ]
+    },
+    "http": {
+      "scope": [
+        "http://localhost:8080/**",
+        "https://api.nebulashield.com/**"
+      ]
+    }
+  }
+}

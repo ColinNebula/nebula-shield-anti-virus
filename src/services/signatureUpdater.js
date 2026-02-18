@@ -84,9 +84,12 @@ class SignatureUpdaterService extends EventEmitter {
     console.log('[SignatureUpdater] Initializing auto-update service...');
     
     if (this.config.enableAutoUpdate) {
-      // Check for updates immediately on startup
+      // Check for updates immediately on startup (silent, don't log errors)
       setTimeout(() => {
-        this.checkForUpdates(true); // Silent check
+        this.checkForUpdates(true).catch(err => {
+          // Silently ignore errors on initial check
+          console.debug('[SignatureUpdater] Initial update check failed (backend may not be ready):', err.message);
+        });
       }, 5000); // Wait 5 seconds after app start
 
       // Schedule periodic updates
@@ -97,7 +100,9 @@ class SignatureUpdaterService extends EventEmitter {
     if (typeof window !== 'undefined') {
       window.addEventListener('online', () => {
         console.log('[SignatureUpdater] Network restored, checking for updates...');
-        this.checkForUpdates(true);
+        this.checkForUpdates(true).catch(() => {
+          // Ignore network errors silently
+        });
       });
     }
   }
@@ -222,8 +227,20 @@ class SignatureUpdaterService extends EventEmitter {
         headers: {
           'X-Current-Version': this.state.currentVersion,
           'X-Last-Update': this.state.lastUpdateTime?.toISOString() || 'never'
+        },
+        validateStatus: function (status) {
+          return status >= 200 && status < 600; // Accept any status for better error messages
         }
       });
+
+      // Check response status
+      if (response.status === 503) {
+        throw new Error('Backend server unavailable (503). Please ensure the backend is running on port 8080.');
+      }
+
+      if (response.status >= 400) {
+        throw new Error(`HTTP error! status: ${response.status} - ${response.statusText || 'Unknown error'}`);
+      }
 
       if (!response.data) {
         throw new Error('Empty response from update server');

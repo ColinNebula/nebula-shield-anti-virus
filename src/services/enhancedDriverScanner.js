@@ -622,72 +622,426 @@ class AutoUpdateScheduler {
   }
 }
 
-// ==================== HARDWARE DIAGNOSTICS ====================
+// ==================== DRIVER CONFLICT DETECTION ====================
 
-export const runHardwareDiagnostics = async (driver) => {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      const diagnostics = {
-        driverId: driver.id,
-        driverName: driver.name,
-        category: driver.category,
-        tests: []
-      };
+export const KNOWN_CONFLICTS = [
+  {
+    id: 'conflict_001',
+    driver1: 'NVIDIA',
+    driver2: 'AMD',
+    category: 'Graphics',
+    severity: 'HIGH',
+    description: 'Multiple GPU drivers can cause display conflicts',
+    recommendation: 'Keep only the driver for your active GPU',
+    canCoexist: false
+  },
+  {
+    id: 'conflict_002',
+    driver1: 'Realtek',
+    driver2: 'Creative',
+    category: 'Audio',
+    severity: 'MEDIUM',
+    description: 'Multiple audio drivers may cause sound routing issues',
+    recommendation: 'Disable unused audio devices in Device Manager',
+    canCoexist: true
+  },
+  {
+    id: 'conflict_003',
+    driver1: 'Intel Wi-Fi',
+    driver2: 'Qualcomm',
+    category: 'Network',
+    severity: 'LOW',
+    description: 'Multiple network adapters detected',
+    recommendation: 'This is usually normal for systems with multiple NICs',
+    canCoexist: true
+  }
+];
 
-      // Category-specific tests
-      if (driver.category === 'Graphics') {
-        diagnostics.tests = [
-          { name: 'Memory Test', status: 'passed', details: 'No errors detected' },
-          { name: 'Temperature Check', status: 'passed', details: `${driver.temperature || 65}°C (Normal)` },
-          { name: 'Fan Speed', status: 'passed', details: '2100 RPM (Normal)' },
-          { name: 'Performance Test', status: 'passed', details: `Score: ${driver.performance?.score || 95}/100` },
-          { name: 'DirectX Support', status: 'passed', details: 'DirectX 12 Ultimate' }
-        ];
-      } else if (driver.category === 'Network') {
-        diagnostics.tests = [
-          { name: 'Connection Test', status: 'passed', details: 'Connected at 1200 Mbps' },
-          { name: 'Latency Test', status: 'passed', details: `${driver.performance?.latency || '12ms'}` },
-          { name: 'Packet Loss', status: 'passed', details: `${driver.performance?.packetLoss || '0.1%'}` },
-          { name: 'Signal Strength', status: 'passed', details: `${driver.performance?.signalStrength || '-45 dBm'}` },
-          { name: 'DNS Resolution', status: 'passed', details: 'Working correctly' }
-        ];
-      } else if (driver.category === 'Storage') {
-        diagnostics.tests = [
-          { name: 'SMART Status', status: 'passed', details: 'Healthy' },
-          { name: 'Read Speed Test', status: 'passed', details: `${driver.readSpeed || '7000 MB/s'}` },
-          { name: 'Write Speed Test', status: 'passed', details: `${driver.writeSpeed || '5000 MB/s'}` },
-          { name: 'Temperature', status: 'passed', details: '42°C (Normal)' },
-          { name: 'Bad Sectors', status: 'passed', details: 'None detected' }
-        ];
-      } else {
-        diagnostics.tests = [
-          { name: 'Device Status', status: 'passed', details: driver.status },
-          { name: 'Power State', status: 'passed', details: driver.powerState },
-          { name: 'Driver Signature', status: 'passed', details: 'Verified' },
-          { name: 'Functionality Test', status: 'passed', details: 'Working as expected' }
-        ];
+const detectDriverConflicts = (drivers) => {
+  const conflicts = [];
+  const driversByCategory = {};
+
+  // Group drivers by category
+  drivers.forEach(driver => {
+    if (!driversByCategory[driver.category]) {
+      driversByCategory[driver.category] = [];
+    }
+    driversByCategory[driver.category].push(driver);
+  });
+
+  // Check for conflicts within each category
+  Object.entries(driversByCategory).forEach(([category, categoryDrivers]) => {
+    if (categoryDrivers.length > 1) {
+      categoryDrivers.forEach((driver1, i) => {
+        categoryDrivers.slice(i + 1).forEach(driver2 => {
+          const knownConflict = KNOWN_CONFLICTS.find(c => 
+            c.category === category &&
+            ((c.driver1.toLowerCase() === driver1.manufacturer.toLowerCase() && 
+              c.driver2.toLowerCase() === driver2.manufacturer.toLowerCase()) ||
+             (c.driver1.toLowerCase() === driver2.manufacturer.toLowerCase() && 
+              c.driver2.toLowerCase() === driver1.manufacturer.toLowerCase()))
+          );
+
+          if (knownConflict) {
+            conflicts.push({
+              ...knownConflict,
+              driver1Name: driver1.name,
+              driver2Name: driver2.name,
+              driver1Id: driver1.id,
+              driver2Id: driver2.id
+            });
+          }
+        });
+      });
+    }
+  });
+
+  return conflicts;
+};
+
+// ==================== BULK UPDATE MANAGER ====================
+
+class BulkUpdateManager {
+  constructor() {
+    this.queue = [];
+    this.progress = {};
+    this.listeners = [];
+  }
+
+  addToQueue(drivers) {
+    const driversArray = Array.isArray(drivers) ? drivers : [drivers];
+    this.queue.push(...driversArray.map(driver => ({
+      ...driver,
+      status: 'pending',
+      error: null
+    })));
+    this.notifyListeners();
+  }
+
+  removeFromQueue(driverId) {
+    this.queue = this.queue.filter(d => d.id !== driverId);
+    this.notifyListeners();
+  }
+
+  clearQueue() {
+    this.queue = [];
+    this.progress = {};
+    this.notifyListeners();
+  }
+
+  async executeQueue(onProgress) {
+    const total = this.queue.length;
+    let completed = 0;
+    let failed = 0;
+
+    for (const driver of this.queue) {
+      try {
+        this.updateDriverStatus(driver.id, 'updating');
+        
+        // Simulate update process
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        
+        this.updateDriverStatus(driver.id, 'completed');
+        completed++;
+      } catch (error) {
+        this.updateDriverStatus(driver.id, 'failed', error.message);
+        failed++;
       }
 
-      diagnostics.overallStatus = 'healthy';
-      diagnostics.timestamp = new Date().toISOString();
+      if (onProgress) {
+        onProgress({
+          total,
+          completed,
+          failed,
+          current: driver.name,
+          percentage: Math.round(((completed + failed) / total) * 100)
+        });
+      }
+    }
 
-      resolve(diagnostics);
+    return { total, completed, failed };
+  }
+
+  updateDriverStatus(driverId, status, error = null) {
+    const driver = this.queue.find(d => d.id === driverId);
+    if (driver) {
+      driver.status = status;
+      driver.error = error;
+      this.notifyListeners();
+    }
+  }
+
+  subscribe(listener) {
+    this.listeners.push(listener);
+    return () => {
+      this.listeners = this.listeners.filter(l => l !== listener);
+    };
+  }
+
+  notifyListeners() {
+    this.listeners.forEach(listener => listener(this.queue));
+  }
+
+  getQueueStatus() {
+    return {
+      total: this.queue.length,
+      pending: this.queue.filter(d => d.status === 'pending').length,
+      updating: this.queue.filter(d => d.status === 'updating').length,
+      completed: this.queue.filter(d => d.status === 'completed').length,
+      failed: this.queue.filter(d => d.status === 'failed').length
+    };
+  }
+}
+
+// ==================== DRIVER BLACKLIST/WHITELIST ====================
+
+class DriverFilterManager {
+  constructor() {
+    this.filters = this.loadFilters();
+  }
+
+  loadFilters() {
+    const saved = localStorage.getItem('driver_filters');
+    return saved ? JSON.parse(saved) : {
+      blacklist: [],
+      whitelist: [],
+      autoUpdateExclusions: [],
+      trustedDrivers: []
+    };
+  }
+
+  saveFilters() {
+    localStorage.setItem('driver_filters', JSON.stringify(this.filters));
+  }
+
+  addToBlacklist(driverId, reason = '') {
+    if (!this.filters.blacklist.find(b => b.driverId === driverId)) {
+      this.filters.blacklist.push({
+        driverId,
+        reason,
+        addedAt: new Date().toISOString()
+      });
+      this.saveFilters();
+    }
+  }
+
+  removeFromBlacklist(driverId) {
+    this.filters.blacklist = this.filters.blacklist.filter(b => b.driverId !== driverId);
+    this.saveFilters();
+  }
+
+  addToWhitelist(driverId) {
+    if (!this.filters.whitelist.includes(driverId)) {
+      this.filters.whitelist.push(driverId);
+      this.saveFilters();
+    }
+  }
+
+  removeFromWhitelist(driverId) {
+    this.filters.whitelist = this.filters.whitelist.filter(id => id !== driverId);
+    this.saveFilters();
+  }
+
+  excludeFromAutoUpdate(driverId, reason = '') {
+    if (!this.filters.autoUpdateExclusions.find(e => e.driverId === driverId)) {
+      this.filters.autoUpdateExclusions.push({
+        driverId,
+        reason,
+        excludedAt: new Date().toISOString()
+      });
+      this.saveFilters();
+    }
+  }
+
+  includeInAutoUpdate(driverId) {
+    this.filters.autoUpdateExclusions = this.filters.autoUpdateExclusions.filter(
+      e => e.driverId !== driverId
+    );
+    this.saveFilters();
+  }
+
+  markAsTrusted(driverId) {
+    if (!this.filters.trustedDrivers.includes(driverId)) {
+      this.filters.trustedDrivers.push(driverId);
+      this.saveFilters();
+    }
+  }
+
+  unmarkAsTrusted(driverId) {
+    this.filters.trustedDrivers = this.filters.trustedDrivers.filter(id => id !== driverId);
+    this.saveFilters();
+  }
+
+  isBlacklisted(driverId) {
+    return this.filters.blacklist.some(b => b.driverId === driverId);
+  }
+
+  isWhitelisted(driverId) {
+    return this.filters.whitelist.includes(driverId);
+  }
+
+  isExcludedFromAutoUpdate(driverId) {
+    return this.filters.autoUpdateExclusions.some(e => e.driverId === driverId);
+  }
+
+  isTrusted(driverId) {
+    return this.filters.trustedDrivers.includes(driverId);
+  }
+}
+
+// ==================== WINDOWS UPDATE INTEGRATION ====================
+
+const checkWindowsUpdate = async (driver) => {
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      // Simulate Windows Update check
+      const hasWindowsUpdate = Math.random() > 0.7;
+      
+      resolve({
+        available: hasWindowsUpdate,
+        version: hasWindowsUpdate ? driver.latestVersion : null,
+        certified: hasWindowsUpdate,
+        kb: hasWindowsUpdate ? `KB${Math.floor(Math.random() * 9000000) + 1000000}` : null,
+        releaseDate: hasWindowsUpdate ? new Date().toISOString().split('T')[0] : null,
+        size: hasWindowsUpdate ? `${Math.floor(Math.random() * 200) + 50} MB` : null,
+        description: hasWindowsUpdate ? 
+          `Official Microsoft-certified driver update for ${driver.name}` : 
+          'No Windows Update available',
+        isRecommended: hasWindowsUpdate && Math.random() > 0.5
+      });
     }, 1500);
   });
 };
+
+// ==================== PERFORMANCE TRACKING ====================
+
+class PerformanceTracker {
+  constructor() {
+    this.metrics = this.loadMetrics();
+  }
+
+  loadMetrics() {
+    const saved = localStorage.getItem('driver_performance_metrics');
+    return saved ? JSON.parse(saved) : {};
+  }
+
+  saveMetrics() {
+    localStorage.setItem('driver_performance_metrics', JSON.stringify(this.metrics));
+  }
+
+  recordMetric(driverId, metric) {
+    if (!this.metrics[driverId]) {
+      this.metrics[driverId] = {
+        history: [],
+        averages: {}
+      };
+    }
+
+    this.metrics[driverId].history.push({
+      ...metric,
+      timestamp: new Date().toISOString()
+    });
+
+    // Keep only last 100 entries per driver
+    if (this.metrics[driverId].history.length > 100) {
+      this.metrics[driverId].history.shift();
+    }
+
+    this.calculateAverages(driverId);
+    this.saveMetrics();
+  }
+
+  calculateAverages(driverId) {
+    const history = this.metrics[driverId].history;
+    if (history.length === 0) return;
+
+    const averages = {};
+    const keys = Object.keys(history[0]).filter(k => k !== 'timestamp' && typeof history[0][k] === 'number');
+
+    keys.forEach(key => {
+      const values = history.map(h => h[key]).filter(v => v !== undefined);
+      if (values.length > 0) {
+        averages[key] = values.reduce((a, b) => a + b, 0) / values.length;
+      }
+    });
+
+    this.metrics[driverId].averages = averages;
+  }
+
+  getDriverMetrics(driverId) {
+    return this.metrics[driverId] || { history: [], averages: {} };
+  }
+
+  getPerformanceTrend(driverId, metricName) {
+    const driverMetrics = this.metrics[driverId];
+    if (!driverMetrics) return null;
+
+    const values = driverMetrics.history
+      .filter(h => h[metricName] !== undefined)
+      .map(h => ({
+        value: h[metricName],
+        timestamp: h.timestamp
+      }));
+
+    if (values.length < 2) return null;
+
+    const recent = values.slice(-10);
+    const older = values.slice(-20, -10);
+
+    if (older.length === 0) return 'stable';
+
+    const recentAvg = recent.reduce((a, b) => a + b.value, 0) / recent.length;
+    const olderAvg = older.reduce((a, b) => a + b.value, 0) / older.length;
+
+    const change = ((recentAvg - olderAvg) / olderAvg) * 100;
+
+    if (Math.abs(change) < 5) return 'stable';
+    if (change > 0) return 'improving';
+    return 'degrading';
+  }
+
+  clearMetrics(driverId) {
+    if (driverId) {
+      delete this.metrics[driverId];
+    } else {
+      this.metrics = {};
+    }
+    this.saveMetrics();
+  }
+}
 
 // ==================== EXPORT MAIN FUNCTIONS ====================
 
 const analyzer = new DriverAnalyzer();
 const backupManager = new DriverBackupManager();
 const scheduler = new AutoUpdateScheduler();
+const bulkUpdateManager = new BulkUpdateManager();
+const filterManager = new DriverFilterManager();
+const performanceTracker = new PerformanceTracker();
 
 export const scanDrivers = async () => {
   return new Promise((resolve) => {
     setTimeout(() => {
       const drivers = detectInstalledDrivers();
       const analysis = analyzer.analyze(drivers);
-      resolve(analysis);
+      
+      // Add conflict detection
+      const conflicts = detectDriverConflicts(analysis.results);
+      
+      // Add filter information
+      analysis.results = analysis.results.map(driver => ({
+        ...driver,
+        isBlacklisted: filterManager.isBlacklisted(driver.id),
+        isWhitelisted: filterManager.isWhitelisted(driver.id),
+        isExcludedFromAutoUpdate: filterManager.isExcludedFromAutoUpdate(driver.id),
+        isTrusted: filterManager.isTrusted(driver.id),
+        performanceMetrics: performanceTracker.getDriverMetrics(driver.id)
+      }));
+      
+      resolve({
+        ...analysis,
+        conflicts
+      });
     }, 2000);
   });
 };
@@ -752,6 +1106,14 @@ export const getBackupManager = () => backupManager;
 
 export const getScheduler = () => scheduler;
 
+export const getBulkUpdateManager = () => bulkUpdateManager;
+
+export const getFilterManager = () => filterManager;
+
+export const getPerformanceTracker = () => performanceTracker;
+
+export { checkWindowsUpdate, detectDriverConflicts };
+
 export const getUpdateRecommendations = (results) => {
   if (!results) return [];
   
@@ -806,4 +1168,56 @@ export const getRestorePointAdvice = () => {
       'Click "Create" and wait for completion'
     ]
   };
+};
+
+export const runHardwareDiagnostics = (driver) => {
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      const diagnostics = {
+        driverId: driver.id,
+        driverName: driver.name,
+        category: driver.category,
+        tests: []
+      };
+
+      // Category-specific tests
+      if (driver.category === 'Graphics') {
+        diagnostics.tests = [
+          { name: 'Memory Test', status: 'passed', details: 'No errors detected' },
+          { name: 'Temperature Check', status: 'passed', details: `${driver.temperature || 65}°C (Normal)` },
+          { name: 'Fan Speed', status: 'passed', details: '2100 RPM (Normal)' },
+          { name: 'Performance Test', status: 'passed', details: `Score: ${driver.performance?.score || 95}/100` },
+          { name: 'DirectX Support', status: 'passed', details: 'DirectX 12 Ultimate' }
+        ];
+      } else if (driver.category === 'Network') {
+        diagnostics.tests = [
+          { name: 'Connection Test', status: 'passed', details: 'Connected at 1200 Mbps' },
+          { name: 'Latency Test', status: 'passed', details: `${driver.performance?.latency || '12ms'}` },
+          { name: 'Packet Loss', status: 'passed', details: `${driver.performance?.packetLoss || '0.1%'}` },
+          { name: 'Signal Strength', status: 'passed', details: `${driver.performance?.signalStrength || '-45 dBm'}` },
+          { name: 'DNS Resolution', status: 'passed', details: 'Working correctly' }
+        ];
+      } else if (driver.category === 'Storage') {
+        diagnostics.tests = [
+          { name: 'SMART Status', status: 'passed', details: 'Healthy' },
+          { name: 'Read Speed Test', status: 'passed', details: `${driver.readSpeed || '7000 MB/s'}` },
+          { name: 'Write Speed Test', status: 'passed', details: `${driver.writeSpeed || '5000 MB/s'}` },
+          { name: 'Temperature', status: 'passed', details: '42°C (Normal)' },
+          { name: 'Bad Sectors', status: 'passed', details: 'None detected' }
+        ];
+      } else {
+        diagnostics.tests = [
+          { name: 'Device Status', status: 'passed', details: driver.status },
+          { name: 'Power State', status: 'passed', details: driver.powerState },
+          { name: 'Driver Signature', status: 'passed', details: 'Verified' },
+          { name: 'Functionality Test', status: 'passed', details: 'Working as expected' }
+        ];
+      }
+
+      diagnostics.overallStatus = 'healthy';
+      diagnostics.timestamp = new Date().toISOString();
+
+      resolve(diagnostics);
+    }, 1500);
+  });
 };

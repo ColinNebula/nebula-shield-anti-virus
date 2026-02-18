@@ -75,7 +75,7 @@ namespace nebula_shield {
             for (const auto& entry : std::filesystem::recursive_directory_iterator(".")) {
                 if (entry.is_regular_file()) {
                     std::string filename = entry.path().filename().string();
-                    if (filename.ends_with(".backup")) {
+                    if (filename.size() >= 7 && filename.substr(filename.size() - 7) == ".backup") {
                         info.backup_size += entry.file_size();
                     }
                 }
@@ -168,7 +168,7 @@ namespace nebula_shield {
                 if (entry.is_regular_file()) {
                     std::string filename = entry.path().filename().string();
                     
-                    if (filename.ends_with(".backup")) {
+                    if (filename.size() >= 7 && filename.substr(filename.size() - 7) == ".backup") {
                         auto file_time = std::filesystem::last_write_time(entry.path());
                         auto sctp = std::chrono::time_point_cast<std::chrono::system_clock::duration>(
                             file_time - std::filesystem::file_time_type::clock::now() + 

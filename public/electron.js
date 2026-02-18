@@ -168,10 +168,31 @@ function createWindow() {
   
   log('WebPreferences:', { nodeIntegration: webPreferences.nodeIntegration, contextIsolation: webPreferences.contextIsolation, sandbox: webPreferences.sandbox, partition: webPreferences.partition });
   
-  // Use high-resolution PNG icon for better quality
-  const iconPath = path.join(__dirname, 'icon.png');
+  // Determine icon path based on platform and environment
+  let iconPath;
+  if (process.platform === 'win32') {
+    // Windows requires .ico for proper taskbar icon
+    if (app.isPackaged) {
+      // In production, icon is in resources
+      iconPath = path.join(process.resourcesPath, 'icon.ico');
+    } else {
+      // In development, use build-resources
+      iconPath = path.join(app.getAppPath(), 'build-resources', 'icon.ico');
+    }
+  } else {
+    // macOS and Linux use PNG
+    iconPath = app.isPackaged 
+      ? path.join(process.resourcesPath, 'icon.png')
+      : path.join(__dirname, 'icon.png');
+  }
+  
   const iconExists = fs.existsSync(iconPath);
   log('Icon path:', iconPath, 'exists:', iconExists);
+  
+  // Set app icon globally for Windows (important for taskbar)
+  if (process.platform === 'win32' && iconExists) {
+    app.setAppUserModelId('com.nebulashield.antivirus');
+  }
   
   mainWindow = new BrowserWindow({
     width: 1400,
@@ -486,48 +507,212 @@ function createTray() {
 }
 
 function startBackend() {
-  // Backend should be started externally using the startup script
-  // In development, backend should be started separately
-  // In production, use START-NEBULA-SHIELD.bat which starts backend before launching app
-  
-  log('Backend should be running externally on port 8080');
-  log('If backend is not running, use START-NEBULA-SHIELD.bat to launch the app');
-  
-  // Don't try to start backend from within Electron
-  // This avoids node_modules dependency issues in packaged app
-  return;
-  
-  /* DISABLED - Use external backend instead
   if (isDevMode) {
     // In development, backend should be started separately
-    log('Running in development mode - start backend separately');
+    log('Running in development mode - start backend separately using npm run start:backend');
     return;
   }
 
-  // In production, start the backend server
-  const { spawn } = require('child_process');
-  const backendPath = path.join(process.resourcesPath, 'backend', 'mock-backend.js');
+  // In production, start the backend server automatically
+  const { spawn, execSync } = require('child_process');
   
-  log('Starting backend server:', backendPath);
-  log('Backend exists:', fs.existsSync(backendPath));
+  // First, check if Node.js is available
+  let nodeCommand = 'node';
+  try {
+    execSync('node --version', { stdio: 'ignore' });
+    log('Node.js is available in PATH');
+  } catch (error) {
+    log('ERROR: Node.js not found in PATH');
+    dialog.showErrorBox(
+      'Node.js Required',
+      'Nebula Shield requires Node.js to be installed.\n\nPlease install Node.js from https://nodejs.org/ and restart the application.'
+    );
+    app.quit();
+    return;
+  }
   
-  backendProcess = spawn('node', [backendPath], {
-    env: { ...process.env, PORT: '8080' },
-    cwd: path.join(process.resourcesPath, 'backend')
-  });
+  // Determine backend path and working directory
+  // Try multiple possible locations for different packaging scenarios
+  const possiblePaths = [
+    // Production portable/installer (extraResources)
+    path.join(process.resourcesPath, 'backend'),
+    // Development unpacked
+    path.join(app.getAppPath(), 'backend'),
+    // Alternative unpacked location
+    path.join(path.dirname(process.resourcesPath), 'backend'),
+    // ASAR unpacked
+    path.join(process.resourcesPath, 'app.asar.unpacked', 'backend'),
+    // Parent of resources
+    path.join(path.dirname(process.resourcesPath), '..', 'backend')
+  ];
+  
+  let backendDir = null;
+  let backendPath = null;
+  
+  // Find the first valid backend location
+  for (const testDir of possiblePaths) {
+    const testPath = path.join(testDir, 'auth-server.js');
+    if (fs.existsSync(testPath)) {
+      backendDir = testDir;
+      backendPath = testPath;
+      break;
+    }
+  }
+  
+  log('Starting backend server...');
+  log('process.resourcesPath:', process.resourcesPath);
+  log('app.getAppPath():', app.getAppPath());
+  log('__dirname:', __dirname);
+  log('Searched paths:', possiblePaths.map(p => `${p} [${fs.existsSync(p) ? 'EXISTS' : 'NOT FOUND'}]`).join('\n  '));
+  log('Backend path:', backendPath);
+  log('Backend dir:', backendDir);
+  log('Backend file exists:', backendPath ? fs.existsSync(backendPath) : false);
+  
+  if (!backendPath || !fs.existsSync(backendPath)) {
+    log('ERROR: Backend server file not found!');
+    const errorMsg = `Backend server not found in any expected location.\n\nSearched:\n${possiblePaths.join('\n')}\n\nPlease reinstall the application.`;
+    dialog.showErrorBox('Backend Error', errorMsg);
+    return;
+  }
 
-  backendProcess.stdout.on('data', (data) => {
-    log(`Backend: ${data.toString()}`);
-  });
-
-  backendProcess.stderr.on('data', (data) => {
-    log(`Backend Error: ${data.toString()}`);
-  });
+  // Check if node_modules exists in backend directory
+  const backendNodeModules = path.join(backendDir, 'node_modules');
   
-  backendProcess.on('error', (error) => {
-    log('Backend process error:', error);
-  });
-  */
+  log('Checking for backend dependencies...');
+  log('Backend node_modules path:', backendNodeModules);
+  log('Backend node_modules exists:', fs.existsSync(backendNodeModules));
+  
+  if (!fs.existsSync(backendNodeModules)) {
+    log('ERROR: Backend dependencies not found!');
+    const errorMsg = `Backend dependencies are missing.\n\nBackend path: ${backendDir}\nnode_modules not found at: ${backendNodeModules}\n\nPlease reinstall the application.`;
+    dialog.showErrorBox('Backend Error', errorMsg);
+    return;
+  }
+
+  // Ensure backend data directories exist in a writable location
+  // Use userData directory for writable data (not in resources which is read-only on some systems)
+  const userDataPath = app.getPath('userData');
+  const backendDataPath = path.join(userDataPath, 'backend-data');
+  const dataDirectories = [
+    backendDataPath,
+    path.join(backendDataPath, 'data'),
+    path.join(backendDataPath, 'data', 'quarantine'),
+    path.join(backendDataPath, 'data', 'logs'),
+    path.join(backendDataPath, 'data', 'virus-definitions'),
+    path.join(backendDataPath, 'data', 'backups')
+  ];
+  
+  log('Creating backend data directories in:', backendDataPath);
+  for (const dir of dataDirectories) {
+    if (!fs.existsSync(dir)) {
+      try {
+        fs.mkdirSync(dir, { recursive: true });
+        log('Created directory:', dir);
+      } catch (error) {
+        log('ERROR creating directory:', dir, error);
+      }
+    }
+  }
+
+  // Copy initial data files if they don't exist
+  const sourceDataPath = path.join(process.resourcesPath, 'data');
+  if (fs.existsSync(sourceDataPath)) {
+    try {
+      const copyDataRecursive = (src, dest) => {
+        if (!fs.existsSync(dest)) {
+          fs.mkdirSync(dest, { recursive: true });
+        }
+        const entries = fs.readdirSync(src, { withFileTypes: true });
+        for (const entry of entries) {
+          const srcPath = path.join(src, entry.name);
+          const destPath = path.join(dest, entry.name);
+          if (entry.isDirectory()) {
+            copyDataRecursive(srcPath, destPath);
+          } else if (!fs.existsSync(destPath)) {
+            // Only copy if destination doesn't exist (preserve user data)
+            fs.copyFileSync(srcPath, destPath);
+          }
+        }
+      };
+      copyDataRecursive(sourceDataPath, path.join(backendDataPath, 'data'));
+      log('Initialized backend data files');
+    } catch (error) {
+      log('Warning: Could not copy initial data files:', error);
+    }
+  }
+
+  // Start backend process
+  try {
+    log('Node executable:', nodeCommand);
+    log('Backend run path:', backendPath);
+    log('Backend run dir:', backendDir);
+    log('Backend data path:', backendDataPath);
+    log('Backend file exists:', fs.existsSync(backendPath));
+    log('Spawning backend process...');
+    
+    // Set environment variables for backend
+    const envVars = { 
+      ...process.env, 
+      AUTH_PORT: '8082',
+      NODE_ENV: 'production',
+      ELECTRON_APP: 'true',
+      BACKEND_DATA_PATH: backendDataPath // Tell backend where to write data
+    };
+    
+    backendProcess = spawn(nodeCommand, [backendPath], {
+      env: envVars,
+      cwd: backendDir,
+      stdio: ['ignore', 'pipe', 'pipe']
+    });
+
+    backendProcess.stdout.on('data', (data) => {
+      log(`Backend: ${data.toString().trim()}`);
+    });
+
+    backendProcess.stderr.on('data', (data) => {
+      log(`Backend Error: ${data.toString().trim()}`);
+    });
+    
+    backendProcess.on('error', (error) => {
+      log('Backend process error:', error);
+      log('Error details:', JSON.stringify(error, null, 2));
+      
+      // Show user-friendly error message
+      const errorMsg = `Failed to start backend server.\n\nError: ${error.message}\n\nPossible solutions:\n1. Ensure Node.js is installed\n2. Check if port 8080 is available\n3. Try running as administrator\n\nCheck logs at: ${logPath}`;
+      
+      dialog.showErrorBox('Backend Startup Error', errorMsg);
+    });
+
+    backendProcess.on('exit', (code, signal) => {
+      log(`Backend process exited with code ${code} and signal ${signal}`);
+      if (code !== 0 && code !== null) {
+        log('Backend exited unexpectedly!');
+        
+        // Auto-restart backend if it crashes (up to 3 times)
+        if (!backendProcess._restartCount) backendProcess._restartCount = 0;
+        if (backendProcess._restartCount < 3) {
+          backendProcess._restartCount++;
+          log(`Auto-restarting backend (attempt ${backendProcess._restartCount}/3)...`);
+          setTimeout(() => {
+            startBackend();
+          }, 2000);
+        } else {
+          dialog.showErrorBox(
+            'Backend Error',
+            'Backend server has crashed multiple times and cannot be restarted.\n\nPlease restart the application.'
+          );
+        }
+      }
+    });
+
+    log('Backend server started successfully');
+  } catch (error) {
+    log('Failed to spawn backend process:', error);
+    dialog.showErrorBox(
+      'Backend Startup Error', 
+      'Failed to start backend server:\n\n' + error.message
+    );
+  }
 }
 
 // App event handlers
@@ -535,6 +720,13 @@ app.whenReady().then(() => {
   createWindow();
   createTray();
   startBackend();
+  
+  // Wait for backend to be ready before showing window
+  if (!isDevMode && app.isPackaged) {
+    setTimeout(() => {
+      checkBackendHealth();
+    }, 3000);
+  }
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
@@ -542,6 +734,57 @@ app.whenReady().then(() => {
     }
   });
 });
+
+// Check if backend is running
+function checkBackendHealth() {
+  const healthCheckUrl = 'http://localhost:8080/api/health';
+  
+  http.get(healthCheckUrl, (res) => {
+    if (res.statusCode === 200) {
+      log('Backend health check passed');
+    } else {
+      log('Backend health check failed with status:', res.statusCode);
+      showBackendError();
+    }
+  }).on('error', (err) => {
+    log('Backend health check error:', err.message);
+    showBackendError();
+  });
+}
+
+function showBackendError() {
+  const message = `Backend server is not responding.
+
+Please check:
+1. Firewall settings (allow port 8080)
+2. Antivirus software (may block the backend)
+3. Check logs at: ${logPath}
+
+You can try:
+- Restarting the application
+- Running as Administrator
+- Temporarily disabling antivirus`;
+
+  dialog.showMessageBox(mainWindow, {
+    type: 'warning',
+    title: 'Backend Connection Issue',
+    message: 'Cannot connect to backend server',
+    detail: message,
+    buttons: ['OK', 'Open Log File', 'Restart Backend']
+  }).then((result) => {
+    if (result.response === 1) {
+      shell.openPath(logPath);
+    } else if (result.response === 2) {
+      if (backendProcess) {
+        backendProcess.kill();
+      }
+      setTimeout(() => {
+        startBackend();
+        setTimeout(checkBackendHealth, 3000);
+      }, 1000);
+    }
+  });
+}
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {

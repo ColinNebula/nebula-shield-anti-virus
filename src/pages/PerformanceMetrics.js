@@ -218,7 +218,7 @@ const PerformanceMetrics = () => {
       </div>
 
       {/* System Health Overview */}
-      {metrics && metrics.health && (
+      {metrics && metrics.health && typeof metrics.health.score !== 'undefined' && (
         <div className="health-overview">
           <div className="health-score">
             <div 
@@ -241,7 +241,7 @@ const PerformanceMetrics = () => {
 
           <div className="health-alerts">
             <h3><AlertTriangle size={20} /> Active Alerts</h3>
-            {metrics.alerts && metrics.alerts.length > 0 ? (
+            {metrics.alerts && Array.isArray(metrics.alerts) && metrics.alerts.length > 0 ? (
               <div className="alerts-list">
                 {metrics.alerts.map((alert, index) => (
                   <div key={index} className={`alert-item ${alert.severity}`}>
@@ -364,14 +364,14 @@ const PerformanceMetrics = () => {
               <Wifi size={24} />
               <h3>Network</h3>
             </div>
-            <div className="metric-value">{metrics.network.interfaces.length}</div>
+            <div className="metric-value">{metrics.network.interfaces ? metrics.network.interfaces.length : 0}</div>
             <div className="metric-label">Active Interfaces</div>
             <div className="metric-details">
               <div className="detail-item">
                 <span>Hostname:</span>
-                <strong>{metrics.network.hostname}</strong>
+                <strong>{metrics.network.hostname || 'Unknown'}</strong>
               </div>
-              {metrics.network.interfaces.map((iface, index) => (
+              {metrics.network.interfaces && Array.isArray(metrics.network.interfaces) && metrics.network.interfaces.map((iface, index) => (
                 <div key={index} className="detail-item">
                   <span>{iface.name}:</span>
                   <strong>{iface.address}</strong>
@@ -545,7 +545,7 @@ const PerformanceMetrics = () => {
           </button>
         </div>
 
-        {showProcesses && processes.length > 0 && (
+        {showProcesses && Array.isArray(processes) && processes.length > 0 && (
           <div className="processes-table-container">
             <table className="processes-table">
               <thead>
@@ -666,7 +666,7 @@ const PerformanceMetrics = () => {
           </div>
 
           {/* Top Events */}
-          {dashboard.topEvents && dashboard.topEvents.length > 0 && (
+          {dashboard.topEvents && Array.isArray(dashboard.topEvents) && dashboard.topEvents.length > 0 && (
             <div className="top-items">
               <h3>Top Events</h3>
               <div className="top-items-list">
@@ -681,7 +681,7 @@ const PerformanceMetrics = () => {
           )}
 
           {/* Top Pages */}
-          {dashboard.topPages && dashboard.topPages.length > 0 && (
+          {dashboard.topPages && Array.isArray(dashboard.topPages) && dashboard.topPages.length > 0 && (
             <div className="top-items">
               <h3>Top Pages</h3>
               <div className="top-items-list">

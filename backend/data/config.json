@@ -1,40 +1,32 @@
-{
-  "server": {
-    "host": "localhost",
-    "port": 8080,
-    "cors_enabled": true,
-    "allowed_origins": "http://localhost:3001"
-  },
-  "scanner": {
-    "max_file_size": 104857600,
-    "timeout_seconds": 30,
-    "scan_archives": true,
-    "heuristic_analysis": true,
-    "threat_threshold": 0.6
-  },
-  "protection": {
-    "real_time_enabled": false,
-    "scan_downloads": true,
-    "scan_usb": true,
-    "auto_quarantine": true,
-    "downloads_dir": "C:\\Users\\Public\\Downloads",
-    "temp_dir": "C:\\Windows\\Temp"
-  },
-  "database": {
-    "path": "data/nebula_shield.db",
-    "cleanup_days": 30,
-    "auto_backup": true
-  },
-  "logging": {
-    "level": "INFO",
-    "file": "logs/nebula_shield.log",
-    "console": true,
-    "file_enabled": true,
-    "max_file_size": 10485760
-  },
-  "updates": {
-    "auto_update": true,
-    "check_interval_hours": 24,
-    "signature_url": "https://signatures.nebula-shield.com/latest"
-  }
+﻿{
+    "antivirus":  {
+                      "autoQuarantine":  true,
+                      "updateFrequency":  "daily",
+                      "realTimeProtection":  true,
+                      "scanDepth":  "deep"
+                  },
+    "firewall":  {
+                     "blockMaliciousIPs":  true,
+                     "logBlocked":  true,
+                     "enabled":  true
+                 },
+    "server":  {
+                   "port":  8080,
+                   "host":  "localhost",
+                   "environment":  "production"
+               },
+    "logging":  {
+                    "maxFiles":  5,
+                    "maxFileSize":  "10MB",
+                    "level":  "info"
+                },
+    "security":  {
+                     "rateLimit":  true,
+                     "enableCORS":  true,
+                     "enableSSL":  false
+                 },
+    "database":  {
+                     "type":  "sqlite",
+                     "path":  "./data/nebula-shield.db"
+                 }
 }

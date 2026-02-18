@@ -1,132 +1,139 @@
 import { useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTheme } from '../contexts/ThemeContext';
 import toast from 'react-hot-toast';
 
 /**
  * Custom hook for keyboard shortcuts
  * @param {boolean} enabled - Whether shortcuts are enabled
+ * @param {Function} onShowShortcuts - Callback to show shortcuts modal
  */
-const useKeyboardShortcuts = (enabled = true) => {
+const useKeyboardShortcuts = (enabled = true, onShowShortcuts) => {
   const navigate = useNavigate();
+  const themeContext = useTheme();
+  const toggleTheme = themeContext?.toggleTheme || (() => {});
 
   const handleKeyPress = useCallback((event) => {
     if (!enabled) return;
 
     // Ignore if user is typing in an input/textarea
     if (['INPUT', 'TEXTAREA', 'SELECT'].includes(event.target.tagName)) {
+      // Allow Esc to close/blur input fields
+      if (event.key === 'Escape') {
+        event.target.blur();
+      }
       return;
     }
 
-    const { key, ctrlKey, altKey, shiftKey } = event;
+    const { key, ctrlKey, altKey, shiftKey, metaKey } = event;
+    const isMac = /Mac|iPod|iPhone|iPad/.test(navigator.platform);
+    const cmdOrCtrl = isMac ? metaKey : ctrlKey;
 
-    // Ctrl + K: Quick search (focus search)
-    if (ctrlKey && key === 'k') {
+    // Ctrl/Cmd + K: Show keyboard shortcuts
+    if (cmdOrCtrl && key === 'k') {
       event.preventDefault();
-      const searchInput = document.querySelector('input[type="search"], input[placeholder*="Search"]');
-      if (searchInput) {
-        searchInput.focus();
-        toast('🔍 Search activated', { duration: 1000 });
+      if (onShowShortcuts) {
+        onShowShortcuts();
       }
     }
 
-    // Alt + D: Dashboard
-    if (altKey && key === 'd') {
+    // Ctrl/Cmd + D: Toggle dark mode
+    if (cmdOrCtrl && key === 'd') {
       event.preventDefault();
-      navigate('/dashboard');
-      toast('🏠 Dashboard', { duration: 1000 });
+      toggleTheme();
+      toast.success('Theme toggled', { duration: 1500 });
     }
 
-    // Alt + S: Scanner
-    if (altKey && key === 's') {
+    // Ctrl/Cmd + S: Quick scan
+    if (cmdOrCtrl && key === 's') {
       event.preventDefault();
       navigate('/scanner');
-      toast('🔍 Scanner', { duration: 1000 });
+      toast('🔍 Quick Scan', { duration: 1000 });
     }
 
-    // Alt + Q: Quarantine
-    if (altKey && key === 'q') {
+    // Ctrl/Cmd + F: Full system scan
+    if (cmdOrCtrl && key === 'f') {
+      event.preventDefault();
+      navigate('/scanner');
+      toast('� Full System Scan', { duration: 1000 });
+    }
+
+    // Ctrl/Cmd + Q: Quarantine
+    if (cmdOrCtrl && key === 'q') {
       event.preventDefault();
       navigate('/quarantine');
       toast('🔒 Quarantine', { duration: 1000 });
     }
 
-    // Alt + N: Network Protection
-    if (altKey && key === 'n') {
+    // Ctrl/Cmd + H: Dashboard/Home
+    if (cmdOrCtrl && key === 'h') {
       event.preventDefault();
-      navigate('/network-protection');
-      toast('🌐 Network Protection', { duration: 1000 });
+      navigate('/dashboard');
+      toast('🏠 Dashboard', { duration: 1000 });
     }
 
-    // Alt + M: ML Detection
-    if (altKey && key === 'm') {
-      event.preventDefault();
-      navigate('/ml-detection');
-      toast('🧠 ML Detection', { duration: 1000 });
-    }
-
-    // Alt + P: Settings
-    if (altKey && key === 'p') {
+    // Ctrl/Cmd + ,: Settings
+    if (cmdOrCtrl && key === ',') {
       event.preventDefault();
       navigate('/settings');
       toast('⚙️ Settings', { duration: 1000 });
     }
 
-    // Shift + ? : Show shortcuts help
-    if (shiftKey && key === '?') {
+    // Ctrl/Cmd + 1-5: Quick navigation
+    if (cmdOrCtrl && !shiftKey) {
+      switch (key) {
+        case '1':
+          event.preventDefault();
+          navigate('/dashboard');
+          break;
+        case '2':
+          event.preventDefault();
+          navigate('/scanner');
+          break;
+        case '3':
+          event.preventDefault();
+          navigate('/quarantine');
+          break;
+        case '4':
+          event.preventDefault();
+          navigate('/network-protection');
+          break;
+        case '5':
+          event.preventDefault();
+          navigate('/settings');
+          break;
+      }
+    }
+
+    // Alt + Arrow keys: Navigate back/forward
+    if (altKey && (key === 'ArrowLeft' || key === 'ArrowRight')) {
       event.preventDefault();
-      showShortcutsHelp();
+      if (key === 'ArrowLeft') {
+        window.history.back();
+        toast('← Back', { duration: 1000 });
+      } else {
+        window.history.forward();
+        toast('→ Forward', { duration: 1000 });
+      }
+    }
+
+    // Ctrl/Cmd + R: Refresh
+    if (cmdOrCtrl && key === 'r') {
+      // Allow default browser refresh
+      toast('🔄 Refreshing...', { duration: 1000 });
     }
 
     // Esc: Close modals/overlays
     if (key === 'Escape') {
-      const modal = document.querySelector('[role="dialog"], .modal');
+      const modal = document.querySelector('[role="dialog"], .modal, .shortcuts-modal-overlay');
       if (modal) {
-        const closeButton = modal.querySelector('[aria-label*="close"], .close-button, .modal-close');
+        const closeButton = modal.querySelector('[aria-label*="lose"], .close-button, .modal-close, .shortcuts-close');
         if (closeButton) {
           closeButton.click();
         }
       }
     }
-  }, [enabled, navigate]);
-
-  const showShortcutsHelp = () => {
-    const shortcuts = [
-      { keys: 'Ctrl + K', action: 'Quick search' },
-      { keys: 'Alt + D', action: 'Go to Dashboard' },
-      { keys: 'Alt + S', action: 'Go to Scanner' },
-      { keys: 'Alt + Q', action: 'Go to Quarantine' },
-      { keys: 'Alt + N', action: 'Network Protection' },
-      { keys: 'Alt + M', action: 'ML Detection' },
-      { keys: 'Alt + P', action: 'Settings' },
-      { keys: 'Esc', action: 'Close modals' },
-      { keys: 'Shift + ?', action: 'Show this help' }
-    ];
-
-    const helpHTML = `
-      <div style="text-align: left;">
-        <h3 style="margin: 0 0 1rem 0; color: #f1f5f9;">⌨️ Keyboard Shortcuts</h3>
-        ${shortcuts.map(s => `
-          <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
-            <code style="background: rgba(79, 70, 229, 0.2); padding: 0.25rem 0.5rem; border-radius: 4px; color: #a78bfa;">${s.keys}</code>
-            <span style="color: #cbd5e1; margin-left: 1rem;">${s.action}</span>
-          </div>
-        `).join('')}
-      </div>
-    `;
-
-    // Create custom toast with HTML
-    const toastId = toast(
-      <div dangerouslySetInnerHTML={{ __html: helpHTML }} />,
-      {
-        duration: 8000,
-        style: {
-          minWidth: '400px',
-          background: 'var(--card-bg)',
-          border: '1px solid var(--border-primary)',
-        }
-      }
-    );
-  };
+  }, [enabled, navigate, toggleTheme, onShowShortcuts]);
 
   useEffect(() => {
     window.addEventListener('keydown', handleKeyPress);
@@ -135,8 +142,6 @@ const useKeyboardShortcuts = (enabled = true) => {
       window.removeEventListener('keydown', handleKeyPress);
     };
   }, [handleKeyPress]);
-
-  return { showShortcutsHelp };
 };
 
 export default useKeyboardShortcuts;

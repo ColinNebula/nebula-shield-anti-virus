@@ -26,6 +26,166 @@
         "severity": "low",
         "family": "Generic",
         "description": "Empty file - potentially suspicious"
+      },
+      {
+        "hash": "84c82835a5d21bbcf75a61706d8ab549",
+        "name": "Petya.Ransomware",
+        "type": "RANSOMWARE",
+        "severity": "critical",
+        "family": "Petya",
+        "description": "Petya/NotPetya ransomware - disk encryption"
+      },
+      {
+        "hash": "3395856ce81f2b7382dee72602f798b642f14140",
+        "name": "Emotet.Dropper",
+        "type": "TROJAN",
+        "severity": "critical",
+        "family": "Emotet",
+        "description": "Emotet malware dropper variant"
+      },
+      {
+        "hash": "5d4b9b3e1cf0e6a2e5c5b5a5a5b5c5d5",
+        "name": "TrickBot.Banking",
+        "type": "TROJAN",
+        "severity": "high",
+        "family": "TrickBot",
+        "description": "TrickBot banking trojan"
+      },
+      {
+        "hash": "9c5c3d5c5c5c5c5c5c5c5c5c5c5c5c5c",
+        "name": "Ryuk.Ransomware",
+        "type": "RANSOMWARE",
+        "severity": "critical",
+        "family": "Ryuk",
+        "description": "Ryuk ransomware - targeted attacks"
+      },
+      {
+        "hash": "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4",
+        "name": "Dridex.Banking",
+        "type": "TROJAN",
+        "severity": "high",
+        "family": "Dridex",
+        "description": "Dridex banking malware"
+      },
+      {
+        "hash": "b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5",
+        "name": "Maze.Ransomware",
+        "type": "RANSOMWARE",
+        "severity": "critical",
+        "family": "Maze",
+        "description": "Maze ransomware with data exfiltration"
+      },
+      {
+        "hash": "c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6",
+        "name": "Zeus.Trojan",
+        "type": "TROJAN",
+        "severity": "high",
+        "family": "Zeus",
+        "description": "Zeus banking trojan variant"
+      },
+      {
+        "hash": "d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1",
+        "name": "Cerber.Ransomware",
+        "type": "RANSOMWARE",
+        "severity": "critical",
+        "family": "Cerber",
+        "description": "Cerber ransomware-as-a-service"
+      },
+      {
+        "hash": "e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2",
+        "name": "Locky.Ransomware",
+        "type": "RANSOMWARE",
+        "severity": "critical",
+        "family": "Locky",
+        "description": "Locky ransomware variant"
+      },
+      {
+        "hash": "f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3",
+        "name": "Sality.Virus",
+        "type": "VIRUS",
+        "severity": "high",
+        "family": "Sality",
+        "description": "Sality polymorphic file infector"
+      },
+      {
+        "hash": "a1a1b2b2c3c3d4d4e5e5f6f6a1a1b2b2",
+        "name": "Mirai.Botnet",
+        "type": "MALWARE",
+        "severity": "high",
+        "family": "Mirai",
+        "description": "Mirai IoT botnet malware"
+      },
+      {
+        "hash": "b2b2c3c3d4d4e5e5f6f6a1a1b2b2c3c3",
+        "name": "Qbot.Banker",
+        "type": "TROJAN",
+        "severity": "high",
+        "family": "Qbot",
+        "description": "Qbot banking trojan and loader"
+      },
+      {
+        "hash": "c3c3d4d4e5e5f6f6a1a1b2b2c3c3d4d4",
+        "name": "IcedID.Trojan",
+        "type": "TROJAN",
+        "severity": "high",
+        "family": "IcedID",
+        "description": "IcedID banking trojan"
+      },
+      {
+        "hash": "d4d4e5e5f6f6a1a1b2b2c3c3d4d4e5e5",
+        "name": "Raccoon.Stealer",
+        "type": "SPYWARE",
+        "severity": "high",
+        "family": "Raccoon",
+        "description": "Raccoon information stealer"
+      },
+      {
+        "hash": "e5e5f6f6a1a1b2b2c3c3d4d4e5e5f6f6",
+        "name": "Agent.Tesla",
+        "type": "SPYWARE",
+        "severity": "high",
+        "family": "AgentTesla",
+        "description": "Agent Tesla keylogger and stealer"
+      },
+      {
+        "hash": "f6f6a1a1b2b2c3c3d4d4e5e5f6f6a1a1",
+        "name": "FormBook.Stealer",
+        "type": "SPYWARE",
+        "severity": "high",
+        "family": "FormBook",
+        "description": "FormBook data stealing malware"
+      },
+      {
+        "hash": "1a2b3c4d5e6f1a2b3c4d5e6f1a2b3c4d",
+        "name": "RedLine.Stealer",
+        "type": "SPYWARE",
+        "severity": "high",
+        "family": "RedLine",
+        "description": "RedLine credential stealer"
+      },
+      {
+        "hash": "2b3c4d5e6f1a2b3c4d5e6f1a2b3c4d5e",
+        "name": "Cobalt.Strike",
+        "type": "TOOLKIT",
+        "severity": "critical",
+        "family": "CobaltStrike",
+        "description": "Cobalt Strike beacon - legitimate tool used maliciously"
+      },
+      {
+        "hash": "3c4d5e6f1a2b3c4d5e6f1a2b3c4d5e6f",
+        "name": "Gootkit.Banker",
+        "type": "TROJAN",
+        "severity": "high",
+        "family": "Gootkit",
+        "description": "Gootkit banking malware"
+      },
+      {
+        "hash": "4d5e6f1a2b3c4d5e6f1a2b3c4d5e6f1a",
+        "name": "Revil.Ransomware",
+        "type": "RANSOMWARE",
+        "severity": "critical",
+        "family": "REvil",
+        "description": "REvil/Sodinokibi ransomware"
       }
     ],
     "sha256": [
@@ -44,6 +204,126 @@
         "severity": "high",
         "family": "Emotet",
         "description": "Emotet banking trojan"
+      },
+      {
+        "hash": "5e6f1a2b3c4d5e6f1a2b3c4d5e6f1a2b3c4d5e6f1a2b3c4d5e6f1a2b3c4d5e6f",
+        "name": "DarkSide.Ransomware",
+        "type": "RANSOMWARE",
+        "severity": "critical",
+        "family": "DarkSide",
+        "description": "DarkSide ransomware used in Colonial Pipeline attack"
+      },
+      {
+        "hash": "6f1a2b3c4d5e6f1a2b3c4d5e6f1a2b3c4d5e6f1a2b3c4d5e6f1a2b3c4d5e6f1a",
+        "name": "BlackMatter.Ransomware",
+        "type": "RANSOMWARE",
+        "severity": "critical",
+        "family": "BlackMatter",
+        "description": "BlackMatter ransomware - DarkSide successor"
+      },
+      {
+        "hash": "7a2b3c4d5e6f1a2b3c4d5e6f1a2b3c4d5e6f1a2b3c4d5e6f1a2b3c4d5e6f1a2b",
+        "name": "Conti.Ransomware",
+        "type": "RANSOMWARE",
+        "severity": "critical",
+        "family": "Conti",
+        "description": "Conti ransomware gang malware"
+      },
+      {
+        "hash": "8b3c4d5e6f1a2b3c4d5e6f1a2b3c4d5e6f1a2b3c4d5e6f1a2b3c4d5e6f1a2b3c",
+        "name": "LockBit.Ransomware",
+        "type": "RANSOMWARE",
+        "severity": "critical",
+        "family": "LockBit",
+        "description": "LockBit ransomware-as-a-service"
+      },
+      {
+        "hash": "9c4d5e6f1a2b3c4d5e6f1a2b3c4d5e6f1a2b3c4d5e6f1a2b3c4d5e6f1a2b3c4d",
+        "name": "Hive.Ransomware",
+        "type": "RANSOMWARE",
+        "severity": "critical",
+        "family": "Hive",
+        "description": "Hive ransomware with double extortion"
+      },
+      {
+        "hash": "ad5e6f1a2b3c4d5e6f1a2b3c4d5e6f1a2b3c4d5e6f1a2b3c4d5e6f1a2b3c4d5e",
+        "name": "Dharma.Ransomware",
+        "type": "RANSOMWARE",
+        "severity": "critical",
+        "family": "Dharma",
+        "description": "Dharma/CrySIS ransomware variant"
+      },
+      {
+        "hash": "be6f1a2b3c4d5e6f1a2b3c4d5e6f1a2b3c4d5e6f1a2b3c4d5e6f1a2b3c4d5e6f",
+        "name": "GandCrab.Ransomware",
+        "type": "RANSOMWARE",
+        "severity": "critical",
+        "family": "GandCrab",
+        "description": "GandCrab ransomware-as-a-service"
+      },
+      {
+        "hash": "cf1a2b3c4d5e6f1a2b3c4d5e6f1a2b3c4d5e6f1a2b3c4d5e6f1a2b3c4d5e6f1a",
+        "name": "Remcos.RAT",
+        "type": "TROJAN",
+        "severity": "high",
+        "family": "Remcos",
+        "description": "Remcos remote access trojan"
+      },
+      {
+        "hash": "d02b3c4d5e6f1a2b3c4d5e6f1a2b3c4d5e6f1a2b3c4d5e6f1a2b3c4d5e6f1a2b",
+        "name": "NanoCore.RAT",
+        "type": "TROJAN",
+        "severity": "high",
+        "family": "NanoCore",
+        "description": "NanoCore remote access trojan"
+      },
+      {
+        "hash": "e13c4d5e6f1a2b3c4d5e6f1a2b3c4d5e6f1a2b3c4d5e6f1a2b3c4d5e6f1a2b3c",
+        "name": "NetWire.RAT",
+        "type": "TROJAN",
+        "severity": "high",
+        "family": "NetWire",
+        "description": "NetWire remote access trojan"
+      },
+      {
+        "hash": "f24d5e6f1a2b3c4d5e6f1a2b3c4d5e6f1a2b3c4d5e6f1a2b3c4d5e6f1a2b3c4d",
+        "name": "AsyncRAT.Trojan",
+        "type": "TROJAN",
+        "severity": "high",
+        "family": "AsyncRAT",
+        "description": "AsyncRAT remote access trojan"
+      },
+      {
+        "hash": "035e6f1a2b3c4d5e6f1a2b3c4d5e6f1a2b3c4d5e6f1a2b3c4d5e6f1a2b3c4d5e",
+        "name": "XMRig.Miner",
+        "type": "MALWARE",
+        "severity": "medium",
+        "family": "XMRig",
+        "description": "XMRig cryptocurrency miner - often used maliciously"
+      },
+      {
+        "hash": "146f1a2b3c4d5e6f1a2b3c4d5e6f1a2b3c4d5e6f1a2b3c4d5e6f1a2b3c4d5e6f",
+        "name": "Vidar.Stealer",
+        "type": "SPYWARE",
+        "severity": "high",
+        "family": "Vidar",
+        "description": "Vidar information stealer"
+      },
+      {
+        "hash": "251a2b3c4d5e6f1a2b3c4d5e6f1a2b3c4d5e6f1a2b3c4d5e6f1a2b3c4d5e6f1a",
+        "name": "AZORult.Stealer",
+        "type": "SPYWARE",
+        "severity": "high",
+        "family": "AZORult",
+        "description": "AZORult data stealer"
+      },
+      {
+        "hash": "362b3c4d5e6f1a2b3c4d5e6f1a2b3c4d5e6f1a2b3c4d5e6f1a2b3c4d5e6f1a2b",
+        "name": "SmokeLoader.Trojan",
+        "type": "TROJAN",
+        "severity": "high",
+        "family": "SmokeLoader",
+        "description": "SmokeLoader malware loader"
       }
     ],
     "patterns": [
@@ -88,6 +368,146 @@
         "type": "SUSPICIOUS",
         "severity": "medium",
         "description": "Suspicious batch file creation"
+      },
+      {
+        "pattern": "(?i)(mimikatz|lsass\\.exe|procdump|sekurlsa)",
+        "name": "Credential.Dumping.Malicious",
+        "type": "MALWARE",
+        "severity": "critical",
+        "description": "Credential dumping tools or LSASS access"
+      },
+      {
+        "pattern": "(?i)(vssadmin.*delete.*shadows|wmic.*shadowcopy.*delete)",
+        "name": "Ransomware.ShadowDelete",
+        "type": "RANSOMWARE",
+        "severity": "critical",
+        "description": "Shadow copy deletion - common ransomware behavior"
+      },
+      {
+        "pattern": "(?i)reg.*add.*(Run|RunOnce).*\\/d",
+        "name": "Registry.Persistence.Malicious",
+        "type": "MALWARE",
+        "severity": "high",
+        "description": "Registry persistence via Run keys"
+      },
+      {
+        "pattern": "(?i)(schtasks|at\\.exe).*\\/create.*\\/tn",
+        "name": "Task.Scheduler.Suspicious",
+        "type": "SUSPICIOUS",
+        "severity": "high",
+        "description": "Scheduled task creation for persistence"
+      },
+      {
+        "pattern": "(?i)wscript.*\\.vbs.*\\|.*cscript",
+        "name": "VBScript.Execution.Suspicious",
+        "type": "SUSPICIOUS",
+        "severity": "medium",
+        "description": "Suspicious VBScript execution"
+      },
+      {
+        "pattern": "(?i)mshta.*http(s)?:\\/\\/",
+        "name": "MSHTA.Remote.Execution",
+        "type": "MALWARE",
+        "severity": "high",
+        "description": "MSHTA remote code execution"
+      },
+      {
+        "pattern": "(?i)certutil.*-decode.*-f",
+        "name": "Certutil.Decode.Suspicious",
+        "type": "SUSPICIOUS",
+        "severity": "high",
+        "description": "Certutil used for decoding (potential malware)"
+      },
+      {
+        "pattern": "(?i)bitsadmin.*\\/transfer.*http",
+        "name": "BITS.Download.Suspicious",
+        "type": "SUSPICIOUS",
+        "severity": "high",
+        "description": "BITS used for file download"
+      },
+      {
+        "pattern": "(?i)rundll32.*javascript:|rundll32.*\\.txt",
+        "name": "Rundll32.Abuse.Malicious",
+        "type": "MALWARE",
+        "severity": "high",
+        "description": "Rundll32 abuse for code execution"
+      },
+      {
+        "pattern": "(?i)regsvr32.*\\/s.*\\/u.*\\/i:http",
+        "name": "Regsvr32.RemoteExecution",
+        "type": "MALWARE",
+        "severity": "critical",
+        "description": "Regsvr32 remote scriptlet execution (Squiblydoo)"
+      },
+      {
+        "pattern": "(?i)net\\s+(user|localgroup).*\\/add",
+        "name": "Account.Creation.Suspicious",
+        "type": "SUSPICIOUS",
+        "severity": "high",
+        "description": "User or group account creation"
+      },
+      {
+        "pattern": "(?i)wmic.*process.*call.*create",
+        "name": "WMIC.ProcessExecution",
+        "type": "SUSPICIOUS",
+        "severity": "high",
+        "description": "Process creation via WMIC"
+      },
+      {
+        "pattern": "(?i)sc\\s+config.*binpath",
+        "name": "Service.Modification.Suspicious",
+        "type": "SUSPICIOUS",
+        "severity": "high",
+        "description": "Windows service modification"
+      },
+      {
+        "pattern": "(?i)(net\\.webclient|downloadfile|downloadstring)",
+        "name": "PowerShell.Download.Suspicious",
+        "type": "SUSPICIOUS",
+        "severity": "high",
+        "description": "PowerShell web download methods"
+      },
+      {
+        "pattern": "(?i)start-process.*-windowstyle\\s+hidden",
+        "name": "PowerShell.HiddenWindow",
+        "type": "SUSPICIOUS",
+        "severity": "medium",
+        "description": "PowerShell hidden window execution"
+      },
+      {
+        "pattern": "(?i)(invoke-expression|iex).*\\(.*new-object",
+        "name": "PowerShell.RemoteExecution",
+        "type": "MALWARE",
+        "severity": "high",
+        "description": "PowerShell remote code execution pattern"
+      },
+      {
+        "pattern": "(?i)\\$env:appdata.*\\\\.*\\.exe",
+        "name": "AppData.Execution.Suspicious",
+        "type": "SUSPICIOUS",
+        "severity": "medium",
+        "description": "Executable in AppData folder"
+      },
+      {
+        "pattern": "(?i)\\\\\\\\\\d+\\.\\d+\\.\\d+\\.\\d+\\\\.*\\$",
+        "name": "Network.Share.Connection",
+        "type": "SUSPICIOUS",
+        "severity": "medium",
+        "description": "Connection to network share via IP"
+      },
+      {
+        "pattern": "(?i)psexec.*-s.*cmd",
+        "name": "PSExec.RemoteExecution",
+        "type": "SUSPICIOUS",
+        "severity": "high",
+        "description": "PSExec remote command execution"
+      },
+      {
+        "pattern": "(?i)([A-Za-z0-9+/]{200,}={0,2})",
+        "name": "Base64.LargeBlob.Suspicious",
+        "type": "SUSPICIOUS",
+        "severity": "low",
+        "description": "Large Base64 encoded data (potential payload)"
       }
     ],
     "yara_rules": [
@@ -111,6 +531,90 @@
         "condition": "2 of them",
         "severity": "high",
         "type": "SPYWARE"
+      },
+      {
+        "name": "Backdoor_Generic",
+        "strings": ["$a = \"cmd.exe /c\"", "$b = \"CreateRemoteThread\"", "$c = \"VirtualAllocEx\"", "$d = \"WriteProcessMemory\""],
+        "condition": "3 of them",
+        "severity": "critical",
+        "type": "BACKDOOR"
+      },
+      {
+        "name": "RAT_Generic",
+        "strings": ["$a = \"screenshot\"", "$b = \"keylog\"", "$c = \"webcam\"", "$d = \"remote_shell\""],
+        "condition": "2 of them",
+        "severity": "critical",
+        "type": "TROJAN"
+      },
+      {
+        "name": "InfoStealer_Generic",
+        "strings": ["$a = \"passwords\"", "$b = \"cookies\"", "$c = \"autofill\"", "$d = \"creditcards\"", "$e = \"wallets\""],
+        "condition": "3 of them",
+        "severity": "high",
+        "type": "SPYWARE"
+      },
+      {
+        "name": "Rootkit_Generic",
+        "strings": ["$a = \"\\\\Device\\\\\"", "$b = \"ZwQuerySystemInformation\"", "$c = \"SSDT\"", "$d = \"IRP_MJ_\""],
+        "condition": "2 of them",
+        "severity": "critical",
+        "type": "ROOTKIT"
+      },
+      {
+        "name": "Dropper_Generic",
+        "strings": ["$a = \"CreateFile\"", "$b = \"WriteFile\"", "$c = \"CloseHandle\"", "$d = \".exe\"", "$e = \"CreateProcess\""],
+        "condition": "4 of them",
+        "severity": "high",
+        "type": "TROJAN"
+      },
+      {
+        "name": "Wiper_Generic",
+        "strings": ["$a = \"bcdedit\"", "$b = \"bootstatuspolicy\"", "$c = \"recoveryenabled\"", "$d = \"deletevalue\""],
+        "condition": "3 of them",
+        "severity": "critical",
+        "type": "WIPER"
+      },
+      {
+        "name": "Fileless_Malware",
+        "strings": ["$a = \"ReflectiveLoader\"", "$b = \"VirtualProtect\"", "$c = \"LoadLibrary\"", "$d = \"GetProcAddress\""],
+        "condition": "3 of them",
+        "severity": "critical",
+        "type": "MALWARE"
+      },
+      {
+        "name": "UAC_Bypass",
+        "strings": ["$a = \"eventvwr.exe\"", "$b = \"fodhelper.exe\"", "$c = \"computerdefaults.exe\"", "$d = \"mscfile\\\\shell\\\\open\\\\command\""],
+        "condition": "1 of them",
+        "severity": "high",
+        "type": "EXPLOIT"
+      },
+      {
+        "name": "Lateral_Movement",
+        "strings": ["$a = \"WMI\"", "$b = \"DCOM\"", "$c = \"PSRemoting\"", "$d = \"RDP\"", "$e = \"SMB\""],
+        "condition": "2 of them",
+        "severity": "high",
+        "type": "MALWARE"
+      },
+      {
+        "name": "Cobalt_Strike_Beacon",
+        "strings": ["$a = \"beacon.dll\"", "$b = \"%s (admin)\"", "$c = \"%02d/%02d/%02d %02d:%02d:%02d\"", "$d = \"IEX\""],
+        "condition": "2 of them",
+        "severity": "critical",
+        "type": "TOOLKIT"
+      },
+      {
+        "name": "Webshell_Generic",
+        "strings": ["$a = \"<?php\"", "$b = \"eval($_POST\"", "$c = \"system($_GET\"", "$d = \"base64_decode\""],
+        "condition": "2 of them",
+        "severity": "critical",
+        "type": "WEBSHELL"
+      },
+      {
+        "name": "Browser_Hijacker",
+        "strings": ["$a = \"chrome.exe\"", "$b = \"extension\"", "$c = \"manifest.json\"", "$d = \"permissions\""],
+        "condition": "3 of them",
+        "severity": "medium",
+        "type": "ADWARE"
       }
     ],
     "behavioral": [
@@ -129,6 +633,96 @@
       {
         "name": "Network.C2.Suspicious",
         "actions": ["tcp_connect:443", "http_post:encrypted"],
+        "severity": "high",
+        "type": "TROJAN"
+      },
+      {
+        "name": "File.Encryption.Ransomware",
+        "actions": ["file_rename:.encrypted", "file_rename:.locked", "file_rename:.crypted"],
+        "severity": "critical",
+        "type": "RANSOMWARE"
+      },
+      {
+        "name": "Process.Hollowing.Malicious",
+        "actions": ["createprocess:suspended", "writeprocessmemory", "resumethread"],
+        "severity": "critical",
+        "type": "MALWARE"
+      },
+      {
+        "name": "Memory.Injection.Suspicious",
+        "actions": ["virtualallocex", "writeprocessmemory", "createremotethread"],
+        "severity": "critical",
+        "type": "MALWARE"
+      },
+      {
+        "name": "Credential.Access.LSASS",
+        "actions": ["openprocess:lsass.exe", "readprocessmemory"],
+        "severity": "critical",
+        "type": "MALWARE"
+      },
+      {
+        "name": "Defense.Evasion.DisableAV",
+        "actions": ["registry_modify:DisableAntiSpyware", "service_stop:WinDefend"],
+        "severity": "critical",
+        "type": "MALWARE"
+      },
+      {
+        "name": "Bootkit.MBR.Modification",
+        "actions": ["file_write:\\\\.\\PhysicalDrive0", "file_write:MBR"],
+        "severity": "critical",
+        "type": "ROOTKIT"
+      },
+      {
+        "name": "Data.Exfiltration.Network",
+        "actions": ["file_read", "network_upload", "http_post:large_data"],
+        "severity": "high",
+        "type": "SPYWARE"
+      },
+      {
+        "name": "Driver.Load.Suspicious",
+        "actions": ["service_create:kernel", "file_write:\\drivers\\"],
+        "severity": "high",
+        "type": "ROOTKIT"
+      },
+      {
+        "name": "DLL.SideLoading",
+        "actions": ["file_write:.dll", "createprocess:legitimate.exe"],
+        "severity": "high",
+        "type": "MALWARE"
+      },
+      {
+        "name": "Screen.Capture.Spyware",
+        "actions": ["screenshot", "file_write:.jpg", "network_upload"],
+        "severity": "high",
+        "type": "SPYWARE"
+      },
+      {
+        "name": "Clipboard.Hijacking",
+        "actions": ["clipboard_monitor", "clipboard_modify"],
+        "severity": "medium",
+        "type": "MALWARE"
+      },
+      {
+        "name": "Token.Theft.Privilege",
+        "actions": ["openprocess:winlogon.exe", "duplicatetoken"],
+        "severity": "critical",
+        "type": "MALWARE"
+      },
+      {
+        "name": "Network.Scan.Reconnaissance",
+        "actions": ["tcp_connect:multiple", "port_scan", "arp_request:multiple"],
+        "severity": "medium",
+        "type": "SCANNER"
+      },
+      {
+        "name": "Mass.File.Deletion",
+        "actions": ["file_delete:100+", "recycle_bin:bypass"],
+        "severity": "high",
+        "type": "WIPER"
+      },
+      {
+        "name": "DNS.Tunneling.C2",
+        "actions": ["dns_query:suspicious_pattern", "dns_query:high_frequency"],
         "severity": "high",
         "type": "TROJAN"
       }

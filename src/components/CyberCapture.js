@@ -28,7 +28,9 @@ import {
   List,
   ListItem,
   ListItemText,
-  ListItemIcon
+  ListItemIcon,
+  Tab,
+  Tabs
 } from '@mui/material';
 import {
   Shield as ShieldIcon,
@@ -46,23 +48,34 @@ import {
   NetworkCheck as NetworkIcon,
   FolderOpen as FolderIcon,
   Edit as EditIcon,
-  Computer as ComputerIcon
+  Computer as ComputerIcon,
+  Memory as MemoryIcon,
+  Code as CodeIcon,
+  VpnKey as VpnKeyIcon,
+  Psychology as PsychologyIcon,
+  Assessment as AssessmentIcon
 } from '@mui/icons-material';
 import {
   getCaptureStats,
   getCaptureHistory,
   getSessionDetails,
   setCaptureEnabled,
-  clearCaptureHistory
+  clearCaptureHistory,
+  getAdvancedStats,
+  generateAnalysisReport,
+  getMLModelInfo
 } from '../services/cyberCapture';
 
 function CyberCapture() {
   const [enabled, setEnabled] = useState(true);
   const [stats, setStats] = useState(null);
+  const [advancedStats, setAdvancedStats] = useState(null);
   const [history, setHistory] = useState([]);
   const [selectedSession, setSelectedSession] = useState(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [mlModel, setMlModel] = useState(null);
+  const [detailsTab, setDetailsTab] = useState(0);
 
   useEffect(() => {
     loadData();
@@ -73,10 +86,14 @@ function CyberCapture() {
   const loadData = () => {
     const captureStats = getCaptureStats();
     const captureHistory = getCaptureHistory(50);
+    const advStats = getAdvancedStats();
+    const modelInfo = getMLModelInfo();
     
     setStats(captureStats);
+    setAdvancedStats(advStats);
     setHistory(captureHistory);
     setEnabled(captureStats.enabled);
+    setMlModel(modelInfo);
   };
 
   const handleToggleEnabled = () => {

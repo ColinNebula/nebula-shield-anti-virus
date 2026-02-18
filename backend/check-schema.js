@@ -22,8 +22,8 @@ db.all("PRAGMA table_info(users)", [], (err, columns) => {
 
   console.log('\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
   
-  // Get actual user data
-  db.all('SELECT * FROM users WHERE email = ?', ['colinnebula@gmail.com'], (err, users) => {
+  // Get actual user data (example with admin email)
+  db.all('SELECT * FROM users WHERE email = ?', ['admin@example.com'], (err, users) => {
     if (err) {
       console.log('❌ Error getting user:', err.message);
       db.close();

@@ -1178,6 +1178,10 @@ class EnhancedScannerEngine {
     this.realTimeProtection = false;
     this.watchedFolders = new Set();
     this.cloudScanEnabled = true;
+    
+    // Load persisted settings from localStorage
+    this.loadRealTimeSettings();
+    this.loadScanHistory();
   }
 
   // Deep scan with signature matching, heuristic analysis, and cloud scanning
@@ -1188,18 +1192,36 @@ class EnhancedScannerEngine {
       threats: [],
       heuristicAnalysis: null,
       cloudScanResult: null,
+      yaraMatches: [],
+      riskScore: 0,
+      overallSeverity: 'clean',
       scanTime: 0,
       scanDepth: 'deep'
     };
 
     const startTime = Date.now();
+    const contentString = typeof content === 'string' ? content : (content ? content.toString() : '');
+    const severityWeights = {
+      critical: 90,
+      high: 70,
+      medium: 45,
+      low: 20,
+      test: 5
+    };
+    const threatKeys = new Set();
+    const addThreat = (threat) => {
+      const key = [threat.detectionMethod, threat.type, threat.id, threat.family].filter(Boolean).join('|');
+      if (threatKeys.has(key)) return;
+      threatKeys.add(key);
+      results.threatDetected = true;
+      results.threats.push(threat);
+    };
 
     // 1. Signature-based detection
     for (const [category, signatures] of Object.entries(THREAT_SIGNATURES)) {
       for (const signature of signatures) {
-        if (content && signature.pattern.test(content)) {
-          results.threatDetected = true;
-          results.threats.push({
+        if (contentString && signature.pattern.test(contentString)) {
+          addThreat({
             type: category,
             id: signature.id,
             severity: signature.severity,
@@ -1207,18 +1229,38 @@ class EnhancedScannerEngine {
             detectionMethod: 'signature',
             description: signature.description || 'Signature match'
           });
+          if (signature.pattern.global) {
+            signature.pattern.lastIndex = 0;
+          }
         }
       }
     }
 
-    // 2. Cloud scanning (if enabled)
+    // 2. YARA rule detection
+    if (contentString) {
+      const yaraMatches = yaraEngine.scanContent(contentString, filePath);
+      results.yaraMatches = yaraMatches;
+
+      yaraMatches.forEach(match => {
+        const severity = (match.meta?.severity || 'high').toLowerCase();
+        addThreat({
+          type: 'yara',
+          id: `YARA.${match.rule}`,
+          severity,
+          family: match.meta?.malware_family || 'YARARule',
+          detectionMethod: 'yara',
+          description: match.meta?.description || `Matched YARA rule: ${match.rule}`
+        });
+      });
+    }
+
+    // 3. Cloud scanning (if enabled)
     if (this.cloudScanEnabled) {
-      const cloudResult = await this.cloudScanner.scanFileWithCloud(filePath, content);
+      const cloudResult = await this.cloudScanner.scanFileWithCloud(filePath, contentString);
       results.cloudScanResult = cloudResult;
 
       if (cloudResult.threatDetected) {
-        results.threatDetected = true;
-        results.threats.push({
+        addThreat({
           type: 'cloud-detected',
           id: 'Cloud.Detected',
           severity: 'high',
@@ -1231,17 +1273,16 @@ class EnhancedScannerEngine {
       }
     }
 
-    // 3. Heuristic analysis
+    // 4. Heuristic analysis
     const fileInfo = {
       path: filePath,
-      size: content?.length || 0
+      size: contentString.length
     };
     
-    results.heuristicAnalysis = this.heuristicAnalyzer.analyzeFile(fileInfo, content);
+    results.heuristicAnalysis = this.heuristicAnalyzer.analyzeFile(fileInfo, contentString);
     
     if (results.heuristicAnalysis.risk === 'critical' || results.heuristicAnalysis.risk === 'high') {
-      results.threatDetected = true;
-      results.threats.push({
+      addThreat({
         type: 'heuristic',
         id: 'Heuristic.Suspicious',
         severity: results.heuristicAnalysis.risk,
@@ -1250,6 +1291,26 @@ class EnhancedScannerEngine {
         indicators: results.heuristicAnalysis.indicators,
         description: results.heuristicAnalysis.recommendation
       });
+    }
+
+    const threatScore = results.threats.reduce((maxScore, threat) => {
+      const weight = severityWeights[threat.severity] || 10;
+      return Math.max(maxScore, weight);
+    }, 0);
+    const heuristicScore = results.heuristicAnalysis
+      ? Math.round((results.heuristicAnalysis.suspicionScore || 0) * 0.6)
+      : 0;
+    const densityBoost = Math.min(results.threats.length * 6, 18);
+
+    results.riskScore = Math.min(100, threatScore + heuristicScore + densityBoost);
+    if (results.riskScore >= 85) {
+      results.overallSeverity = 'critical';
+    } else if (results.riskScore >= 65) {
+      results.overallSeverity = 'high';
+    } else if (results.riskScore >= 40) {
+      results.overallSeverity = 'medium';
+    } else if (results.riskScore >= 15) {
+      results.overallSeverity = 'low';
     }
 
     results.scanTime = Date.now() - startTime;
@@ -1263,14 +1324,17 @@ class EnhancedScannerEngine {
       threatDetected: false,
       threats: [],
       scanTime: 0,
-      scanDepth: 'quick'
+      scanDepth: 'quick',
+      riskScore: 0,
+      overallSeverity: 'clean'
     };
 
     const startTime = Date.now();
 
     // Only check critical virus signatures
+    const contentString = typeof content === 'string' ? content : (content ? content.toString() : '');
     for (const signature of THREAT_SIGNATURES.viruses) {
-      if (signature.severity === 'critical' && content && signature.pattern.test(content)) {
+      if (signature.severity === 'critical' && contentString && signature.pattern.test(contentString)) {
         results.threatDetected = true;
         results.threats.push({
           type: 'virus',
@@ -1279,7 +1343,15 @@ class EnhancedScannerEngine {
           family: signature.family,
           detectionMethod: 'signature'
         });
+        if (signature.pattern.global) {
+          signature.pattern.lastIndex = 0;
+        }
       }
+    }
+
+    if (results.threatDetected) {
+      results.riskScore = 90;
+      results.overallSeverity = 'critical';
     }
 
     results.scanTime = Date.now() - startTime;
@@ -1352,22 +1424,26 @@ class EnhancedScannerEngine {
   // Real-time protection
   enableRealTimeProtection() {
     this.realTimeProtection = true;
+    this.saveRealTimeSettings();
     return { enabled: true, watchedFolders: Array.from(this.watchedFolders) };
   }
 
   disableRealTimeProtection() {
     this.realTimeProtection = false;
     this.watchedFolders.clear();
+    this.saveRealTimeSettings();
     return { enabled: false };
   }
 
   addWatchFolder(folderPath) {
     this.watchedFolders.add(folderPath);
+    this.saveRealTimeSettings();
     return { watched: Array.from(this.watchedFolders) };
   }
 
   removeWatchFolder(folderPath) {
     this.watchedFolders.delete(folderPath);
+    this.saveRealTimeSettings();
     return { watched: Array.from(this.watchedFolders) };
   }
 
@@ -1377,6 +1453,33 @@ class EnhancedScannerEngine {
       watchedFolders: Array.from(this.watchedFolders),
       folderCount: this.watchedFolders.size
     };
+  }
+
+  // Persist real-time settings to localStorage
+  saveRealTimeSettings() {
+    try {
+      const settings = {
+        enabled: this.realTimeProtection,
+        watchedFolders: Array.from(this.watchedFolders)
+      };
+      localStorage.setItem('nebula_realtime_protection', JSON.stringify(settings));
+    } catch (error) {
+      console.error('Failed to save real-time protection settings:', error);
+    }
+  }
+
+  // Load real-time settings from localStorage
+  loadRealTimeSettings() {
+    try {
+      const stored = localStorage.getItem('nebula_realtime_protection');
+      if (stored) {
+        const settings = JSON.parse(stored);
+        this.realTimeProtection = settings.enabled || false;
+        this.watchedFolders = new Set(settings.watchedFolders || []);
+      }
+    } catch (error) {
+      console.error('Failed to load real-time protection settings:', error);
+    }
   }
 
   // Scan history management

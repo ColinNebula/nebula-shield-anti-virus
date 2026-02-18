@@ -689,7 +689,7 @@ Analyzes scan results and prioritizes updates.
 10. **Custom Driver Repositories**: Add third-party driver sources
 
 ### Enhancement Requests
-Submit feature requests to: colinnebula@gmail.com
+Submit feature requests to: support@nebulashield.com
 
 ---
 
@@ -698,7 +698,7 @@ Submit feature requests to: colinnebula@gmail.com
 ### Getting Help
 - **Documentation**: This file
 - **In-App Help**: Click (?) icon in each tab
-- **Email Support**: colinnebula@gmail.com
+- **Email Support**: support@nebulashield.com
 - **Premium Support**: Available for Premium tier users
 
 ### Reporting Issues
@@ -751,4 +751,4 @@ Copyright © 2024 Nebula Shield Security
 
 **Last Updated:** December 2024  
 **Version:** 2.0.0  
-**Author:** Colin Nebula (colinnebula@gmail.com)
+**Author:** Nebula Shield Team

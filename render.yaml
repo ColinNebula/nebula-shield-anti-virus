@@ -1,0 +1,28 @@
+services:
+  - type: web
+    name: nebula-shield-backend
+    env: node
+    region: oregon
+    plan: free
+    buildCommand: cd backend && npm install --production
+    startCommand: cd backend && npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: AUTH_PORT
+        value: 8082
+      - key: PORT
+        value: 8082
+      - key: JWT_SECRET
+        generateValue: true
+        # Or set manually in Render dashboard
+      - key: APP_URL
+        value: https://nebula-shield-backend.onrender.com
+      # Add your other environment variables in the Render dashboard:
+      # - STRIPE_SECRET_KEY
+      # - STRIPE_PUBLISHABLE_KEY
+      # - PAYPAL_CLIENT_ID
+      # - PAYPAL_CLIENT_SECRET
+      # - EMAIL_USER
+      # - EMAIL_PASSWORD
+      # etc.

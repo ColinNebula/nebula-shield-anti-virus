@@ -2,8 +2,9 @@
  * Nebula Shield Mobile - Main Entry Point
  */
 
-import {AppRegistry} from 'react-native';
-import App from './src/App';
-import {name as appName} from './app.json';
+// import 'react-native-gesture-handler';
+import { registerRootComponent } from 'expo';
+import App from './App.tsx';
+// import App from './App-simple.tsx'; // Temporary simple version for testing
 
-AppRegistry.registerComponent(appName, () => App);
+registerRootComponent(App);

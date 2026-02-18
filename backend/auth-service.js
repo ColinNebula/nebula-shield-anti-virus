@@ -14,111 +14,17 @@ class AuthService {
     this.sessionTimeout = 30 * 60 * 1000; // 30 minutes
     this.maxSessions = 5; // Max concurrent sessions per user
     
-    // Initialize with demo user
-    this.initializeDemoUser();
+    // Note: Demo accounts removed for production security
+    // Use database-based authentication in auth-server.js instead
   }
 
   /**
-   * Initialize demo user for testing
+   * Initialize demo user for testing - REMOVED FOR PRODUCTION
+   * Demo accounts have been removed for security.
+   * Use the database-based authentication in auth-server.js instead.
+   * Create admin accounts through secure registration process.
    */
-  initializeDemoUser() {
-    // Primary Admin user (Gmail)
-    const adminPassword = this.hashPassword('Nebula2025!');
-    console.log('🔑 Admin password hash:', adminPassword);
-    console.log('🔑 Setting admin password to: Nebula2025!');
-    this.users.set('colinnebula@gmail.com', {
-      id: 1,
-      email: 'colinnebula@gmail.com',
-      username: 'colinnebula',
-      fullName: 'Colin Nebula',
-      password: adminPassword,
-      role: 'admin',
-      tier: 'premium',
-      twoFactorEnabled: false,
-      twoFactorSecret: null,
-      createdAt: new Date(),
-      lastLogin: null,
-      failedAttempts: 0,
-      lockedUntil: null,
-      verified: true
-    });
-
-    // Secondary Admin user (Nebula3ddev)
-    this.users.set('colinnebula@nebula3ddev.com', {
-      id: 2,
-      email: 'colinnebula@nebula3ddev.com',
-      username: 'colinnebula_dev',
-      fullName: 'Colin Nebula Dev',
-      password: adminPassword,
-      role: 'admin',
-      tier: 'premium',
-      twoFactorEnabled: false,
-      twoFactorSecret: null,
-      createdAt: new Date(),
-      lastLogin: null,
-      failedAttempts: 0,
-      lockedUntil: null,
-      verified: true
-    });
-
-    // Test premium user
-    const testPassword = this.hashPassword('Test123!');
-    this.users.set('test@example.com', {
-      id: 3,
-      email: 'test@example.com',
-      username: 'testuser',
-      fullName: 'Test User',
-      password: testPassword,
-      role: 'user',
-      tier: 'premium',
-      twoFactorEnabled: false,
-      twoFactorSecret: null,
-      createdAt: new Date(),
-      lastLogin: null,
-      failedAttempts: 0,
-      lockedUntil: null,
-      verified: true
-    });
-
-    // Demo user (original)
-    const demoPassword = this.hashPassword('demo123');
-    this.users.set('demo@nebulashield.com', {
-      id: 4,
-      email: 'demo@nebulashield.com',
-      username: 'demo',
-      fullName: 'Demo User',
-      password: demoPassword,
-      role: 'user',
-      tier: 'free',
-      twoFactorEnabled: false,
-      twoFactorSecret: null,
-      createdAt: new Date(),
-      lastLogin: null,
-      failedAttempts: 0,
-      lockedUntil: null,
-      verified: true
-    });
-
-    // Easy login account for testing
-    const easyPassword = this.hashPassword('admin');
-    console.log('🔑 Easy test account created: admin@test.com / admin');
-    this.users.set('admin@test.com', {
-      id: 5,
-      email: 'admin@test.com',
-      username: 'admin',
-      fullName: 'Test Admin',
-      password: easyPassword,
-      role: 'admin',
-      tier: 'premium',
-      twoFactorEnabled: false,
-      twoFactorSecret: null,
-      createdAt: new Date(),
-      lastLogin: null,
-      failedAttempts: 0,
-      lockedUntil: null,
-      verified: true
-    });
-  }
+  // Former demo account initialization removed for production security
 
   /**
    * Hash password using SHA-256

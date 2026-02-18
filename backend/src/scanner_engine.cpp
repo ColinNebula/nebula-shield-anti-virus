@@ -3,10 +3,14 @@
 #include <filesystem>
 #include <chrono>
 #include <algorithm>
-#include <openssl/sha.h>
-#include <openssl/md5.h>
 #include <regex>
 #include <iostream>
+#include <sstream>
+#include <iomanip>
+#include <windows.h>
+#include <wincrypt.h>
+
+#pragma comment(lib, "advapi32.lib")
 
 namespace nebula_shield {
 
@@ -109,6 +113,8 @@ namespace nebula_shield {
         ScanResult result;
         result.file_path = file_path;
         
+        auto start_time = std::chrono::high_resolution_clock::now();
+        
         auto now = std::chrono::system_clock::now();
         auto time_t = std::chrono::system_clock::to_time_t(now);
         result.scan_time = std::ctime(&time_t);
@@ -122,6 +128,7 @@ namespace nebula_shield {
 
         // Calculate file hash
         result.hash = calculateFileHash(file_path);
+        result.file_hash = result.hash;  // Populate both hash fields
 
         // Read file data for analysis
         std::vector<uint8_t> file_data = readFileBytes(file_path, max_file_size_);
@@ -137,6 +144,12 @@ namespace nebula_shield {
                 result.threat_type = signature.type;
                 result.threat_name = signature.name;
                 result.confidence = signature.severity;
+                result.confidence_score = signature.severity;
+                
+                auto end_time = std::chrono::high_resolution_clock::now();
+                auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time);
+                result.scan_duration_ms = duration.count();
+                
                 return result;
             }
         }
@@ -148,14 +161,21 @@ namespace nebula_shield {
             result.threat_type = ThreatType::SUSPICIOUS;
             result.threat_name = "Heuristic Detection";
             result.confidence = heuristic_score;
+            result.confidence_score = heuristic_score;
         } else if (heuristic_score > 0.6) {
             result.threat_type = ThreatType::SUSPICIOUS;
             result.threat_name = "Potentially Unwanted Program";
             result.confidence = heuristic_score;
+            result.confidence_score = heuristic_score;
         } else {
             result.threat_type = ThreatType::CLEAN;
             result.confidence = 1.0 - heuristic_score;
+            result.confidence_score = 1.0 - heuristic_score;
         }
+        
+        auto end_time = std::chrono::high_resolution_clock::now();
+        auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time);
+        result.scan_duration_ms = duration.count();
 
         return result;
     }
@@ -166,27 +186,47 @@ namespace nebula_shield {
             return "";
         }
 
-        // Use SHA-256 for file hashing
-        SHA256_CTX sha256;
-        SHA256_Init(&sha256);
+        // Use Windows Crypto API for SHA-256 hashing
+        HCRYPTPROV hProv = 0;
+        HCRYPTHASH hHash = 0;
+        
+        if (!CryptAcquireContext(&hProv, NULL, NULL, PROV_RSA_AES, CRYPT_VERIFYCONTEXT)) {
+            return "";
+        }
+        
+        if (!CryptCreateHash(hProv, CALG_SHA_256, 0, 0, &hHash)) {
+            CryptReleaseContext(hProv, 0);
+            return "";
+        }
 
         char buffer[8192];
         while (file.read(buffer, sizeof(buffer)) || file.gcount() > 0) {
-            SHA256_Update(&sha256, buffer, file.gcount());
+            if (!CryptHashData(hHash, (BYTE*)buffer, (DWORD)file.gcount(), 0)) {
+                CryptDestroyHash(hHash);
+                CryptReleaseContext(hProv, 0);
+                return "";
+            }
         }
 
-        unsigned char hash[SHA256_DIGEST_LENGTH];
-        SHA256_Final(hash, &sha256);
+        DWORD cbHash = 32; // SHA-256 is 32 bytes
+        BYTE hash[32];
+        if (!CryptGetHashParam(hHash, HP_HASHVAL, hash, &cbHash, 0)) {
+            CryptDestroyHash(hHash);
+            CryptReleaseContext(hProv, 0);
+            return "";
+        }
+
+        CryptDestroyHash(hHash);
+        CryptReleaseContext(hProv, 0);
 
         // Convert to hex string
-        std::string hex_string;
-        for (int i = 0; i < SHA256_DIGEST_LENGTH; i++) {
-            char hex_char[3];
-            sprintf_s(hex_char, "%02x", hash[i]);
-            hex_string += hex_char;
+        std::stringstream ss;
+        ss << std::hex << std::setfill('0');
+        for (DWORD i = 0; i < cbHash; i++) {
+            ss << std::setw(2) << (int)hash[i];
         }
 
-        return hex_string;
+        return ss.str();
     }
 
     bool ScannerEngine::matchesSignature(const std::vector<uint8_t>& file_data, const ThreatSignature& signature) {

@@ -65,39 +65,79 @@ const EnhancedScanner = () => {
   
   const fileInputRef = useRef(null);
 
-  // Load data on mount
+  // Load data on mount - optimized with try-catch and lazy loading
   useEffect(() => {
-    loadQuarantinedFiles();
-    loadSchedules();
-    loadStatistics();
-    loadScanHistory();
+    // Only load essential data initially
     loadRealTimeStatus();
+    
+    // Load other data lazily after a short delay to speed up initial render
+    const timer = setTimeout(() => {
+      loadScanHistory();
+      if (activeTab === 'quarantine') loadQuarantinedFiles();
+      if (activeTab === 'schedule') loadSchedules();
+      if (activeTab === 'statistics') loadStatistics();
+    }, 100);
+    
+    return () => clearTimeout(timer);
   }, []);
 
+  // Load tab-specific data when switching tabs
+  useEffect(() => {
+    if (activeTab === 'quarantine') loadQuarantinedFiles();
+    if (activeTab === 'schedule') loadSchedules();
+    if (activeTab === 'statistics') loadStatistics();
+  }, [activeTab]);
+
   const loadQuarantinedFiles = () => {
-    const files = enhancedScanner.getQuarantinedFiles();
-    setQuarantinedFiles(files);
+    try {
+      const files = enhancedScanner.getQuarantinedFiles();
+      setQuarantinedFiles(files);
+    } catch (error) {
+      console.error('Failed to load quarantine:', error);
+      setQuarantinedFiles([]);
+    }
   };
 
   const loadSchedules = () => {
-    const scheduleList = enhancedScanner.getSchedules();
-    setSchedules(scheduleList);
+    try {
+      const scheduleList = enhancedScanner.getSchedules();
+      setSchedules(scheduleList);
+    } catch (error) {
+      console.error('Failed to load schedules:', error);
+      setSchedules([]);
+    }
   };
 
   const loadStatistics = () => {
-    const stats = enhancedScanner.getStatistics();
-    setStatistics(stats);
+    try {
+      const stats = enhancedScanner.getStatistics();
+      setStatistics(stats);
+    } catch (error) {
+      console.error('Failed to load statistics:', error);
+      setStatistics(null);
+    }
   };
 
   const loadScanHistory = () => {
-    const history = enhancedScanner.getScanHistory(20);
-    setScanHistory(history);
+    try {
+      const history = enhancedScanner.getScanHistory(10); // Reduced from 20 to 10 for faster loading
+      setScanHistory(history);
+    } catch (error) {
+      console.error('Failed to load scan history:', error);
+      setScanHistory([]);
+    }
   };
 
   const loadRealTimeStatus = () => {
-    const status = enhancedScanner.getRealTimeStatus();
-    setRealTimeEnabled(status.enabled);
-    setWatchedFolders(status.watchedFolders);
+    try {
+      const status = enhancedScanner.getRealTimeStatus();
+      setRealTimeEnabled(status.enabled);
+      setWatchedFolders(status.watchedFolders);
+    } catch (error) {
+      console.error('Failed to load real-time status:', error);
+      setRealTimeEnabled(false);
+      setWatchedFolders([]);
+    }
   };
 
   // Handle file selection from browse button
@@ -130,6 +170,8 @@ const EnhancedScanner = () => {
     setCurrentFile('');
     setScanStats({ totalFiles: 0, scannedFiles: 0, threatsFound: 0, cleanFiles: 0 });
 
+    let finalStats = null;
+
     try {
       const startTime = Date.now();
       let result;
@@ -138,36 +180,59 @@ const EnhancedScanner = () => {
         setCurrentFile(scanPath);
         setScanProgress(50);
         
-        // Use enhanced scanner directly (works offline)
-        let scanResult;
-        if (scanMode === 'quick') {
-          scanResult = await enhancedScanner.quickScan(scanPath, '');
-        } else if (scanMode === 'smart') {
-          scanResult = await enhancedScanner.smartScan(scanPath, '');
-        } else {
-          scanResult = await enhancedScanner.deepScan(scanPath, '');
+        // Call backend scanner API (port 8081 for real C++ scanner)
+        try {
+          console.log('[Scanner] Sending scan request:', { file_path: scanPath });
+          
+          const response = await axios.post('http://localhost:8081/api/scan/file', {
+            file_path: scanPath
+          }, {
+            timeout: 30000, // 30 second timeout
+            headers: {
+              'Content-Type': 'application/json'
+            }
+          });
+          
+          console.log('[Scanner] Received response:', response.data);
+          result = response.data;
+          
+          // Ensure consistent format
+          result.threats = result.threats || [];
+          if (result.threat_type !== 'CLEAN' && result.threat_name && result.threats.length === 0) {
+            result.threats = [{
+              id: result.threat_type,
+              family: result.threat_name,
+              severity: result.confidence > 0.8 ? 'critical' : 'high',
+              detectionMethod: 'signature'
+            }];
+          }
+          
+          const normalized = normalizeScanResults(result, scanPath);
+          console.log('[Scanner] Setting scan results:', normalized.results);
+          setScanResults(normalized.results);
+          setScanStats(normalized.stats);
+          finalStats = normalized.stats;
+          console.log('[Scanner] Scan stats updated');
+        } catch (apiError) {
+          console.error('Backend API error:', apiError);
+          
+          // Provide detailed error message
+          let errorMsg = 'Scanner backend error';
+          if (apiError.code === 'ECONNREFUSED') {
+            errorMsg = 'Scanner backend not running on port 8081. Start it with: node backend/real-scanner-api.js';
+          } else if (apiError.code === 'ETIMEDOUT') {
+            errorMsg = 'Scanner backend timeout. The file might be too large or the server is busy.';
+          } else if (apiError.response) {
+            errorMsg = `Scanner error: ${apiError.response.data?.error || apiError.response.statusText}`;
+          } else if (apiError.request) {
+            errorMsg = 'No response from scanner backend. Check if port 8081 is accessible.';
+          } else {
+            errorMsg = `Scanner error: ${apiError.message}`;
+          }
+          
+          toast.error(errorMsg, { duration: 5000 });
+          throw new Error(errorMsg);
         }
-        
-        // Convert to expected format
-        result = {
-          file_path: scanPath,
-          threat_type: scanResult.threats.length > 0 ? scanResult.threats[0].id : 'CLEAN',
-          threat_name: scanResult.threats.length > 0 ? scanResult.threats[0].family : '',
-          scan_time: new Date().toISOString(),
-          file_size: 0,
-          hash: 'N/A',
-          heuristicAnalysis: scanResult.heuristicAnalysis,
-          threats: scanResult.threats,
-          riskScore: scanResult.riskScore
-        };
-        
-        setScanResults([result]);
-        setScanStats({
-          totalFiles: 1,
-          scannedFiles: 1,
-          threatsFound: result.threat_type !== 'CLEAN' ? 1 : 0,
-          cleanFiles: result.threat_type === 'CLEAN' ? 1 : 0
-        });
       } else {
         // For directory scans, use enhanced scanner scanMultiple
         // Note: This is a simplified implementation - in production, you'd scan actual directory contents
@@ -195,26 +260,28 @@ const EnhancedScanner = () => {
         }));
         
         setScanResults(results);
-        
+
         const threats = results.filter(r => r.threat_type !== 'CLEAN');
-        setScanStats({
+        finalStats = {
           totalFiles: results.length,
           scannedFiles: results.length,
           threatsFound: threats.length,
           cleanFiles: results.length - threats.length
-        });
+        };
+        setScanStats(finalStats);
       }
 
       setScanProgress(100);
       
       // Add to history
       const scanDuration = Math.round((Date.now() - startTime) / 1000);
+      const statsForHistory = finalStats || scanStats;
       enhancedScanner.addToHistory({
         path: scanPath,
         type: scanType,
         mode: scanMode,
-        filesScanned: scanStats.scannedFiles,
-        threatsFound: scanStats.threatsFound,
+        filesScanned: statsForHistory.scannedFiles,
+        threatsFound: statsForHistory.threatsFound,
         duration: scanDuration
       });
 
@@ -222,12 +289,12 @@ const EnhancedScanner = () => {
       loadScanHistory();
       loadStatistics();
 
-      if (scanStats.threatsFound > 0) {
-        toast.error(`Scan complete: ${scanStats.threatsFound} threats found!`);
-        notificationService.showScanComplete(scanStats.scannedFiles, scanStats.threatsFound);
+      if (statsForHistory.threatsFound > 0) {
+        toast.error(`Scan complete: ${statsForHistory.threatsFound} threats found!`);
+        notificationService.showScanComplete(statsForHistory.scannedFiles, statsForHistory.threatsFound);
       } else {
         toast.success('Scan complete: No threats detected');
-        notificationService.showScanComplete(scanStats.scannedFiles, 0);
+        notificationService.showScanComplete(statsForHistory.scannedFiles, 0);
       }
 
     } catch (error) {
@@ -445,6 +512,110 @@ const EnhancedScanner = () => {
       case 'deep': return Search;
       default: return Activity;
     }
+  };
+
+  const normalizeScanResults = (data, fallbackPath = '') => {
+    if (!data) {
+      return {
+        results: [],
+        stats: { totalFiles: 0, scannedFiles: 0, threatsFound: 0, cleanFiles: 0 }
+      };
+    }
+
+    let results = [];
+    if (Array.isArray(data.results)) {
+      results = data.results;
+    } else if (Array.isArray(data.scanResults)) {
+      results = data.scanResults;
+    } else if (Array.isArray(data.files)) {
+      results = data.files;
+    } else if (Array.isArray(data.result)) {
+      results = data.result;
+    } else if (data.result && typeof data.result === 'object') {
+      results = [data.result];
+    } else if (data.file_path || data.threat_type || data.threat_name) {
+      results = [data];
+    }
+
+    results = results.map((item) => {
+      const filePath = item.file_path || item.file || item.path || fallbackPath || 'Unknown file';
+      const threats = Array.isArray(item.threats) ? item.threats : [];
+      const inferredType = threats[0]?.id || (item.is_clean === false ? 'MALWARE' : 'CLEAN');
+      const inferredName = threats[0]?.family || '';
+
+      return {
+        ...item,
+        file_path: filePath,
+        threat_type: item.threat_type || item.threatType || inferredType || 'CLEAN',
+        threat_name: item.threat_name || item.threatName || inferredName
+      };
+    });
+
+    const threatsFound = results.filter(r => r.threat_type && r.threat_type !== 'CLEAN').length;
+    const totalFiles = data.total_files ?? data.totalFiles ?? results.length;
+    const cleanFiles = data.clean_files ?? data.cleanFiles ?? Math.max(0, totalFiles - threatsFound);
+
+    return {
+      results,
+      stats: {
+        totalFiles,
+        scannedFiles: data.scanned_files ?? data.scannedFiles ?? totalFiles,
+        threatsFound: data.threats_found ?? data.threatsFound ?? threatsFound,
+        cleanFiles
+      }
+    };
+  };
+
+  const buildStatsFromStatus = (statusData) => {
+    const scan = statusData?.scan || {};
+    const totalFiles = scan.totalFiles ?? statusData?.totalFiles ?? 0;
+    const scannedFiles = scan.scannedFiles ?? statusData?.filesScanned ?? 0;
+    const threatsFound = scan.threatsFound ?? 0;
+    const cleanFiles = Math.max(0, totalFiles - threatsFound);
+
+    return {
+      totalFiles,
+      scannedFiles,
+      threatsFound,
+      cleanFiles
+    };
+  };
+
+  const pollScanCompletion = async () => {
+    let lastStatus = null;
+
+    for (let attempt = 0; attempt < 300; attempt++) {
+      const statusResponse = await axios.get(`${API_BASE_URL}/api/scan/status`);
+      lastStatus = statusResponse.data;
+
+      const stats = buildStatsFromStatus(lastStatus);
+      const progressFromStatus = lastStatus?.progress ?? 0;
+      const progress = progressFromStatus > 0
+        ? progressFromStatus
+        : (stats.totalFiles > 0
+          ? Math.min(100, Math.round((stats.scannedFiles / stats.totalFiles) * 100))
+          : 0);
+
+      setScanProgress(progress);
+      setCurrentFile(lastStatus?.scan?.currentFile || '');
+      setScanStats(stats);
+
+      if (!lastStatus?.isScanning) {
+        break;
+      }
+
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    }
+
+    const resultsResponse = await axios.get(`${API_BASE_URL}/api/scan/results`);
+    const normalized = normalizeScanResults(resultsResponse.data?.scan || resultsResponse.data);
+    const fallbackStats = buildStatsFromStatus(lastStatus);
+    const finalStats = normalized.stats.totalFiles > 0 ? normalized.stats : fallbackStats;
+
+    setScanResults(normalized.results);
+    setScanStats(finalStats);
+
+    return { results: normalized.results, stats: finalStats };
   };
 
   // Filter and search results
@@ -686,22 +857,37 @@ const EnhancedScanner = () => {
                           setScanStats({ totalFiles: 0, scannedFiles: 0, threatsFound: 0, cleanFiles: 0 });
                           
                           try {
-                            const response = await axios.post(`${API_BASE_URL}/api/scan/quick`);
+                            toast.loading('Starting quick scan...', { id: 'quick-scan' });
                             
-                            if (response.data.results) {
-                              setScanResults(response.data.results);
-                              setScanStats({
-                                totalFiles: response.data.total_files || 0,
-                                scannedFiles: response.data.total_files || 0,
-                                threatsFound: response.data.threats_found || 0,
-                                cleanFiles: (response.data.total_files || 0) - (response.data.threats_found || 0)
-                              });
-                              setScanProgress(100);
-                              toast.success(`Quick scan complete! Found ${response.data.threats_found || 0} threats`);
+                            await axios.post(`${API_BASE_URL}/api/scan/quick`, {}, {
+                              timeout: 30000, // 30 second timeout
+                              headers: {
+                                'Content-Type': 'application/json'
+                              }
+                            });
+
+                            const finalResult = await pollScanCompletion();
+                            setScanProgress(100);
+                            if (finalResult.stats.threatsFound > 0) {
+                              toast.error(`Quick scan complete! Found ${finalResult.stats.threatsFound} threats`, { id: 'quick-scan' });
+                            } else {
+                              toast.success('Quick scan complete! No threats detected', { id: 'quick-scan' });
                             }
                           } catch (error) {
                             console.error('Quick scan error:', error);
-                            toast.error('Quick scan failed: ' + (error.response?.data?.message || error.message));
+                            let errorMessage = 'Quick scan failed';
+                            
+                            if (error.code === 'ECONNREFUSED' || error.code === 'ERR_NETWORK') {
+                              errorMessage = 'Cannot connect to backend server. Please ensure the backend is running.';
+                            } else if (error.response) {
+                              errorMessage = error.response.data?.message || error.response.data?.error || `Server error: ${error.response.status}`;
+                            } else if (error.request) {
+                              errorMessage = 'No response from server. Check your connection.';
+                            } else {
+                              errorMessage = error.message || 'Unknown error occurred';
+                            }
+                            
+                            toast.error(errorMessage, { id: 'quick-scan', duration: 5000 });
                           } finally {
                             setIsScanning(false);
                           }
@@ -721,29 +907,43 @@ const EnhancedScanner = () => {
                           setScanStats({ totalFiles: 0, scannedFiles: 0, threatsFound: 0, cleanFiles: 0 });
                           
                           try {
-                            toast.loading('Starting full system scan...', { duration: 3000 });
-                            const response = await axios.post(`${API_BASE_URL}/api/scan/full`);
+                            toast.loading('Starting full system scan...', { id: 'full-scan' });
                             
-                            if (response.data.results) {
-                              setScanResults(response.data.results);
-                              setScanStats({
-                                totalFiles: response.data.total_files || 0,
-                                scannedFiles: response.data.total_files || 0,
-                                threatsFound: response.data.threats_found || 0,
-                                cleanFiles: (response.data.total_files || 0) - (response.data.threats_found || 0)
-                              });
-                              setScanProgress(100);
-                              toast.success(`Full scan complete! Scanned ${response.data.total_files || 0} files, found ${response.data.threats_found || 0} threats`);
+                            await axios.post(`${API_BASE_URL}/api/scan/full`, {}, {
+                              timeout: 300000, // 5 minute timeout for full scan
+                              headers: {
+                                'Content-Type': 'application/json'
+                              }
+                            });
+
+                            const finalResult = await pollScanCompletion();
+                            setScanProgress(100);
+                            if (finalResult.stats.threatsFound > 0) {
+                              toast.error(`Full scan complete! Scanned ${finalResult.stats.totalFiles} files, found ${finalResult.stats.threatsFound} threats`, { id: 'full-scan' });
+                            } else {
+                              toast.success(`Full scan complete! Scanned ${finalResult.stats.totalFiles} files, found 0 threats`, { id: 'full-scan' });
                             }
                           } catch (error) {
                             console.error('Full scan error:', error);
-                            toast.error('Full scan failed: ' + (error.response?.data?.message || error.message));
+                            let errorMessage = 'Full scan failed';
+                            
+                            if (error.code === 'ECONNREFUSED' || error.code === 'ERR_NETWORK') {
+                              errorMessage = 'Cannot connect to backend server. Please ensure the backend is running.';
+                            } else if (error.response) {
+                              errorMessage = error.response.data?.message || error.response.data?.error || `Server error: ${error.response.status}`;
+                            } else if (error.request) {
+                              errorMessage = 'No response from server. Check your connection.';
+                            } else {
+                              errorMessage = error.message || 'Unknown error occurred';
+                            }
+                            
+                            toast.error(errorMessage, { id: 'full-scan', duration: 5000 });
                           } finally {
                             setIsScanning(false);
                           }
                         }}
                       >
-                        <Shield size={20} />
+                        <HardDrive size={20} />
                         Full Scan
                       </button>
 

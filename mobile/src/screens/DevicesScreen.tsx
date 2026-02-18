@@ -1,8 +1,8 @@
 import React, {useEffect, useState} from 'react';
 import {View, Text, StyleSheet, FlatList, TouchableOpacity} from 'react-native';
 import {Card, Button, Badge, Chip} from 'react-native-paper';
-import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import {SocketService} from '../services/SocketService';
+import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
+// import {SocketService} from '../services/SocketService'; // Disabled - using HTTP API
 
 interface Device {
   deviceId: string;
@@ -20,18 +20,18 @@ const DevicesScreen = (): JSX.Element => {
     // Load devices
     loadDevices();
 
-    // Listen for device status changes
-    SocketService.on('device:connected', (data) => {
-      loadDevices();
-    });
+    // WebSocket disabled - using HTTP API
+    // SocketService.on('device:connected', (data) => {
+    //   loadDevices();
+    // });
 
-    SocketService.on('device:disconnected', (data) => {
-      loadDevices();
-    });
+    // SocketService.on('device:disconnected', (data) => {
+    //   loadDevices();
+    // });
 
     return () => {
-      SocketService.off('device:connected');
-      SocketService.off('device:disconnected');
+      // SocketService.off('device:connected');
+      // SocketService.off('device:disconnected');
     };
   }, []);
 
@@ -123,11 +123,13 @@ const DevicesScreen = (): JSX.Element => {
   );
 
   const handleStartScan = (deviceId: string) => {
-    SocketService.emit('command:execute', {
-      targetDeviceId: deviceId,
-      command: 'start-scan',
-      params: {type: 'quick'},
-    });
+    // WebSocket disabled - using HTTP API
+    // SocketService.emit('command:execute', {
+    //   targetDeviceId: deviceId,
+    //   command: 'start-scan',
+    //   params: {type: 'quick'},
+    // });
+    console.log('Scan feature requires HTTP API implementation');
   };
 
   return (

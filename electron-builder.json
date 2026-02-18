@@ -9,33 +9,68 @@
   "files": [
     "build/**/*",
     "!build/**/*.map",
+    "!build/**/*.LICENSE.txt",
     "public/electron.js",
     "public/preload.js",
     "public/favicon.ico",
     "public/icon.png",
+    "build-resources/icon.ico",
+    "build-resources/icon.png",
     "node_modules/electron-is-dev/**/*",
     "package.json"
   ],
+  "asar": true,
   "asarUnpack": [
-    "build/**/*"
+    "node_modules/sqlite3/**/*",
+    "node_modules/**/*.node"
   ],
   "extraResources": [
     {
-      "from": "backend",
-      "to": "backend",
-      "filter": ["**/*", "!node_modules/**/*"]
+      "from": "build-resources/icon.ico",
+      "to": "icon.ico"
     },
     {
-      "from": "backend/node_modules",
-      "to": "backend/node_modules",
-      "filter": ["**/*"]
+      "from": "build-resources/icon.png",
+      "to": "icon.png"
+    },
+    {
+      "from": "backend",
+      "to": "backend",
+      "filter": [
+        "**/*",
+        "!*.md",
+        "!*.log",
+        "!test/**",
+        "!tests/**",
+        "!*.test.js",
+        "!*.spec.js",
+        "!coverage/**",
+        "!.nyc_output/**",
+        "!node_modules/**/@types/**",
+        "!node_modules/**/test/**",
+        "!node_modules/**/tests/**",
+        "!node_modules/**/*.md",
+        "!node_modules/**/CHANGELOG*",
+        "!node_modules/**/README*",
+        "!node_modules/**/LICENSE*",
+        "!node_modules/**/*.txt"
+      ]
     },
     {
       "from": "data",
       "to": "data",
-      "filter": ["**/*"]
+      "filter": [
+        "**/*",
+        "!*.db",
+        "!*.db-journal",
+        "!*.db-shm",
+        "!*.db-wal",
+        "!settings-backups/**"
+      ]
     }
   ],
+  "compression": "maximum",
+  "removePackageScripts": true,
   "win": {
     "target": [
       {
@@ -47,18 +82,27 @@
         "arch": ["x64"]
       }
     ],
-    "icon": "build-resources/icon.png",
+    "icon": "build-resources/icon.ico",
     "verifyUpdateCodeSignature": false,
     "signAndEditExecutable": false,
-    "forceCodeSigning": false
+    "forceCodeSigning": false,
+    "requestedExecutionLevel": "requireAdministrator",
+    "artifactName": "${productName}-${version}-${arch}.${ext}"
   },
   "nsis": {
     "oneClick": false,
+    "allowElevation": true,
     "allowToChangeInstallationDirectory": true,
+    "installerIcon": "build-resources/icon.ico",
+    "uninstallerIcon": "build-resources/icon.ico",
+    "installerHeaderIcon": "build-resources/icon.ico",
     "createDesktopShortcut": true,
     "createStartMenuShortcut": true,
     "shortcutName": "Nebula Shield Anti-Virus",
-    "license": "LICENSE"
+    "runAfterFinish": true,
+    "deleteAppDataOnUninstall": false,
+    "perMachine": true,
+    "include": "installer.nsh"
   },
   "mac": {
     "target": ["dmg", "zip"],

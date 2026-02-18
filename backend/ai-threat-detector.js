@@ -1,6 +1,6 @@
 /**
  * AI-Powered Threat Detection Engine
- * Machine learning-based network threat analysis
+ * Advanced machine learning-based network threat analysis with neural network simulation
  */
 
 class AIThreatDetector {
@@ -10,6 +10,53 @@ class AIThreatDetector {
     this.trafficPatterns = new Map();
     this.threatScores = new Map();
     this.behavioralProfiles = new Map();
+    
+    // Neural network layers (simulated)
+    this.neuralNetwork = {
+      inputLayer: 15, // 15 features
+      hiddenLayers: [32, 16, 8], // 3 hidden layers
+      outputLayer: 1, // Threat probability
+      weights: null, // Will be initialized after
+      biases: null // Will be initialized after
+    };
+    
+    // Initialize weights and biases after neuralNetwork is defined
+    this.neuralNetwork.weights = this.initializeWeights();
+    this.neuralNetwork.biases = this.initializeBiases();
+    
+    // Advanced feature extraction
+    this.featureExtractor = {
+      entropy: true,
+      timeSeries: true,
+      graphAnalysis: true,
+      clustering: true
+    };
+    
+    // Time-series anomaly detection
+    this.timeSeriesData = new Map();
+    this.seasonalPatterns = new Map();
+    
+    // Graph-based threat correlation
+    this.connectionGraph = new Map();
+    
+    // Threat intelligence feed (simulated)
+    this.threatIntelligence = {
+      knownMaliciousIPs: new Set(),
+      knownMaliciousPatterns: [],
+      lastUpdate: Date.now()
+    };
+    
+    // Model performance tracking
+    this.performance = {
+      truePositives: 0,
+      falsePositives: 0,
+      trueNegatives: 0,
+      falseNegatives: 0,
+      accuracy: 0,
+      precision: 0,
+      recall: 0,
+      f1Score: 0
+    };
     
     // Pre-trained threat indicators
     this.threatIndicators = {
@@ -469,6 +516,416 @@ class AIThreatDetector {
   }
 
   /**
+   * Initialize neural network weights
+   */
+  initializeWeights() {
+    const weights = [];
+    const layers = [this.neuralNetwork.inputLayer, ...this.neuralNetwork.hiddenLayers, this.neuralNetwork.outputLayer];
+    
+    for (let i = 0; i < layers.length - 1; i++) {
+      const layerWeights = [];
+      for (let j = 0; j < layers[i]; j++) {
+        const neuronWeights = [];
+        for (let k = 0; k < layers[i + 1]; k++) {
+          // Xavier initialization
+          neuronWeights.push((Math.random() - 0.5) * Math.sqrt(2 / layers[i]));
+        }
+        layerWeights.push(neuronWeights);
+      }
+      weights.push(layerWeights);
+    }
+    
+    return weights;
+  }
+
+  /**
+   * Initialize biases
+   */
+  initializeBiases() {
+    const biases = [];
+    const layers = [...this.neuralNetwork.hiddenLayers, this.neuralNetwork.outputLayer];
+    
+    for (const layerSize of layers) {
+      biases.push(new Array(layerSize).fill(0));
+    }
+    
+    return biases;
+  }
+
+  /**
+   * Extract advanced features from connection
+   */
+  extractFeatures(connection) {
+    const features = [];
+    
+    // Basic features (normalized)
+    features.push(connection.sourcePort / 65535);
+    features.push(connection.destPort / 65535);
+    features.push((connection.bytes || 0) / 100000);
+    features.push((connection.packets || 0) / 1000);
+    
+    // Protocol encoding (one-hot)
+    features.push(connection.protocol === 'tcp' ? 1 : 0);
+    features.push(connection.protocol === 'udp' ? 1 : 0);
+    features.push(connection.protocol === 'icmp' ? 1 : 0);
+    
+    // Entropy of data (simulated)
+    features.push(this.calculateEntropy(connection));
+    
+    // Time-based features
+    const hour = new Date(connection.timestamp).getHours();
+    features.push(Math.sin(2 * Math.PI * hour / 24)); // Cyclical time encoding
+    features.push(Math.cos(2 * Math.PI * hour / 24));
+    
+    // Historical features
+    const history = this.timeSeriesData.get(connection.sourceIP) || [];
+    features.push(history.length / 1000); // Connection frequency
+    features.push(this.calculateMovingAverage(history, 'bytes'));
+    features.push(this.calculateStandardDeviation(history, 'bytes'));
+    
+    // Graph features
+    features.push(this.calculateNodeDegree(connection.sourceIP));
+    features.push(this.calculateClusteringCoefficient(connection.sourceIP));
+    
+    return features;
+  }
+
+  /**
+   * Calculate Shannon entropy
+   */
+  calculateEntropy(connection) {
+    if (!connection.payload) return 0.5;
+    
+    const freq = new Map();
+    for (const char of connection.payload || '') {
+      freq.set(char, (freq.get(char) || 0) + 1);
+    }
+    
+    let entropy = 0;
+    const len = connection.payload.length;
+    
+    for (const count of freq.values()) {
+      const p = count / len;
+      entropy -= p * Math.log2(p);
+    }
+    
+    return Math.min(entropy / 8, 1); // Normalize
+  }
+
+  /**
+   * Forward propagation through neural network
+   */
+  forwardPropagate(features) {
+    let activations = features;
+    
+    for (let layer = 0; layer < this.neuralNetwork.weights.length; layer++) {
+      const nextActivations = [];
+      const weights = this.neuralNetwork.weights[layer];
+      const biases = this.neuralNetwork.biases[layer];
+      
+      for (let j = 0; j < weights[0].length; j++) {
+        let sum = biases[j];
+        for (let i = 0; i < activations.length; i++) {
+          sum += activations[i] * weights[i][j];
+        }
+        
+        // ReLU activation for hidden layers, sigmoid for output
+        const activation = layer === this.neuralNetwork.weights.length - 1
+          ? 1 / (1 + Math.exp(-sum)) // Sigmoid
+          : Math.max(0, sum); // ReLU
+        
+        nextActivations.push(activation);
+      }
+      
+      activations = nextActivations;
+    }
+    
+    return activations[0]; // Output probability
+  }
+
+  /**
+   * Train neural network with backpropagation (simplified)
+   */
+  trainNetwork(features, actualThreat) {
+    const prediction = this.forwardPropagate(features);
+    const error = actualThreat - prediction;
+    
+    // Gradient descent weight update (simplified)
+    for (let layer = this.neuralNetwork.weights.length - 1; layer >= 0; layer--) {
+      for (let i = 0; i < this.neuralNetwork.weights[layer].length; i++) {
+        for (let j = 0; j < this.neuralNetwork.weights[layer][i].length; j++) {
+          const gradient = error * features[i] * this.learningRate;
+          this.neuralNetwork.weights[layer][i][j] += gradient;
+        }
+      }
+    }
+    
+    return { prediction, error, loss: error * error };
+  }
+
+  /**
+   * Advanced anomaly detection with neural network
+   */
+  detectAnomalyAdvanced(connection) {
+    // Extract features
+    const features = this.extractFeatures(connection);
+    
+    // Get neural network prediction
+    const nnThreatScore = this.forwardPropagate(features);
+    
+    // Combine with rule-based detection
+    const ruleBasedAnalysis = this.analyzeConnection(connection);
+    
+    // Ensemble method: weighted average
+    const ensembleThreatScore = (nnThreatScore * 0.6) + (ruleBasedAnalysis.threatScore * 0.4);
+    
+    // Time-series anomaly detection
+    const timeSeriesAnomaly = this.detectTimeSeriesAnomaly(connection);
+    
+    // Graph-based anomaly detection
+    const graphAnomaly = this.detectGraphAnomaly(connection);
+    
+    // Final threat score with all methods
+    const finalThreatScore = Math.max(
+      ensembleThreatScore,
+      timeSeriesAnomaly * 0.3,
+      graphAnomaly * 0.3
+    );
+    
+    return {
+      ...ruleBasedAnalysis,
+      threatScore: finalThreatScore,
+      nnPrediction: nnThreatScore,
+      timeSeriesAnomaly,
+      graphAnomaly,
+      features: features.slice(0, 5), // Return first 5 features for debugging
+      modelType: 'ensemble',
+      confidence: this.calculateConfidence(finalThreatScore, ensembleThreatScore, timeSeriesAnomaly, graphAnomaly)
+    };
+  }
+
+  /**
+   * Time-series anomaly detection
+   */
+  detectTimeSeriesAnomaly(connection) {
+    const key = connection.sourceIP;
+    const history = this.timeSeriesData.get(key) || [];
+    
+    // Add current data point
+    history.push({
+      timestamp: connection.timestamp,
+      bytes: connection.bytes || 0,
+      packets: connection.packets || 0,
+      port: connection.destPort
+    });
+    
+    // Keep last 1000 data points
+    if (history.length > 1000) {
+      history.shift();
+    }
+    
+    this.timeSeriesData.set(key, history);
+    
+    if (history.length < 10) return 0;
+    
+    // Calculate moving statistics
+    const recentBytes = history.slice(-10).map(h => h.bytes);
+    const mean = recentBytes.reduce((a, b) => a + b, 0) / recentBytes.length;
+    const stdDev = Math.sqrt(
+      recentBytes.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / recentBytes.length
+    );
+    
+    // Z-score anomaly detection
+    const zScore = Math.abs((connection.bytes - mean) / (stdDev || 1));
+    
+    // Seasonal pattern detection
+    const hourlyPattern = this.getSeasonalPattern(key, new Date(connection.timestamp).getHours());
+    const seasonalAnomaly = Math.abs(connection.bytes - hourlyPattern) / (hourlyPattern || 1);
+    
+    // Combine anomalies
+    const anomalyScore = Math.min((zScore / 3) + (seasonalAnomaly * 0.3), 1);
+    
+    return anomalyScore;
+  }
+
+  /**
+   * Graph-based anomaly detection
+   */
+  detectGraphAnomaly(connection) {
+    const sourceIP = connection.sourceIP;
+    const destIP = connection.destIP;
+    
+    // Build connection graph
+    if (!this.connectionGraph.has(sourceIP)) {
+      this.connectionGraph.set(sourceIP, new Set());
+    }
+    this.connectionGraph.get(sourceIP).add(destIP);
+    
+    // Calculate graph metrics
+    const degree = this.calculateNodeDegree(sourceIP);
+    const clustering = this.calculateClusteringCoefficient(sourceIP);
+    
+    // Anomaly indicators
+    let anomalyScore = 0;
+    
+    // High degree (connects to many hosts) - potential scanner
+    if (degree > 50) {
+      anomalyScore += Math.min(degree / 100, 0.5);
+    }
+    
+    // Low clustering coefficient - unusual connection pattern
+    if (clustering < 0.1 && degree > 10) {
+      anomalyScore += 0.3;
+    }
+    
+    // Check for hub behavior (connects to many but receives few connections)
+    const inDegree = this.calculateInDegree(sourceIP);
+    if (degree > 20 && inDegree < 3) {
+      anomalyScore += 0.4;
+    }
+    
+    return Math.min(anomalyScore, 1);
+  }
+
+  /**
+   * Calculate moving average
+   */
+  calculateMovingAverage(history, field) {
+    if (history.length === 0) return 0;
+    const recent = history.slice(-10);
+    return recent.reduce((sum, item) => sum + (item[field] || 0), 0) / recent.length / 100000;
+  }
+
+  /**
+   * Calculate standard deviation
+   */
+  calculateStandardDeviation(history, field) {
+    if (history.length < 2) return 0;
+    const recent = history.slice(-10);
+    const mean = recent.reduce((sum, item) => sum + (item[field] || 0), 0) / recent.length;
+    const variance = recent.reduce((sum, item) => sum + Math.pow((item[field] || 0) - mean, 2), 0) / recent.length;
+    return Math.sqrt(variance) / 100000;
+  }
+
+  /**
+   * Get seasonal pattern
+   */
+  getSeasonalPattern(ip, hour) {
+    const key = `${ip}_${hour}`;
+    const pattern = this.seasonalPatterns.get(key) || { count: 0, avgBytes: 0 };
+    return pattern.avgBytes;
+  }
+
+  /**
+   * Update seasonal patterns
+   */
+  updateSeasonalPattern(ip, hour, bytes) {
+    const key = `${ip}_${hour}`;
+    const pattern = this.seasonalPatterns.get(key) || { count: 0, avgBytes: 0 };
+    
+    pattern.count++;
+    pattern.avgBytes = (pattern.avgBytes * (pattern.count - 1) + bytes) / pattern.count;
+    
+    this.seasonalPatterns.set(key, pattern);
+  }
+
+  /**
+   * Calculate node degree in connection graph
+   */
+  calculateNodeDegree(ip) {
+    const connections = this.connectionGraph.get(ip);
+    return connections ? connections.size / 100 : 0; // Normalized
+  }
+
+  /**
+   * Calculate in-degree (how many nodes connect to this IP)
+   */
+  calculateInDegree(ip) {
+    let inDegree = 0;
+    for (const [, connections] of this.connectionGraph) {
+      if (connections.has(ip)) {
+        inDegree++;
+      }
+    }
+    return inDegree;
+  }
+
+  /**
+   * Calculate clustering coefficient
+   */
+  calculateClusteringCoefficient(ip) {
+    const neighbors = this.connectionGraph.get(ip);
+    if (!neighbors || neighbors.size < 2) return 0;
+    
+    let edges = 0;
+    const neighborsArray = Array.from(neighbors);
+    
+    for (let i = 0; i < neighborsArray.length; i++) {
+      for (let j = i + 1; j < neighborsArray.length; j++) {
+        const neighborConnections = this.connectionGraph.get(neighborsArray[i]);
+        if (neighborConnections && neighborConnections.has(neighborsArray[j])) {
+          edges++;
+        }
+      }
+    }
+    
+    const possibleEdges = (neighbors.size * (neighbors.size - 1)) / 2;
+    return possibleEdges > 0 ? edges / possibleEdges : 0;
+  }
+
+  /**
+   * Calculate confidence score
+   */
+  calculateConfidence(finalScore, ensembleScore, timeSeriesAnomaly, graphAnomaly) {
+    // Agreement between different methods increases confidence
+    const scores = [ensembleScore, timeSeriesAnomaly, graphAnomaly].filter(s => s > 0);
+    const variance = scores.length > 1
+      ? scores.reduce((sum, s) => sum + Math.pow(s - finalScore, 2), 0) / scores.length
+      : 0;
+    
+    const agreement = Math.exp(-variance * 10); // High agreement = high confidence
+    const dataPoints = Math.min((this.timeSeriesData.get('any')?.length || 0) / 100, 1);
+    
+    return Math.min((agreement * 0.7 + dataPoints * 0.3) * 100, 100);
+  }
+
+  /**
+   * Update model performance metrics
+   */
+  updatePerformance(predicted, actual) {
+    if (predicted && actual) {
+      this.performance.truePositives++;
+    } else if (predicted && !actual) {
+      this.performance.falsePositives++;
+    } else if (!predicted && actual) {
+      this.performance.falseNegatives++;
+    } else {
+      this.performance.trueNegatives++;
+    }
+    
+    const total = this.performance.truePositives + this.performance.falsePositives +
+                  this.performance.trueNegatives + this.performance.falseNegatives;
+    
+    if (total > 0) {
+      this.performance.accuracy = ((this.performance.truePositives + this.performance.trueNegatives) / total) * 100;
+      
+      const precisionDenom = this.performance.truePositives + this.performance.falsePositives;
+      this.performance.precision = precisionDenom > 0
+        ? (this.performance.truePositives / precisionDenom) * 100
+        : 0;
+      
+      const recallDenom = this.performance.truePositives + this.performance.falseNegatives;
+      this.performance.recall = recallDenom > 0
+        ? (this.performance.truePositives / recallDenom) * 100
+        : 0;
+      
+      this.performance.f1Score = (this.performance.precision + this.performance.recall) > 0
+        ? 2 * (this.performance.precision * this.performance.recall) / (this.performance.precision + this.performance.recall)
+        : 0;
+    }
+  }
+
+  /**
    * Get model statistics
    */
   getModelStats() {
@@ -479,8 +936,51 @@ class AIThreatDetector {
       behavioralProfiles: this.behavioralProfiles.size,
       trafficPatterns: this.trafficPatterns.size,
       avgThreatScore: Array.from(this.threatScores.values()).reduce((a, b) => a + b, 0) / 
-                      (this.threatScores.size || 1)
+                      (this.threatScores.size || 1),
+      neuralNetwork: {
+        architecture: `${this.neuralNetwork.inputLayer}-${this.neuralNetwork.hiddenLayers.join('-')}-${this.neuralNetwork.outputLayer}`,
+        totalWeights: this.neuralNetwork.weights.reduce((sum, layer) => 
+          sum + layer.reduce((s, neuron) => s + neuron.length, 0), 0),
+        layers: this.neuralNetwork.weights.length
+      },
+      timeSeriesTracking: this.timeSeriesData.size,
+      graphNodes: this.connectionGraph.size,
+      graphEdges: Array.from(this.connectionGraph.values()).reduce((sum, set) => sum + set.size, 0),
+      seasonalPatterns: this.seasonalPatterns.size,
+      performance: {
+        ...this.performance,
+        accuracy: this.performance.accuracy.toFixed(2) + '%',
+        precision: this.performance.precision.toFixed(2) + '%',
+        recall: this.performance.recall.toFixed(2) + '%',
+        f1Score: this.performance.f1Score.toFixed(2) + '%'
+      }
     };
+  }
+
+  /**
+   * Get threat intelligence summary
+   */
+  getThreatIntelligence() {
+    return {
+      knownMaliciousIPs: this.threatIntelligence.knownMaliciousIPs.size,
+      lastUpdate: new Date(this.threatIntelligence.lastUpdate).toISOString(),
+      topThreats: this.getTopThreats(10)
+    };
+  }
+
+  /**
+   * Get top threats
+   */
+  getTopThreats(limit = 10) {
+    return Array.from(this.threatScores.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, limit)
+      .map(([ip, score]) => ({
+        ip,
+        threatScore: score.toFixed(3),
+        reputation: score < 0.3 ? 'good' : score < 0.7 ? 'suspicious' : 'malicious',
+        connections: this.behavioralProfiles.get(ip)?.connectionCount || 0
+      }));
   }
 }
 

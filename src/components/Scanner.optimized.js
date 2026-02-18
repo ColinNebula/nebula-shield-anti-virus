@@ -66,7 +66,7 @@ const Scanner = memo(() => {
   // OPTIMIZATION 1: Initialize Web Worker for background scanning
   useEffect(() => {
     // Only in production or if worker file exists
-    if (process.env.NODE_ENV === 'production') {
+    if (import.meta.env.PROD) {
       try {
         scanWorkerRef.current = new Worker(
           new URL('../workers/scanWorker.js', import.meta.url),

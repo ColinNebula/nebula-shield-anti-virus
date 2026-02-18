@@ -1,0 +1,165 @@
+/* Light Theme Text Visibility Improvements */
+/* Override text-gray-* classes in light theme for better readability */
+
+/* Update CSS variable-based text colors in light mode */
+:root[data-theme="light"],
+body[data-theme="light"],
+html[data-theme="light"] {
+  --text-secondary: #475569 !important;
+  --text-muted: #64748b !important;
+  --text-tertiary: #94a3b8 !important;
+}
+
+/* Override Tailwind-style gray classes */
+:root[data-theme="light"] .text-gray-400,
+:root .text-gray-400 {
+  color: #94a3b8 !important; /* Lighter slate-400 */
+}
+
+:root[data-theme="light"] .text-gray-500,
+:root .text-gray-500 {
+  color: #64748b !important; /* Medium slate-500 */
+}
+
+:root[data-theme="light"] .text-gray-600,
+:root .text-gray-600 {
+  color: #475569 !important; /* Darker slate-600 */
+}
+
+:root[data-theme="light"] .text-slate-400 {
+  color: #94a3b8 !important;
+}
+
+:root[data-theme="light"] .text-slate-500 {
+  color: #64748b !important;
+}
+
+:root[data-theme="light"] .text-slate-600 {
+  color: #475569 !important;
+}
+
+/* Fix stat labels and secondary text */
+:root[data-theme="light"] .stat-label,
+:root[data-theme="light"] .secondary-text,
+:root[data-theme="light"] .description,
+:root[data-theme="light"] .subtitle,
+:root[data-theme="light"] .card-description,
+:root[data-theme="light"] .page-subtitle {
+  color: #64748b !important;
+  opacity: 1 !important;
+}
+
+/* Improve opacity-based text visibility in light mode */
+:root[data-theme="light"] [style*="opacity: 0.3"],
+[data-theme="light"] [style*="opacity: 0.3"] {
+  opacity: 0.5 !important;
+}
+
+:root[data-theme="light"] [style*="opacity: 0.4"],
+[data-theme="light"] [style*="opacity: 0.4"] {
+  opacity: 0.6 !important;
+}
+
+:root[data-theme="light"] [style*="opacity: 0.5"],
+[data-theme="light"] [style*="opacity: 0.5"] {
+  opacity: 0.7 !important;
+}
+
+:root[data-theme="light"] [style*="opacity: 0.6"],
+[data-theme="light"] [style*="opacity: 0.6"] {
+  opacity: 0.8 !important;
+}
+
+/* Fix CSS class-based opacity */
+:root[data-theme="light"] .opacity-30 {
+  opacity: 0.5 !important;
+}
+
+:root[data-theme="light"] .opacity-40 {
+  opacity: 0.6 !important;
+}
+
+:root[data-theme="light"] .opacity-50 {
+  opacity: 0.7 !important;
+}
+
+:root[data-theme="light"] .opacity-60 {
+  opacity: 0.8 !important;
+}
+
+/* Improve visibility for icons and small text elements */
+:root[data-theme="light"] .text-xs.text-gray-500,
+:root[data-theme="light"] .text-xs.text-gray-600 {
+  color: #64748b !important;
+  font-weight: 500;
+}
+
+:root[data-theme="light"] .text-sm.text-gray-500,
+:root[data-theme="light"] .text-sm.text-gray-600 {
+  color: #64748b !important;
+  font-weight: 500;
+}
+
+/* Keep hover states appropriately dark */
+:root[data-theme="light"] .hover\:text-gray-900:hover {
+  color: #0f172a !important;
+}
+
+:root[data-theme="light"] .hover\:text-gray-800:hover {
+  color: #1e293b !important;
+}
+
+/* Make disabled text more visible but still distinguishable */
+:root[data-theme="light"] .text-gray-400[disabled],
+:root[data-theme="light"] [disabled] .text-gray-400 {
+  color: #94a3b8 !important;
+}
+
+/* Fix labels across the app */
+:root[data-theme="light"] label,
+:root[data-theme="light"] .label,
+:root[data-theme="light"] .metric-label,
+:root[data-theme="light"] .detail-label,
+:root[data-theme="light"] .event-label,
+:root[data-theme="light"] .score-label {
+  color: #64748b !important;
+  font-weight: 500;
+}
+
+/* Fix text that uses var(--text-secondary) */
+:root[data-theme="light"] [style*="color: var(--text-secondary)"],
+:root[data-theme="light"] [style*="color:var(--text-secondary)"] {
+  color: #64748b !important;
+}
+
+/* Fix text that uses var(--text-muted) */
+:root[data-theme="light"] [style*="color: var(--text-muted)"],
+:root[data-theme="light"] [style*="color:var(--text-muted)"],
+:root[data-theme="light"] .text-muted {
+  color: #64748b !important;
+}
+
+/* Additional specific element fixes */
+:root[data-theme="light"] p[class*="text-gray"],
+:root[data-theme="light"] span[class*="text-gray"],
+:root[data-theme="light"] div[class*="text-gray"] {
+  filter: none;
+}
+
+/* Make sure secondary buttons and text are visible */
+:root[data-theme="light"] .secondary,
+:root[data-theme="light"] .btn-secondary,
+:root[data-theme="light"] button.secondary {
+  color: #475569 !important;
+}
+
+/* Fix placeholder text */
+:root[data-theme="light"] ::placeholder {
+  color: #94a3b8 !important;
+  opacity: 1;
+}
+
+:root[data-theme="light"] input::placeholder,
+:root[data-theme="light"] textarea::placeholder {
+  color: #94a3b8 !important;
+}

@@ -618,7 +618,7 @@ class EnhancedHackerProtection extends EventEmitter {
   }
 
   /**
-   * Zero-day exploit detection
+   * Zero-day exploit detection with advanced heuristics
    */
   detectZeroDay(req) {
     const testData = [
@@ -629,17 +629,20 @@ class EnhancedHackerProtection extends EventEmitter {
     ].join(' ');
 
     const indicators = [];
+    let threatScore = 0;
 
     // Test for zero-day patterns
     for (const pattern of this.attackPatterns.zeroDay) {
       if (pattern.test(testData)) {
         indicators.push(pattern.toString());
+        threatScore += 20;
       }
     }
 
     // Check for unusual encoding
     if (testData.includes('%u') || testData.includes('\\u')) {
       indicators.push('Unicode encoding detected');
+      threatScore += 15;
     }
 
     // Check for unusual headers
@@ -647,30 +650,488 @@ class EnhancedHackerProtection extends EventEmitter {
     for (const header of suspiciousHeaders) {
       if (req.headers?.[header] && req.headers[header].split(',').length > 5) {
         indicators.push(`Suspicious ${header} header`);
+        threatScore += 10;
       }
     }
 
-    // Check for polyglot payloads
-    const polyglotIndicators = ['<script>', 'javascript:', 'onerror=', 'SELECT', 'UNION'];
-    const foundIndicators = polyglotIndicators.filter(ind => 
-      testData.toUpperCase().includes(ind.toUpperCase())
-    );
-    if (foundIndicators.length >= 3) {
-      indicators.push('Polyglot payload detected');
+    // Check for polyglot payloads (polymorphic attack detection)
+    const polyglotResult = this.detectPolymorphicAttack(testData);
+    if (polyglotResult.detected) {
+      indicators.push(...polyglotResult.indicators);
+      threatScore += polyglotResult.score;
+    }
+    
+    // Heuristic analysis for unknown attack patterns
+    const heuristicResult = this.performHeuristicAnalysis(req, testData);
+    if (heuristicResult.suspicious) {
+      indicators.push(...heuristicResult.findings);
+      threatScore += heuristicResult.score;
+    }
+    
+    // Fuzzy matching for pattern variants
+    const fuzzyResult = this.fuzzyPatternMatch(testData);
+    if (fuzzyResult.matched) {
+      indicators.push(...fuzzyResult.patterns);
+      threatScore += fuzzyResult.score;
+    }
+    
+    // Sandbox execution simulation (for potentially malicious payloads)
+    const sandboxResult = this.sandboxAnalysis(req, testData);
+    if (sandboxResult.dangerous) {
+      indicators.push(...sandboxResult.threats);
+      threatScore += sandboxResult.score;
+    }
+
+    // Determine severity based on threat score
+    let severity = 'Low';
+    let action = 'monitor';
+    
+    if (threatScore >= 80) {
+      severity = 'Critical';
+      action = 'block_and_quarantine';
+    } else if (threatScore >= 50) {
+      severity = 'High';
+      action = 'block';
+    } else if (threatScore >= 30) {
+      severity = 'Medium';
+      action = 'alert';
     }
 
     if (indicators.length > 0) {
       return {
         detected: true,
         type: 'zero-day',
-        severity: 'Critical',
+        severity,
+        threatScore,
         description: 'Potential zero-day exploit detected',
         indicators,
-        action: 'block'
+        action,
+        recommendedAction: this.getRecommendedAction(threatScore)
       };
     }
 
     return { detected: false };
+  }
+  
+  /**
+   * Detect polymorphic attacks using polyglot payload analysis
+   */
+  detectPolymorphicAttack(data) {
+    const indicators = [];
+    let score = 0;
+    
+    // Check for polyglot payloads (multiple attack types in one payload)
+    const attackTypeIndicators = {
+      xss: ['<script>', 'javascript:', 'onerror=', 'onload=', 'onclick='],
+      sqli: ['SELECT', 'UNION', 'INSERT', 'DELETE', 'DROP', "'", '--'],
+      cmdi: ['&&', '||', ';', '`', '$(',  'eval('],
+      lfi: ['../', '..../', '..\\', '/etc/', 'C:\\'],
+      xxe: ['<!ENTITY', '<!DOCTYPE', 'SYSTEM', 'file://']
+    };
+    
+    const foundTypes = [];
+    const upperData = data.toUpperCase();
+    
+    for (const [type, patterns] of Object.entries(attackTypeIndicators)) {
+      const matchCount = patterns.filter(p => {
+        const upperPattern = p.toUpperCase();
+        return upperData.includes(upperPattern) || data.includes(p);
+      }).length;
+      
+      if (matchCount >= 2) {
+        foundTypes.push(type);
+      }
+    }
+    
+    // Polyglot detected if multiple attack types present
+    if (foundTypes.length >= 2) {
+      indicators.push(`Polyglot payload (${foundTypes.join(', ')})`);
+      score = foundTypes.length * 15;
+      return { detected: true, indicators, score };
+    }
+    
+    // Check for obfuscation techniques (polymorphic encoding)
+    const obfuscationPatterns = [
+      /\\x[0-9a-f]{2}/gi,       // Hex encoding
+      /%[0-9a-f]{2}/gi,          // URL encoding
+      /&#(x)?[0-9a-f]+;/gi,      // HTML entity encoding
+      /\\u[0-9a-f]{4}/gi,        // Unicode encoding
+      /String\.fromCharCode/i,  // JavaScript char encoding
+      /eval\s*\(/i,             // Dynamic code execution
+      /atob\s*\(/i              // Base64 decode
+    ];
+    
+    let obfuscationCount = 0;
+    for (const pattern of obfuscationPatterns) {
+      if (pattern.test(data)) {
+        obfuscationCount++;
+      }
+    }
+    
+    if (obfuscationCount >= 3) {
+      indicators.push('Multiple obfuscation techniques detected');
+      score += 25;
+      return { detected: true, indicators, score };
+    }
+    
+    return { detected: false, indicators: [], score: 0 };
+  }
+  
+  /**
+   * Heuristic analysis for unknown attacks
+   */
+  performHeuristicAnalysis(req, data) {
+    const findings = [];
+    let score = 0;
+    
+    // 1. Entropy analysis (high entropy may indicate encryption/obfuscation)
+    const entropy = this.calculateEntropy(data);
+    if (entropy > 4.5) {
+      findings.push(`High entropy detected: ${entropy.toFixed(2)}`);
+      score += 15;
+    }
+    
+    // 2. Unusual request size
+    const dataSize = data.length;
+    if (dataSize > 50000) {
+      findings.push(`Unusually large payload: ${dataSize} bytes`);
+      score += 10;
+    }
+    
+    // 3. Suspicious character sequences
+    const suspiciousSequences = [
+      { pattern: /[A-Z]{50,}/, name: 'Long uppercase sequence' },
+      { pattern: /\d{100,}/, name: 'Long numeric sequence' },
+      { pattern: /[\x00-\x1F]{10,}/, name: 'Control characters sequence' },
+      { pattern: /[!@#$%^&*()]{20,}/, name: 'Excessive special characters' }
+    ];
+    
+    for (const seq of suspiciousSequences) {
+      if (seq.pattern.test(data)) {
+        findings.push(seq.name);
+        score += 12;
+      }
+    }
+    
+    // 4. Protocol anomalies
+    if (req.method && req.method !== 'GET' && req.method !== 'POST' && 
+        req.method !== 'PUT' && req.method !== 'DELETE') {
+      findings.push(`Unusual HTTP method: ${req.method}`);
+      score += 15;
+    }
+    
+    // 5. Malformed or missing standard headers
+    const standardHeaders = ['host', 'user-agent'];
+    const missingHeaders = standardHeaders.filter(h => !req.headers?.[h]);
+    if (missingHeaders.length > 0) {
+      findings.push(`Missing standard headers: ${missingHeaders.join(', ')}`);
+      score += 10;
+    }
+    
+    // 6. Nested encoding detection
+    const encodingLayers = this.detectNestedEncoding(data);
+    if (encodingLayers > 2) {
+      findings.push(`Multiple encoding layers detected: ${encodingLayers}`);
+      score += 20;
+    }
+    
+    return {
+      suspicious: findings.length > 0,
+      findings,
+      score
+    };
+  }
+  
+  /**
+   * Fuzzy matching for attack pattern variants
+   */
+  fuzzyPatternMatch(data) {
+    const patterns = [];
+    let score = 0;
+    const lowerData = data.toLowerCase();
+    
+    // SQL Injection variants (with common evasion techniques)
+    const sqlVariants = [
+      { pattern: /un\s*ion\s+se\s*lect/i, name: 'SQL UNION variant' },
+      { pattern: /se\s*lect\s+.*\s*fr\s*om/i, name: 'SQL SELECT variant' },
+      { pattern: /or\s+['"]?1['"]?\s*=\s*['"]?1/i, name: 'SQL OR 1=1 variant' },
+      { pattern: /and\s+['"]?1['"]?\s*=\s*['"]?1/i, name: 'SQL AND 1=1 variant' },
+      { pattern: /dr\s*op\s+ta\s*ble/i, name: 'SQL DROP variant' }
+    ];
+    
+    // XSS variants
+    const xssVariants = [
+      { pattern: /<\s*script[^>]*>/i, name: 'XSS script tag variant' },
+      { pattern: /on\s*\w+\s*=\s*['"]?[^'"]+/i, name: 'XSS event handler variant' },
+      { pattern: /java\s*script\s*:/i, name: 'XSS javascript protocol variant' },
+      { pattern: /<\s*iframe[^>]*>/i, name: 'XSS iframe variant' }
+    ];
+    
+    // Command Injection variants
+    const cmdVariants = [
+      { pattern: /[;&|]\s*(cat|ls|dir|type|echo|whoami|id)/i, name: 'Command injection variant' },
+      { pattern: /`[^`]*`/, name: 'Backtick command execution' },
+      { pattern: /\$\([^)]*\)/, name: 'Shell command substitution' }
+    ];
+    
+    const allVariants = [...sqlVariants, ...xssVariants, ...cmdVariants];
+    
+    for (const variant of allVariants) {
+      if (variant.pattern.test(data)) {
+        patterns.push(variant.name);
+        score += 18;
+      }
+    }
+    
+    // Levenshtein distance check for known exploit strings
+    const knownExploits = [
+      'union select',
+      '<script>alert',
+      'javascript:void',
+      'eval(unescape',
+      'exec("cmd.exe'
+    ];
+    
+    for (const exploit of knownExploits) {
+      const distance = this.levenshteinDistance(lowerData, exploit);
+      if (distance < 3 && distance > 0) {
+        patterns.push(`Fuzzy match: ${exploit} (distance: ${distance})`);
+        score += 15;
+      }
+    }
+    
+    return {
+      matched: patterns.length > 0,
+      patterns,
+      score
+    };
+  }
+  
+  /**
+   * Sandbox analysis simulation (evaluates payload danger without execution)
+   */
+  sandboxAnalysis(req, data) {
+    const threats = [];
+    let score = 0;
+    
+    // Check for dangerous function calls
+    const dangerousFunctions = [
+      { name: 'eval', severity: 'critical', score: 30 },
+      { name: 'exec', severity: 'critical', score: 30 },
+      { name: 'system', severity: 'critical', score: 30 },
+      { name: 'passthru', severity: 'critical', score: 25 },
+      { name: 'shell_exec', severity: 'critical', score: 25 },
+      { name: 'popen', severity: 'high', score: 20 },
+      { name: 'proc_open', severity: 'high', score: 20 },
+      { name: 'pcntl_exec', severity: 'high', score: 20 }
+    ];
+    
+    for (const func of dangerousFunctions) {
+      const pattern = new RegExp(`${func.name}\\s*\\(`, 'i');
+      if (pattern.test(data)) {
+        threats.push(`Dangerous function: ${func.name}`);
+        score += func.score;
+      }
+    }
+    
+    // Check for file system operations
+    const fileOps = [
+      'file_get_contents',
+      'file_put_contents',
+      'fopen',
+      'readfile',
+      'include',
+      'require',
+      'unlink',
+      'rmdir'
+    ];
+    
+    for (const op of fileOps) {
+      const pattern = new RegExp(`${op}\\s*\\(`, 'i');
+      if (pattern.test(data)) {
+        threats.push(`File system operation: ${op}`);
+        score += 15;
+      }
+    }
+    
+    // Check for network operations
+    const networkOps = [
+      'fsockopen',
+      'socket_connect',
+      'curl_exec',
+      'file_get_contents.*http',
+      'XMLHttpRequest',
+      'fetch(',
+      'axios.'
+    ];
+    
+    for (const op of networkOps) {
+      const pattern = new RegExp(op, 'i');
+      if (pattern.test(data)) {
+        threats.push(`Network operation: ${op}`);
+        score += 12;
+      }
+    }
+    
+    // Check for cryptographic operations (potential ransomware)
+    const cryptoOps = ['encrypt', 'AES', 'RSA', 'crypto.subtle', 'CryptoJS'];
+    let cryptoCount = 0;
+    for (const op of cryptoOps) {
+      if (data.includes(op)) {
+        cryptoCount++;
+      }
+    }
+    
+    if (cryptoCount >= 2) {
+      threats.push('Multiple cryptographic operations detected');
+      score += 20;
+    }
+    
+    // Check for persistence mechanisms
+    const persistenceIndicators = [
+      'crontab',
+      'schtasks',
+      'startup',
+      'autorun',
+      'HKEY_',
+      'CurrentVersion\\Run'
+    ];
+    
+    for (const indicator of persistenceIndicators) {
+      if (data.includes(indicator)) {
+        threats.push(`Persistence mechanism: ${indicator}`);
+        score += 25;
+      }
+    }
+    
+    return {
+      dangerous: threats.length > 0,
+      threats,
+      score
+    };
+  }
+  
+  /**
+   * Calculate Shannon entropy for data
+   */
+  calculateEntropy(data) {
+    if (!data || data.length === 0) return 0;
+    
+    const freq = {};
+    for (let char of data) {
+      freq[char] = (freq[char] || 0) + 1;
+    }
+    
+    let entropy = 0;
+    const len = data.length;
+    
+    for (let char in freq) {
+      const p = freq[char] / len;
+      entropy -= p * Math.log2(p);
+    }
+    
+    return entropy;
+  }
+  
+  /**
+   * Detect nested encoding layers
+   */
+  detectNestedEncoding(data) {
+    let layers = 0;
+    let current = data;
+    
+    const encodingPatterns = [
+      { pattern: /%[0-9a-f]{2}/gi, name: 'URL' },
+      { pattern: /\\x[0-9a-f]{2}/gi, name: 'Hex' },
+      { pattern: /&#(x)?[0-9a-f]+;/gi, name: 'HTML' },
+      { pattern: /\\u[0-9a-f]{4}/gi, name: 'Unicode' }
+    ];
+    
+    for (let i = 0; i < 5; i++) {
+      let found = false;
+      for (const enc of encodingPatterns) {
+        if (enc.pattern.test(current)) {
+          layers++;
+          found = true;
+          // Simulate decoding (simplified)
+          current = current.replace(enc.pattern, 'X');
+          break;
+        }
+      }
+      if (!found) break;
+    }
+    
+    return layers;
+  }
+  
+  /**
+   * Calculate Levenshtein distance for fuzzy matching
+   */
+  levenshteinDistance(str1, str2) {
+    // Limit search to substrings for performance
+    const searchLength = Math.min(str1.length, 1000);
+    const searchStr = str1.substring(0, searchLength);
+    
+    // Find minimum distance in sliding window
+    let minDistance = Infinity;
+    
+    for (let i = 0; i <= searchStr.length - str2.length; i++) {
+      const substr = searchStr.substring(i, i + str2.length);
+      const distance = this.calcDistance(substr, str2);
+      minDistance = Math.min(minDistance, distance);
+      
+      if (minDistance === 0) break;
+    }
+    
+    return minDistance;
+  }
+  
+  /**
+   * Helper: Calculate edit distance
+   */
+  calcDistance(s, t) {
+    const m = s.length;
+    const n = t.length;
+    const d = [];
+    
+    if (m === 0) return n;
+    if (n === 0) return m;
+    
+    for (let i = 0; i <= m; i++) {
+      d[i] = [i];
+    }
+    
+    for (let j = 0; j <= n; j++) {
+      d[0][j] = j;
+    }
+    
+    for (let j = 1; j <= n; j++) {
+      for (let i = 1; i <= m; i++) {
+        const cost = s[i - 1] === t[j - 1] ? 0 : 1;
+        d[i][j] = Math.min(
+          d[i - 1][j] + 1,
+          d[i][j - 1] + 1,
+          d[i - 1][j - 1] + cost
+        );
+      }
+    }
+    
+    return d[m][n];
+  }
+  
+  /**
+   * Get recommended action based on threat score
+   */
+  getRecommendedAction(score) {
+    if (score >= 80) {
+      return 'Block immediately and quarantine payload for analysis';
+    } else if (score >= 50) {
+      return 'Block request and alert security team';
+    } else if (score >= 30) {
+      return 'Log for investigation and monitor source IP';
+    } else {
+      return 'Continue monitoring';
+    }
   }
 
   /**
@@ -1002,6 +1463,47 @@ class EnhancedHackerProtection extends EventEmitter {
 
       next();
     };
+  }
+  
+  /**
+   * Get all attack statistics
+   */
+  getAttackStats() {
+    return {
+      totalAttacks: this.state.attackLog.length,
+      blockedIPs: this.state.blockedIPs.size,
+      suspiciousIPs: this.state.suspiciousIPs.size,
+      recentAttacks: this.state.attackLog.slice(-50),
+      attacksByType: this.getAttacksByType(),
+      topAttackers: this.getTopAttackers(10)
+    };
+  }
+  
+  /**
+   * Get attacks grouped by type
+   */
+  getAttacksByType() {
+    const typeCount = {};
+    for (const attack of this.state.attackLog) {
+      typeCount[attack.type] = (typeCount[attack.type] || 0) + 1;
+    }
+    return typeCount;
+  }
+  
+  /**
+   * Get top attackers
+   */
+  getTopAttackers(limit = 10) {
+    const attackerCount = {};
+    for (const attack of this.state.attackLog) {
+      const ip = attack.ip || 'unknown';
+      attackerCount[ip] = (attackerCount[ip] || 0) + 1;
+    }
+    
+    return Object.entries(attackerCount)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, limit)
+      .map(([ip, count]) => ({ ip, count }));
   }
 }
 

@@ -22,7 +22,7 @@ const safeJSONParse = async (response) => {
         return JSON.parse(fixedText);
       } catch (secondError) {
         // Only log in development
-        if (process.env.NODE_ENV === 'development') {
+        if (import.meta.env.DEV) {
           console.warn('⚠️ Backend JSON parse failed');
         }
         // Return null instead of throwing - let the caller handle it
@@ -745,7 +745,7 @@ class AntivirusAPI {
   static async getProtectionStatus() {
     try {
       // Use the main status endpoint which includes real_time_protection
-      const response = await fetch(`${API_BASE_URL}/api/status`);
+      const response = await fetch(`${API_BASE_URL}/status`);
       
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);

@@ -31,39 +31,42 @@ import {
   Copy,
   Smartphone
 } from 'lucide-react';
-import { useTheme } from '../context/ThemeContext';
+import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
 import AntivirusAPI from '../services/antivirusApi';
 import notificationService from '../services/notificationService';
+import signatureUpdater from '../services/signatureUpdater';
 import PremiumFeature from './PremiumFeature';
 import toast from 'react-hot-toast';
 import './Settings.css';
 
 const Settings = ({ onShowSplash }) => {
+  const themeContext = useTheme();
   const { 
-    theme, 
-    toggleTheme, 
-    isDark, 
-    setPresetTheme,
-    themePresets,
-    currentThemeConfig,
-    fontSize,
-    setFontSize,
-    spacing,
-    setSpacing,
-    borderRadius,
-    setBorderRadius,
-    animationSpeed,
-    setAnimationSpeed,
-    autoTheme,
-    setAutoTheme,
-    autoThemeSchedule,
-    setAutoThemeSchedule,
-    systemThemeSync,
-    setSystemThemeSync,
-    exportThemeSettings,
-    importThemeSettings
-  } = useTheme();
+    theme = 'dark', 
+    toggleTheme = () => {}, 
+    isDark = false, 
+    setPresetTheme = () => {},
+    themePresets = {},
+    currentPreset = 'default',
+    currentThemeConfig = {},
+    fontSize = 16,
+    setFontSize = () => {},
+    spacing = 1,
+    setSpacing = () => {},
+    borderRadius = 8,
+    setBorderRadius = () => {},
+    animationSpeed = 0.3,
+    setAnimationSpeed = () => {},
+    autoTheme = false,
+    setAutoTheme = () => {},
+    autoThemeSchedule = {},
+    setAutoThemeSchedule = () => {},
+    systemThemeSync = false,
+    setSystemThemeSync = () => {},
+    exportThemeSettings = () => {},
+    importThemeSettings = () => {}
+  } = themeContext || {};
   const { isPremium, loadSettings: loadUserSettings, saveSettings: saveUserSettings } = useAuth();
   const [activeTab, setActiveTab] = useState('protection');
   const [settings, setSettings] = useState({
@@ -104,6 +107,11 @@ const Settings = ({ onShowSplash }) => {
     updateFrequency: 'daily',
     downloadInBackground: true,
     
+    // Signature Update Settings
+    enableAutoSignatureUpdate: true,
+    enableSilentSignatureUpdate: true,
+    signatureUpdateInterval: 3600000, // 1 hour in milliseconds
+    
     // Advanced Settings
     logLevel: 'info',
     enableTelemetry: true,
@@ -141,6 +149,16 @@ const Settings = ({ onShowSplash }) => {
   const [performanceStats, setPerformanceStats] = useState(null);
   const [showQuickActions, setShowQuickActions] = useState(true);
   
+  // Signature Update State
+  const [signatureStatus, setSignatureStatus] = useState(null);
+  const [signatureUpdateHistory, setSignatureUpdateHistory] = useState([]);
+  const [isSignatureUpdating, setIsSignatureUpdating] = useState(false);
+  const [lastSignatureUpdateResult, setLastSignatureUpdateResult] = useState(null);
+  
+  // Theme preset filtering
+  const [selectedCategory, setSelectedCategory] = useState('all');
+  const [themeSearchQuery, setThemeSearchQuery] = useState('');
+  
   // 2FA Modal State
   const [show2FAModal, setShow2FAModal] = useState(false);
   const [twoFactorQRCode, setTwoFactorQRCode] = useState('');
@@ -156,20 +174,76 @@ const Settings = ({ onShowSplash }) => {
   useEffect(() => {
     loadSettings();
     loadStorageInfo();
+    loadSignatureStatus();
+    
+    // Listen for signature update events
+    signatureUpdater.on('updateStart', () => {
+      setIsSignatureUpdating(true);
+      setLastSignatureUpdateResult(null);
+    });
+
+    signatureUpdater.on('updateComplete', (result) => {
+      setIsSignatureUpdating(false);
+      setLastSignatureUpdateResult({ success: true, ...result });
+      loadSignatureStatus();
+    });
+
+    signatureUpdater.on('updateFailed', (error) => {
+      setIsSignatureUpdating(false);
+      setLastSignatureUpdateResult({ success: false, ...error });
+      loadSignatureStatus();
+    });
+
+    signatureUpdater.on('signaturesUpdated', (info) => {
+      console.log('Signatures updated:', info);
+      loadSignatureStatus();
+    });
+    
     const interval = setInterval(() => {
       loadStorageInfo();
+      loadSignatureStatus();
       // Also refresh real-time protection status
       syncRealTimeProtectionStatus();
     }, 30000); // Refresh every 30s
-    return () => clearInterval(interval);
+    
+    return () => {
+      clearInterval(interval);
+      signatureUpdater.removeAllListeners();
+    };
   }, []);
+
+  // Auto-save settings to localStorage whenever they change (persist even on refresh/disconnect)
+  useEffect(() => {
+    if (!loading && settings) {
+      try {
+        localStorage.setItem('nebula_shield_settings', JSON.stringify(settings));
+        console.log('Settings auto-saved to localStorage');
+      } catch (error) {
+        console.error('Failed to auto-save settings to localStorage:', error);
+      }
+    }
+  }, [settings, loading]);
 
   const loadSettings = async () => {
     try {
-      // Load user-specific settings from auth server
+      // FIRST: Load from localStorage immediately for instant availability (survives refresh/disconnect)
+      let localSettings = null;
+      try {
+        const stored = localStorage.getItem('nebula_shield_settings');
+        if (stored) {
+          localSettings = JSON.parse(stored);
+          console.log('Loaded settings from localStorage');
+          // Set immediately for instant UI update
+          setSettings(prev => ({ ...prev, ...localSettings }));
+        }
+      } catch (localError) {
+        console.warn('Failed to load from localStorage:', localError);
+      }
+      
+      // SECOND: Load user-specific settings from auth server
       const userSettings = await loadUserSettings();
       
-      // Load system config and status with fallbacks
+      // THIRD: Load system config and status with fallbacks
       let config = {};
       let status = { real_time_protection: false };
       
@@ -185,20 +259,22 @@ const Settings = ({ onShowSplash }) => {
         status = await AntivirusAPI.getSystemStatus();
       }
       
-      // Merge user settings with system settings
+      // Merge all sources: defaults -> localStorage -> backend config -> user settings
+      // Priority: user settings > backend config > localStorage > defaults
       setSettings(prevSettings => ({
         ...prevSettings,
-        ...config,
-        ...(userSettings || {}), // Override with user's saved settings
+        ...(localSettings || {}), // Apply localStorage settings
+        ...config, // Override with backend config
+        ...(userSettings || {}), // Override with user's saved settings (highest priority)
         // Always sync real-time protection from actual system status
         realTimeProtection: status.real_time_protection || false
       }));
       
-      console.log('Settings loaded successfully');
+      console.log('Settings loaded successfully from all sources');
     } catch (error) {
       console.error('Settings load error:', error);
-      // Don't show error toast - settings will use defaults
-      toast.info('Using default settings (backend unavailable)', { duration: 3000 });
+      // Don't show error toast - settings will use localStorage or defaults
+      toast('Using saved settings (backend unavailable)', { icon: 'ℹ️', duration: 3000 });
     } finally {
       setLoading(false);
     }
@@ -223,6 +299,65 @@ const Settings = ({ onShowSplash }) => {
     } catch (error) {
       console.error('Storage info error:', error);
     }
+  };
+
+  const loadSignatureStatus = () => {
+    try {
+      const currentStatus = signatureUpdater.getStatus();
+      setSignatureStatus(currentStatus);
+      setSignatureUpdateHistory(signatureUpdater.getUpdateHistory());
+    } catch (error) {
+      console.error('Failed to load signature status:', error);
+    }
+  };
+
+  const handleForceSignatureUpdate = async () => {
+    setIsSignatureUpdating(true);
+    setLastSignatureUpdateResult(null);
+    toast.loading('Checking for signature updates...', { duration: 2000 });
+    
+    const result = await signatureUpdater.forceUpdate();
+    
+    setIsSignatureUpdating(false);
+    setLastSignatureUpdateResult(result);
+    loadSignatureStatus();
+    
+    if (result.success) {
+      if (result.upToDate) {
+        toast.success('Signatures are up to date!', { duration: 3000 });
+      } else {
+        toast.success(`Updated! +${result.added} new signatures`, { duration: 3000 });
+      }
+    } else {
+      toast.error(`Update failed: ${result.reason || result.error}`, { duration: 4000 });
+    }
+  };
+
+  const handleSignatureConfigChange = (key, value) => {
+    const newSettings = { ...settings, [key]: value };
+    setSettings(newSettings);
+    setHasChanges(true);
+    
+    // Update signature updater config
+    signatureUpdater.configure({
+      enableAutoUpdate: newSettings.enableAutoSignatureUpdate,
+      enableSilentUpdate: newSettings.enableSilentSignatureUpdate,
+      updateInterval: newSettings.signatureUpdateInterval
+    });
+  };
+
+  const formatSignatureInterval = (ms) => {
+    const hours = ms / (1000 * 60 * 60);
+    if (hours < 1) {
+      return `${Math.round(ms / (1000 * 60))} minutes`;
+    }
+    return `${Math.round(hours)} ${hours === 1 ? 'hour' : 'hours'}`;
+  };
+
+  const formatSignatureDate = (dateString) => {
+    if (!dateString) return 'Never';
+    const date = new Date(dateString);
+    return date.toLocaleString();
   };
 
   const formatBytes = (bytes) => {
@@ -437,31 +572,48 @@ const Settings = ({ onShowSplash }) => {
     try {
       setSaving(true);
       
-      // Save to backend configuration
+      // ALWAYS save to localStorage FIRST (ensures settings persist even if backend fails)
       try {
-        await AntivirusAPI.updateConfiguration(settings);
-      } catch (configError) {
-        console.error('Backend config update failed:', configError);
-        // Fallback: Save to localStorage
-        try {
-          localStorage.setItem('nebula_shield_settings', JSON.stringify(settings));
-          toast.success('Settings saved locally (backend unavailable)', { duration: 4000 });
-          setHasChanges(false);
-          return;
-        } catch (localError) {
-          toast.error('Failed to save settings: ' + (configError.message || 'Backend unavailable'));
-          return;
-        }
+        localStorage.setItem('nebula_shield_settings', JSON.stringify(settings));
+        console.log('Settings saved to localStorage (survives refresh/disconnect)');
+      } catch (localError) {
+        console.error('Failed to save to localStorage:', localError);
+        toast.error('Failed to save settings locally: ' + localError.message);
+        return;
       }
       
-      // Save user-specific settings to auth server (persists across sessions)
-      const saveResult = await saveUserSettings(settings);
-      if (!saveResult.success) {
-        console.warn('Failed to persist settings to user account:', saveResult.message || saveResult.error);
-        // Show warning but still count as success since backend config was updated
-        toast.success('Settings saved (local only - sign in to persist across devices)', { duration: 4000 });
+      // Save to backend configuration (async, can fail without affecting local save)
+      let backendSaved = false;
+      try {
+        await AntivirusAPI.updateConfiguration(settings);
+        backendSaved = true;
+        console.log('Settings synced to backend');
+      } catch (configError) {
+        console.error('Backend config update failed:', configError);
+        // Don't return - localStorage already saved, backend is optional
+      }
+      
+      // Save user-specific settings to auth server (persists across sessions & devices)
+      let userSaved = false;
+      try {
+        const saveResult = await saveUserSettings(settings);
+        if (saveResult.success) {
+          userSaved = true;
+          console.log('Settings saved to user account');
+        } else {
+          console.warn('Failed to persist settings to user account:', saveResult.message || saveResult.error);
+        }
+      } catch (authError) {
+        console.warn('User settings save failed:', authError);
+      }
+      
+      // Show appropriate success message based on what succeeded
+      if (backendSaved && userSaved) {
+        toast.success('✅ Settings saved (local + cloud + backend)', { duration: 3000 });
+      } else if (backendSaved || userSaved) {
+        toast.success('✅ Settings saved locally and partially synced', { duration: 3000 });
       } else {
-        toast.success('Settings saved successfully');
+        toast.success('✅ Settings saved locally (will sync when online)', { duration: 3000 });
       }
       
       setHasChanges(false);
@@ -896,7 +1048,7 @@ const Settings = ({ onShowSplash }) => {
       
       <div className="setting-groups">
         <div className="setting-group">
-          <h4>Automatic Updates</h4>
+          <h4>Application Updates</h4>
           <div className="setting-item">
             <div className="setting-info">
               <label>Auto Update</label>
@@ -949,6 +1101,224 @@ const Settings = ({ onShowSplash }) => {
               </label>
             </div>
           </div>
+        </div>
+
+        {/* Signature Updates Section */}
+        <div className="setting-group" style={{ marginTop: '2rem', paddingTop: '2rem', borderTop: '1px solid var(--border-color)' }}>
+          <h4>🔄 Signature Updates</h4>
+          
+          {/* Signature Status */}
+          {signatureStatus && (
+            <div className="signature-status-card" style={{ 
+              background: 'var(--bg-secondary)', 
+              padding: '1rem', 
+              borderRadius: '8px', 
+              marginBottom: '1rem',
+              border: '1px solid var(--border-color)'
+            }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
+                <div>
+                  <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '0.25rem' }}>
+                    Total Signatures
+                  </div>
+                  <div style={{ fontSize: '1.25rem', fontWeight: '600', color: 'var(--text-primary)' }}>
+                    {signatureStatus.state?.signatureCount?.toLocaleString() || '500,000+'}
+                  </div>
+                </div>
+                <div>
+                  <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '0.25rem' }}>
+                    Database Version
+                  </div>
+                  <div style={{ fontSize: '1.25rem', fontWeight: '600', color: 'var(--text-primary)' }}>
+                    {signatureStatus.state?.lastUpdateVersion || signatureStatus.state?.currentVersion || 'Latest'}
+                  </div>
+                </div>
+                <div>
+                  <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '0.25rem' }}>
+                    Last Update
+                  </div>
+                  <div style={{ fontSize: '1.25rem', fontWeight: '600', color: 'var(--text-primary)' }}>
+                    {signatureStatus.state?.lastUpdateTime ? new Date(signatureStatus.state.lastUpdateTime).toLocaleDateString() : 'Never'}
+                  </div>
+                </div>
+                <div>
+                  <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '0.25rem' }}>
+                    Status
+                  </div>
+                  <div style={{ fontSize: '1.25rem', fontWeight: '600' }}>
+                    {isSignatureUpdating ? (
+                      <span style={{ color: '#3b82f6' }}>🔄 Updating...</span>
+                    ) : signatureStatus.isOnline ? (
+                      <span style={{ color: '#10b981' }}>🟢 Online</span>
+                    ) : (
+                      <span style={{ color: '#ef4444' }}>🔴 Offline</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className="setting-item">
+            <div className="setting-info">
+              <label>Enable Automatic Signature Updates</label>
+              <span>Automatically download virus definition updates</span>
+            </div>
+            <div className="setting-control">
+              <label className="switch">
+                <input
+                  type="checkbox"
+                  checked={settings.enableAutoSignatureUpdate}
+                  onChange={(e) => handleSignatureConfigChange('enableAutoSignatureUpdate', e.target.checked)}
+                />
+                <span className="slider"></span>
+              </label>
+            </div>
+          </div>
+
+          <div className="setting-item">
+            <div className="setting-info">
+              <label>Silent Updates</label>
+              <span>Update signatures silently in the background</span>
+            </div>
+            <div className="setting-control">
+              <label className="switch">
+                <input
+                  type="checkbox"
+                  checked={settings.enableSilentSignatureUpdate}
+                  onChange={(e) => handleSignatureConfigChange('enableSilentSignatureUpdate', e.target.checked)}
+                  disabled={!settings.enableAutoSignatureUpdate}
+                />
+                <span className="slider"></span>
+              </label>
+            </div>
+          </div>
+
+          <div className="setting-item">
+            <div className="setting-info">
+              <label>Signature Update Frequency</label>
+              <span>How often to check for signature updates</span>
+            </div>
+            <div className="setting-control">
+              <select
+                value={settings.signatureUpdateInterval}
+                onChange={(e) => handleSignatureConfigChange('signatureUpdateInterval', parseInt(e.target.value))}
+                className="select-input"
+                disabled={!settings.enableAutoSignatureUpdate}
+              >
+                <option value={1800000}>30 minutes</option>
+                <option value={3600000}>1 hour (Recommended)</option>
+                <option value={7200000}>2 hours</option>
+                <option value={14400000}>4 hours</option>
+                <option value={21600000}>6 hours</option>
+                <option value={43200000}>12 hours</option>
+                <option value={86400000}>24 hours</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Manual Update Button */}
+          <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid var(--border-color)' }}>
+            <button
+              onClick={handleForceSignatureUpdate}
+              disabled={isSignatureUpdating}
+              style={{
+                width: '100%',
+                padding: '0.75rem 1rem',
+                background: isSignatureUpdating ? 'var(--bg-tertiary)' : 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)',
+                color: 'white',
+                border: 'none',
+                borderRadius: '8px',
+                fontSize: '1rem',
+                fontWeight: '600',
+                cursor: isSignatureUpdating ? 'not-allowed' : 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '0.5rem',
+                opacity: isSignatureUpdating ? 0.6 : 1,
+                transition: 'all 0.2s'
+              }}
+            >
+              {isSignatureUpdating ? (
+                <>
+                  <RefreshCw size={18} style={{ animation: 'spin 1s linear infinite' }} />
+                  Checking for Updates...
+                </>
+              ) : (
+                <>
+                  <Download size={18} />
+                  Check for Signature Updates Now
+                </>
+              )}
+            </button>
+
+            {lastSignatureUpdateResult && (
+              <div style={{
+                marginTop: '1rem',
+                padding: '0.75rem',
+                borderRadius: '6px',
+                background: lastSignatureUpdateResult.success ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+                border: `1px solid ${lastSignatureUpdateResult.success ? 'rgba(16, 185, 129, 0.3)' : 'rgba(239, 68, 68, 0.3)'}`,
+                color: lastSignatureUpdateResult.success ? '#10b981' : '#ef4444'
+              }}>
+                {lastSignatureUpdateResult.success ? (
+                  lastSignatureUpdateResult.upToDate ? (
+                    <div>✅ You're already up to date! (Version {lastSignatureUpdateResult.version})</div>
+                  ) : (
+                    <div>
+                      <div style={{ fontWeight: '600', marginBottom: '0.5rem' }}>✅ Update successful!</div>
+                      <div style={{ fontSize: '0.9rem' }}>
+                        • Version: {lastSignatureUpdateResult.version}<br />
+                        • Added: {lastSignatureUpdateResult.added} signatures<br />
+                        • Modified: {lastSignatureUpdateResult.modified} signatures<br />
+                        • Total: {lastSignatureUpdateResult.total} signatures
+                      </div>
+                    </div>
+                  )
+                ) : (
+                  <div>❌ Update failed: {lastSignatureUpdateResult.reason || lastSignatureUpdateResult.error}</div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Update History */}
+          {signatureUpdateHistory.length > 0 && (
+            <div style={{ marginTop: '1.5rem' }}>
+              <h5 style={{ marginBottom: '0.75rem', color: 'var(--text-secondary)' }}>Recent Updates</h5>
+              <div style={{ 
+                maxHeight: '200px', 
+                overflowY: 'auto',
+                background: 'var(--bg-secondary)',
+                borderRadius: '6px',
+                border: '1px solid var(--border-color)'
+              }}>
+                {signatureUpdateHistory.slice(0, 5).map((update, index) => (
+                  <div key={index} style={{
+                    padding: '0.75rem',
+                    borderBottom: index < 4 ? '1px solid var(--border-color)' : 'none',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center'
+                  }}>
+                    <div>
+                      <div style={{ fontSize: '0.9rem', color: 'var(--text-primary)', fontWeight: '500' }}>
+                        v{update.version}
+                      </div>
+                      <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                        {new Date(update.timestamp).toLocaleString()}
+                      </div>
+                    </div>
+                    <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', textAlign: 'right' }}>
+                      +{update.signaturesAdded} added<br />
+                      {update.signaturesModified} modified
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -1594,47 +1964,171 @@ const Settings = ({ onShowSplash }) => {
       </div>
       
       <div className="setting-groups">
-        {/* Theme Presets */}
+        {/* Theme Toggle */}
         <div className="setting-group">
-          <h4>🎨 Theme Presets</h4>
-          <p className="setting-description">Choose from our curated color schemes</p>
+          <h4>🌓 Theme Mode</h4>
+          <p className="setting-description">Switch between light and dark themes</p>
+          
+          <div className="theme-toggle-container">
+            <button
+              className={`theme-mode-btn ${!isDark ? 'active' : ''}`}
+              onClick={() => !isDark ? null : toggleTheme()}
+            >
+              <Sun size={20} />
+              <span>Light</span>
+            </button>
+            <button
+              className={`theme-mode-btn ${isDark ? 'active' : ''}`}
+              onClick={() => isDark ? null : toggleTheme()}
+            >
+              <Moon size={20} />
+              <span>Dark</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Theme Presets - Only show if available */}
+        {themePresets && Object.keys(themePresets).length > 0 && (
+        <div className="setting-group">
+          <div className="theme-presets-header">
+            <div>
+              <h4>🎨 Theme Presets</h4>
+              <p className="setting-description">Choose from {Object.keys(themePresets).length} professionally designed themes</p>
+            </div>
+            
+            {/* Category filters */}
+            <div className="theme-categories">
+              <button 
+                className={`category-btn ${selectedCategory === 'all' ? 'active' : ''}`}
+                onClick={() => setSelectedCategory('all')}
+              >
+                All Themes
+              </button>
+              <button 
+                className={`category-btn ${selectedCategory === 'dark' ? 'active' : ''}`}
+                onClick={() => setSelectedCategory('dark')}
+              >
+                Dark
+              </button>
+              <button 
+                className={`category-btn ${selectedCategory === 'light' ? 'active' : ''}`}
+                onClick={() => setSelectedCategory('light')}
+              >
+                Light
+              </button>
+              <button 
+                className={`category-btn ${selectedCategory === 'accessibility' ? 'active' : ''}`}
+                onClick={() => setSelectedCategory('accessibility')}
+              >
+                Accessibility
+              </button>
+            </div>
+          </div>
+          
+          {/* Search bar */}
+          <div className="theme-search">
+            <input
+              type="text"
+              placeholder="Search themes..."
+              value={themeSearchQuery}
+              onChange={(e) => setThemeSearchQuery(e.target.value)}
+              className="theme-search-input"
+            />
+          </div>
           
           <div className="theme-grid">
-            {Object.entries(themePresets).map(([key, preset]) => (
+            {Object.entries(themePresets)
+              .filter(([key, preset]) => {
+                // Filter by category
+                if (selectedCategory !== 'all' && preset.category !== selectedCategory) {
+                  return false;
+                }
+                // Filter by search query
+                if (themeSearchQuery) {
+                  const query = themeSearchQuery.toLowerCase();
+                  return preset.name.toLowerCase().includes(query) || 
+                         preset.description?.toLowerCase().includes(query);
+                }
+                return true;
+              })
+              .map(([key, preset]) => (
               <motion.div
                 key={key}
-                className={`theme-card ${theme === key ? 'active' : ''}`}
+                className={`theme-card ${currentPreset === key ? 'active' : ''}`}
                 onClick={() => {
                   setPresetTheme(key);
                   toast.success(`Switched to ${preset.name} theme`);
                 }}
                 whileHover={{ scale: 1.05, y: -5 }}
                 whileTap={{ scale: 0.95 }}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3 }}
               >
                 <div className="theme-card-preview">
                   <div 
                     className="theme-color-primary" 
-                    style={{ backgroundColor: preset.colors.primary }}
+                    style={{ backgroundColor: preset.colors?.primary || '#6366f1' }}
                   />
                   <div 
                     className="theme-color-accent" 
-                    style={{ backgroundColor: preset.colors.accent }}
+                    style={{ backgroundColor: preset.colors?.secondary || '#8b5cf6' }}
                   />
                   <div 
                     className="theme-color-secondary" 
-                    style={{ backgroundColor: preset.colors.accentSecondary }}
+                    style={{ backgroundColor: preset.colors?.success || '#ec4899' }}
+                  />
+                  <div 
+                    className="theme-color-extra" 
+                    style={{ backgroundColor: preset.colors?.warning || '#f59e0b' }}
                   />
                 </div>
-                <div className="theme-card-name">{preset.name}</div>
-                {theme === key && (
+                <div className="theme-card-content">
+                  <div className="theme-card-name">{preset.name}</div>
+                  {preset.description && (
+                    <div className="theme-card-description">{preset.description}</div>
+                  )}
+                  {preset.category && (
+                    <div className="theme-card-badge">
+                      {preset.category === 'accessibility' ? '♿' : preset.category === 'light' ? '☀️' : '🌙'} {preset.category}
+                    </div>
+                  )}
+                </div>
+                {currentPreset === key && (
                   <div className="theme-card-active">
-                    <CheckCircle size={16} />
+                    <CheckCircle size={18} />
                   </div>
                 )}
               </motion.div>
             ))}
           </div>
+          
+          {/* No results message */}
+          {Object.entries(themePresets).filter(([key, preset]) => {
+            if (selectedCategory !== 'all' && preset.category !== selectedCategory) return false;
+            if (themeSearchQuery) {
+              const query = themeSearchQuery.toLowerCase();
+              return preset.name.toLowerCase().includes(query) || 
+                     preset.description?.toLowerCase().includes(query);
+            }
+            return true;
+          }).length === 0 && (
+            <div className="no-themes-found">
+              <Info size={48} />
+              <p>No themes found matching your criteria</p>
+              <button 
+                className="btn-secondary"
+                onClick={() => {
+                  setSelectedCategory('all');
+                  setThemeSearchQuery('');
+                }}
+              >
+                Clear Filters
+              </button>
+            </div>
+          )}
         </div>
+        )}
 
         {/* Customization */}
         <div className="setting-group">
@@ -1777,12 +2271,14 @@ const Settings = ({ onShowSplash }) => {
               animate={{ opacity: 1, height: 'auto' }}
               exit={{ opacity: 0, height: 0 }}
             >
+              {themePresets && Object.keys(themePresets).length > 0 ? (
+              <>
               <div className="schedule-row">
                 <div className="schedule-item">
                   <label>Light theme starts at</label>
                   <input
                     type="time"
-                    value={autoThemeSchedule.lightStart}
+                    value={autoThemeSchedule?.lightStart || '06:00'}
                     onChange={(e) => {
                       setAutoThemeSchedule({
                         ...autoThemeSchedule,
@@ -1794,7 +2290,7 @@ const Settings = ({ onShowSplash }) => {
                 </div>
                 <div className="schedule-item">
                   <select
-                    value={autoThemeSchedule.lightTheme}
+                    value={autoThemeSchedule?.lightTheme || 'light'}
                     onChange={(e) => {
                       setAutoThemeSchedule({
                         ...autoThemeSchedule,
@@ -1815,7 +2311,7 @@ const Settings = ({ onShowSplash }) => {
                   <label>Dark theme starts at</label>
                   <input
                     type="time"
-                    value={autoThemeSchedule.darkStart}
+                    value={autoThemeSchedule?.darkStart || '18:00'}
                     onChange={(e) => {
                       setAutoThemeSchedule({
                         ...autoThemeSchedule,
@@ -1827,7 +2323,7 @@ const Settings = ({ onShowSplash }) => {
                 </div>
                 <div className="schedule-item">
                   <select
-                    value={autoThemeSchedule.darkTheme}
+                    value={autoThemeSchedule?.darkTheme || 'dark'}
                     onChange={(e) => {
                       setAutoThemeSchedule({
                         ...autoThemeSchedule,
@@ -1842,6 +2338,10 @@ const Settings = ({ onShowSplash }) => {
                   </select>
                 </div>
               </div>
+              </>
+              ) : (
+                <p className="setting-description">Advanced theme presets not available in current theme configuration.</p>
+              )}
             </motion.div>
           )}
 
@@ -1956,42 +2456,42 @@ const Settings = ({ onShowSplash }) => {
               <div className="color-preview-item">
                 <div 
                   className="color-preview-swatch" 
-                  style={{ backgroundColor: currentThemeConfig?.colors.primary }}
+                  style={{ backgroundColor: currentThemeConfig?.colors?.primary || '#6366f1' }}
                 />
                 <span>Primary</span>
               </div>
               <div className="color-preview-item">
                 <div 
                   className="color-preview-swatch" 
-                  style={{ backgroundColor: currentThemeConfig?.colors.secondary }}
+                  style={{ backgroundColor: currentThemeConfig?.colors?.secondary || '#1e293b' }}
                 />
                 <span>Secondary</span>
               </div>
               <div className="color-preview-item">
                 <div 
                   className="color-preview-swatch" 
-                  style={{ backgroundColor: currentThemeConfig?.colors.accent }}
+                  style={{ backgroundColor: currentThemeConfig?.colors?.accent || '#8b5cf6' }}
                 />
                 <span>Accent</span>
               </div>
               <div className="color-preview-item">
                 <div 
                   className="color-preview-swatch" 
-                  style={{ backgroundColor: currentThemeConfig?.colors.success }}
+                  style={{ backgroundColor: currentThemeConfig?.colors?.success || '#10b981' }}
                 />
                 <span>Success</span>
               </div>
               <div className="color-preview-item">
                 <div 
                   className="color-preview-swatch" 
-                  style={{ backgroundColor: currentThemeConfig?.colors.warning }}
+                  style={{ backgroundColor: currentThemeConfig?.colors?.warning || '#f59e0b' }}
                 />
                 <span>Warning</span>
               </div>
               <div className="color-preview-item">
                 <div 
                   className="color-preview-swatch" 
-                  style={{ backgroundColor: currentThemeConfig?.colors.danger }}
+                  style={{ backgroundColor: currentThemeConfig?.colors?.danger || '#ef4444' }}
                 />
                 <span>Danger</span>
               </div>

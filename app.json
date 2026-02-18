@@ -1,0 +1,10 @@
+{
+  "android": {
+    "package": "com.anonymous.nebulashieldantivirus"
+  },
+  "extra": {
+    "eas": {
+      "projectId": "ad1bb58b-f2e7-4121-9493-61ea0426ece6"
+    }
+  }
+}

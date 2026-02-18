@@ -6,9 +6,10 @@ import axios from 'axios';
 class ThreatIntelligenceService {
   constructor() {
     // API keys (set in .env file)
-    this.virusTotalKey = process.env.REACT_APP_VIRUSTOTAL_API_KEY;
-    this.abuseIPDBKey = process.env.REACT_APP_ABUSEIPDB_API_KEY;
-    this.urlScanKey = process.env.REACT_APP_URLSCAN_API_KEY;
+    // In Vite, use import.meta.env instead of process.env
+    this.virusTotalKey = import.meta.env.VITE_VIRUSTOTAL_API_KEY || import.meta.env.REACT_APP_VIRUSTOTAL_API_KEY;
+    this.abuseIPDBKey = import.meta.env.VITE_ABUSEIPDB_API_KEY || import.meta.env.REACT_APP_ABUSEIPDB_API_KEY;
+    this.urlScanKey = import.meta.env.VITE_URLSCAN_API_KEY || import.meta.env.REACT_APP_URLSCAN_API_KEY;
     
     // Cache for API responses (1 hour TTL)
     this.cache = new Map();

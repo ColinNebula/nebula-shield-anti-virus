@@ -110,6 +110,22 @@ let blockedIPs = new Map(); // IP -> { reason, blockedAt, expiresAt }
 let rateLimits = new Map(); // IP -> { requests: [], apiCalls: [] }
 let failedLogins = new Map(); // IP -> { attempts: [], blockedUntil }
 
+// AI/ML Behavioral Analysis
+let userBehaviorProfiles = new Map(); // userId -> behavioral profile
+let anomalyScores = new Map(); // userId/IP -> risk score (0-100)
+let mlModels = {
+  loginPatterns: new Map(),
+  accessPatterns: new Map(),
+  timingPatterns: new Map()
+};
+
+// Advanced Threat Intelligence
+let threatIntelDB = new Map(); // IP -> threat data
+let ipReputationCache = new Map(); // IP -> { score, lastChecked, sources }
+let knownBotnets = new Set();
+let malwareC2Servers = new Set();
+let threatFeeds = [];
+
 // Geo-blocking configuration
 const BLOCKED_COUNTRIES = ['KP', 'IR', 'SY']; // North Korea, Iran, Syria (example)
 const GEO_DATABASE = {
@@ -118,6 +134,373 @@ const GEO_DATABASE = {
   '91.198.115.0': 'IR',
   '5.160.0.0': 'SY'
 };
+
+// Threat Intelligence Database
+const KNOWN_THREAT_IPS = new Map([
+  ['45.142.212.0', { type: 'botnet', name: 'Mirai', severity: 'critical', firstSeen: '2024-01-15' }],
+  ['185.220.101.0', { type: 'tor-exit', name: 'TOR Exit Node', severity: 'high', firstSeen: '2024-02-20' }],
+  ['91.198.115.0', { type: 'malware-c2', name: 'Zeus C2', severity: 'critical', firstSeen: '2024-03-10' }],
+  ['103.224.182.0', { type: 'botnet', name: 'Emotet', severity: 'critical', firstSeen: '2024-04-05' }],
+  ['194.165.16.0', { type: 'scanner', name: 'Shodan Scanner', severity: 'medium', firstSeen: '2024-05-12' }]
+]);
+
+const BOTNET_SIGNATURES = [
+  { name: 'Mirai', userAgents: ['Hello, world'], ports: [23, 2323] },
+  { name: 'Emotet', userAgents: ['Mozilla/4.0'], patterns: [/doc\d+\.zip/] },
+  { name: 'Zeus', patterns: [/\/gate\.php/, /\/config\.bin/] },
+  { name: 'QakBot', userAgents: ['WinHTTP'], patterns: [/\/t\d+/] }
+];
+
+const C2_SERVER_INDICATORS = [
+  /\/c2\/beacon/i,
+  /\/admin\/bot/i,
+  /\/panel\/gate/i,
+  /base64_decode.*eval/i
+];
+
+/**
+ * AI/ML Behavioral Analysis - Detect anomalous user behavior
+ */
+export function analyzeUserBehavior(userId, action, metadata = {}) {
+  if (!userBehaviorProfiles.has(userId)) {
+    userBehaviorProfiles.set(userId, {
+      loginTimes: [],
+      loginLocations: [],
+      devices: new Set(),
+      typicalActions: new Map(),
+      sessionDurations: [],
+      createdAt: Date.now(),
+      totalActions: 0
+    });
+  }
+
+  const profile = userBehaviorProfiles.get(userId);
+  profile.totalActions++;
+
+  // Learn normal behavior patterns
+  if (action === 'login') {
+    const hour = new Date().getHours();
+    profile.loginTimes.push(hour);
+    if (metadata.location) profile.loginLocations.push(metadata.location);
+    if (metadata.device) profile.devices.add(metadata.device);
+  }
+
+  // Track action frequency
+  const actionCount = profile.typicalActions.get(action) || 0;
+  profile.typicalActions.set(action, actionCount + 1);
+
+  // Calculate anomaly score
+  const anomalyScore = calculateAnomalyScore(userId, action, metadata, profile);
+  anomalyScores.set(userId, anomalyScore);
+
+  if (anomalyScore > 75) {
+    logAttack({
+      type: 'Behavioral Anomaly',
+      severity: anomalyScore > 90 ? 'Critical' : 'High',
+      ip: metadata.ip,
+      details: `Suspicious behavior detected for user ${userId} (score: ${anomalyScore})`,
+      action: 'Account Flagged',
+      timestamp: Date.now(),
+      anomalyScore
+    });
+  }
+
+  return { anomalyScore, profile, suspicious: anomalyScore > 75 };
+}
+
+function calculateAnomalyScore(userId, action, metadata, profile) {
+  let score = 0;
+
+  // Check login time anomaly
+  if (action === 'login' && profile.loginTimes.length > 5) {
+    const currentHour = new Date().getHours();
+    const avgHour = profile.loginTimes.reduce((a, b) => a + b, 0) / profile.loginTimes.length;
+    const hourDiff = Math.abs(currentHour - avgHour);
+    if (hourDiff > 6) score += 25; // Login at unusual time
+  }
+
+  // Check location anomaly
+  if (metadata.location && profile.loginLocations.length > 3) {
+    if (!profile.loginLocations.includes(metadata.location)) {
+      score += 30; // Login from new location
+    }
+  }
+
+  // Check device anomaly
+  if (metadata.device && profile.devices.size > 0) {
+    if (!profile.devices.has(metadata.device)) {
+      score += 20; // Login from new device
+    }
+  }
+
+  // Check rapid successive actions (possible automation)
+  if (profile.totalActions > 10) {
+    const recentActions = Array.from(profile.typicalActions.values()).slice(-5);
+    const avgInterval = recentActions.reduce((a, b) => a + b, 0) / recentActions.length;
+    if (avgInterval > 100) score += 15; // Unusually high activity
+  }
+
+  // Impossible travel detection
+  if (metadata.location && profile.loginLocations.length > 0) {
+    const lastLocation = profile.loginLocations[profile.loginLocations.length - 1];
+    const timeSinceLastLogin = Date.now() - (metadata.lastLoginTime || 0);
+    if (lastLocation !== metadata.location && timeSinceLastLogin < 3600000) {
+      score += 35; // Login from different location too quickly (impossible travel)
+    }
+  }
+
+  return Math.min(100, score);
+}
+
+export function predictAttack(ip, patterns = []) {
+  const predictions = [];
+  let riskScore = 0;
+
+  // Analyze request patterns using ML-like heuristics
+  const patternAnalysis = {
+    requestFrequency: patterns.filter(p => p.timestamp > Date.now() - 60000).length,
+    uniqueEndpoints: new Set(patterns.map(p => p.endpoint)).size,
+    errorRate: patterns.filter(p => p.statusCode >= 400).length / Math.max(patterns.length, 1),
+    methodVariety: new Set(patterns.map(p => p.method)).size
+  };
+
+  // Predict DDoS
+  if (patternAnalysis.requestFrequency > 50) {
+    predictions.push({ type: 'DDoS', probability: 85, reason: 'High request frequency' });
+    riskScore += 40;
+  }
+
+  // Predict scanning/reconnaissance
+  if (patternAnalysis.uniqueEndpoints > 20 && patternAnalysis.errorRate > 0.5) {
+    predictions.push({ type: 'Scanning', probability: 75, reason: 'High endpoint diversity with errors' });
+    riskScore += 25;
+  }
+
+  // Predict brute force
+  if (patterns.filter(p => p.endpoint?.includes('login')).length > 10) {
+    predictions.push({ type: 'Brute Force', probability: 80, reason: 'Repeated login attempts' });
+    riskScore += 35;
+  }
+
+  return {
+    predictions,
+    riskScore: Math.min(100, riskScore),
+    shouldBlock: riskScore > 70,
+    analysis: patternAnalysis
+  };
+}
+
+/**
+ * Advanced Threat Intelligence - Check IP against threat databases
+ */
+export function checkThreatIntelligence(ip) {
+  const threats = [];
+  let reputationScore = 100; // Start with perfect score
+
+  // Check known threat IPs
+  for (const [threatIP, data] of KNOWN_THREAT_IPS) {
+    if (ip.startsWith(threatIP.split('.').slice(0, 3).join('.'))) {
+      threats.push({
+        source: 'Internal Database',
+        type: data.type,
+        name: data.name,
+        severity: data.severity,
+        firstSeen: data.firstSeen
+      });
+      reputationScore -= data.severity === 'critical' ? 80 : 50;
+    }
+  }
+
+  // Check botnet signatures
+  if (knownBotnets.has(ip)) {
+    threats.push({
+      source: 'Botnet Detection',
+      type: 'botnet',
+      severity: 'critical'
+    });
+    reputationScore -= 90;
+  }
+
+  // Check C2 servers
+  if (malwareC2Servers.has(ip)) {
+    threats.push({
+      source: 'C2 Server Database',
+      type: 'malware-c2',
+      severity: 'critical'
+    });
+    reputationScore -= 95;
+  }
+
+  // Simulate AbuseIPDB check
+  const abuseScore = simulateAbuseIPDB(ip);
+  if (abuseScore > 50) {
+    threats.push({
+      source: 'AbuseIPDB',
+      type: 'abuse',
+      confidence: abuseScore,
+      severity: abuseScore > 80 ? 'high' : 'medium'
+    });
+    reputationScore -= abuseScore / 2;
+  }
+
+  reputationScore = Math.max(0, reputationScore);
+
+  // Cache results
+  ipReputationCache.set(ip, {
+    score: reputationScore,
+    threats,
+    lastChecked: Date.now(),
+    sources: ['Internal', 'AbuseIPDB', 'Botnet DB', 'C2 DB']
+  });
+
+  if (threats.length > 0) {
+    logAttack({
+      type: 'Threat Intelligence Match',
+      severity: threats.some(t => t.severity === 'critical') ? 'Critical' : 'High',
+      ip,
+      details: `IP matched ${threats.length} threat source(s): ${threats.map(t => t.type).join(', ')}`,
+      action: 'IP Blocked',
+      timestamp: Date.now(),
+      reputationScore
+    });
+
+    blockIP(ip, `Threat intelligence: ${threats[0].type}`, 86400000); // 24 hours
+  }
+
+  return {
+    isThreat: threats.length > 0,
+    reputationScore,
+    threats,
+    shouldBlock: reputationScore < 30
+  };
+}
+
+function simulateAbuseIPDB(ip) {
+  // Simulate AbuseIPDB abuse confidence score (0-100)
+  const ipNum = ip.split('.').reduce((acc, oct) => acc * 256 + parseInt(oct), 0);
+  const score = (ipNum % 100);
+  
+  // Known malicious IPs get high scores
+  if (ip.startsWith('45.') || ip.startsWith('185.') || ip.startsWith('91.')) {
+    return 85 + (ipNum % 15);
+  }
+  
+  return score;
+}
+
+export function detectBotnet(ip, userAgent = '', requestPath = '') {
+  for (const botnet of BOTNET_SIGNATURES) {
+    // Check user agent
+    if (botnet.userAgents && botnet.userAgents.some(ua => userAgent.includes(ua))) {
+      knownBotnets.add(ip);
+      logAttack({
+        type: 'Botnet Detected',
+        severity: 'Critical',
+        ip,
+        details: `${botnet.name} botnet signature detected via user agent`,
+        action: 'IP Blocked',
+        timestamp: Date.now(),
+        botnetName: botnet.name
+      });
+      blockIP(ip, `Botnet detected: ${botnet.name}`, 604800000); // 7 days
+      return { detected: true, botnet: botnet.name, method: 'user-agent' };
+    }
+
+    // Check request patterns
+    if (botnet.patterns && botnet.patterns.some(pattern => pattern.test(requestPath))) {
+      knownBotnets.add(ip);
+      logAttack({
+        type: 'Botnet Detected',
+        severity: 'Critical',
+        ip,
+        details: `${botnet.name} botnet signature detected via request pattern`,
+        action: 'IP Blocked',
+        timestamp: Date.now(),
+        botnetName: botnet.name
+      });
+      blockIP(ip, `Botnet detected: ${botnet.name}`, 604800000); // 7 days
+      return { detected: true, botnet: botnet.name, method: 'request-pattern' };
+    }
+  }
+
+  return { detected: false };
+}
+
+export function detectC2Communication(requestPath, requestBody = '') {
+  for (const indicator of C2_SERVER_INDICATORS) {
+    if (indicator.test(requestPath) || indicator.test(requestBody)) {
+      return {
+        detected: true,
+        indicator: indicator.toString(),
+        type: 'C2 Communication'
+      };
+    }
+  }
+  return { detected: false };
+}
+
+export function getIPReputation(ip) {
+  // Check cache first
+  if (ipReputationCache.has(ip)) {
+    const cached = ipReputationCache.get(ip);
+    const age = Date.now() - cached.lastChecked;
+    if (age < 3600000) { // Cache for 1 hour
+      return cached;
+    }
+  }
+
+  // Fresh check
+  return checkThreatIntelligence(ip);
+}
+
+export function getMachineLearningInsights() {
+  return {
+    totalProfiles: userBehaviorProfiles.size,
+    highRiskUsers: Array.from(anomalyScores.entries())
+      .filter(([_, score]) => score > 75)
+      .map(([userId, score]) => ({ userId, riskScore: score })),
+    threatIntelligenceStats: {
+      knownThreats: KNOWN_THREAT_IPS.size,
+      detectedBotnets: knownBotnets.size,
+      c2Servers: malwareC2Servers.size,
+      cachedReputations: ipReputationCache.size
+    },
+    behaviorPatterns: {
+      avgLoginTime: calculateAverageLoginTime(),
+      commonDevices: getCommonDevices(),
+      suspiciousActivities: getSuspiciousActivities()
+    }
+  };
+}
+
+function calculateAverageLoginTime() {
+  let totalHours = 0;
+  let count = 0;
+  for (const profile of userBehaviorProfiles.values()) {
+    totalHours += profile.loginTimes.reduce((a, b) => a + b, 0);
+    count += profile.loginTimes.length;
+  }
+  return count > 0 ? Math.round(totalHours / count) : 0;
+}
+
+function getCommonDevices() {
+  const deviceCount = new Map();
+  for (const profile of userBehaviorProfiles.values()) {
+    for (const device of profile.devices) {
+      deviceCount.set(device, (deviceCount.get(device) || 0) + 1);
+    }
+  }
+  return Array.from(deviceCount.entries())
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5)
+    .map(([device, count]) => ({ device, count }));
+}
+
+function getSuspiciousActivities() {
+  return attackLog
+    .filter(a => a.type === 'Behavioral Anomaly' || a.type === 'Threat Intelligence Match')
+    .slice(-10);
+}
 
 /**
  * DDoS Protection - Detect and mitigate distributed denial of service attacks
@@ -581,6 +964,7 @@ export function getAttackStats(hours = 24) {
  */
 export function getSecurityDashboard() {
   const stats = getAttackStats(24);
+  const mlInsights = getMachineLearningInsights();
   
   return {
     realTimeStatus: {
@@ -589,19 +973,35 @@ export function getSecurityDashboard() {
       ).length,
       blockedIPs: blockedIPs.size,
       honeypotHits: HONEYPOTS.reduce((sum, h) => sum + h.hits, 0),
-      rateLimitedIPs: Array.from(rateLimits.keys()).length
+      rateLimitedIPs: Array.from(rateLimits.keys()).length,
+      highRiskUsers: mlInsights.highRiskUsers.length,
+      detectedBotnets: mlInsights.threatIntelligenceStats.detectedBotnets,
+      threatIntelMatches: Array.from(ipReputationCache.values()).filter(r => r.score < 50).length
     },
     attackStats: stats,
     recentAttacks: getAttackLog(20),
     blockedIPs: getBlockedIPs(),
     honeypots: getHoneypots(),
+    mlInsights,
+    threatIntelligence: {
+      knownThreats: KNOWN_THREAT_IPS.size,
+      botnets: Array.from(knownBotnets),
+      c2Servers: Array.from(malwareC2Servers),
+      reputationCache: Array.from(ipReputationCache.entries())
+        .filter(([_, data]) => data.score < 70)
+        .map(([ip, data]) => ({ ip, ...data }))
+        .slice(0, 10)
+    },
     protectionStatus: {
       ddos: 'Active',
       bruteForce: 'Active',
       injection: 'Active',
       rateLimit: 'Active',
       geoBlock: 'Active',
-      honeypots: 'Active'
+      honeypots: 'Active',
+      aiML: 'Active',
+      threatIntel: 'Active',
+      botnetDetection: 'Active'
     }
   };
 }
@@ -654,6 +1054,75 @@ export function generateSampleAttacks() {
   HONEYPOTS[0].lastHit = now - 3600000;
   HONEYPOTS[2].hits = 3;
   HONEYPOTS[2].lastHit = now - 7200000;
+
+  // Generate sample user behavior profiles
+  const sampleUsers = ['user_001', 'user_002', 'user_003', 'admin_001'];
+  sampleUsers.forEach(userId => {
+    // Normal user
+    analyzeUserBehavior(userId, 'login', {
+      ip: '192.168.1.100',
+      location: 'New York',
+      device: 'Chrome/Windows',
+      lastLoginTime: now - 86400000
+    });
+    
+    // Create some activity
+    for (let i = 0; i < 5; i++) {
+      analyzeUserBehavior(userId, 'page_view', { ip: '192.168.1.100' });
+    }
+  });
+
+  // Create anomalous user
+  analyzeUserBehavior('user_suspicious', 'login', {
+    ip: '45.142.212.61',
+    location: 'Unknown',
+    device: 'Unknown/Linux',
+    lastLoginTime: now - 3600000 // Logged in from New York 1 hour ago, now from Russia
+  });
+
+  // Populate known botnets
+  knownBotnets.add('45.142.212.61');
+  knownBotnets.add('103.224.182.45');
+
+  // Populate C2 servers
+  malwareC2Servers.add('91.198.115.23');
+  malwareC2Servers.add('185.220.101.1');
+
+  // Generate IP reputation data
+  sampleIPs.forEach(ip => {
+    checkThreatIntelligence(ip);
+  });
+
+  // Add some AI-detected attacks
+  logAttack({
+    type: 'Behavioral Anomaly',
+    severity: 'High',
+    ip: '45.142.212.61',
+    details: 'Impossible travel detected: Login from Russia 1hr after US login',
+    action: 'Account Flagged',
+    timestamp: now - 1800000,
+    anomalyScore: 85
+  });
+
+  logAttack({
+    type: 'Botnet Detected',
+    severity: 'Critical',
+    ip: '103.224.182.45',
+    details: 'Emotet botnet signature detected via user agent',
+    action: 'IP Blocked',
+    timestamp: now - 5400000,
+    botnetName: 'Emotet'
+  });
+
+  logAttack({
+    type: 'Threat Intelligence Match',
+    severity: 'Critical',
+    ip: '91.198.115.23',
+    details: 'IP matched 2 threat source(s): malware-c2, abuse',
+    action: 'IP Blocked',
+    timestamp: now - 3600000,
+    reputationScore: 5
+  });
 }
 
 // Generate sample data on module load

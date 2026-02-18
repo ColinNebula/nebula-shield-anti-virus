@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebSocket Diagnostic - Nebula Shield</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 900px;
+            margin: 50px auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .container {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+        }
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .test-section {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        .status {
+            display: inline-block;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-weight: bold;
+            margin: 5px 0;
+        }
+        .status.success {
+            background: #10b981;
+            color: white;
+        }
+        .status.error {
+            background: #ef4444;
+            color: white;
+        }
+        .status.pending {
+            background: #f59e0b;
+            color: white;
+        }
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 25px;
+            font-size: 16px;
+            cursor: pointer;
+            margin: 10px 5px;
+            transition: transform 0.2s;
+        }
+        button:hover {
+            transform: scale(1.05);
+        }
+        .log {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+            max-height: 300px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+        }
+        .log-entry {
+            margin: 5px 0;
+            padding: 5px;
+            border-left: 3px solid #667eea;
+            padding-left: 10px;
+        }
+        .log-entry.error {
+            border-left-color: #ef4444;
+            background: rgba(239, 68, 68, 0.1);
+        }
+        .log-entry.success {
+            border-left-color: #10b981;
+            background: rgba(16, 185, 129, 0.1);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔌 WebSocket Diagnostic Tool</h1>
+        
+        <div class="test-section">
+            <h3>Vite HMR WebSocket Test</h3>
+            <p>Testing connection to: <code>ws://127.0.0.1:3002</code></p>
+            <div id="hmr-status" class="status pending">Testing...</div>
+            <button onclick="testHMRWebSocket()">🔄 Retry HMR Connection</button>
+        </div>
+
+        <div class="test-section">
+            <h3>Backend WebSocket Test</h3>
+            <p>Testing connection to: <code>ws://127.0.0.1:8080</code></p>
+            <div id="backend-status" class="status pending">Testing...</div>
+            <button onclick="testBackendWebSocket()">🔄 Retry Backend Connection</button>
+        </div>
+
+        <div class="test-section">
+            <h3>System Information</h3>
+            <div id="system-info"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>Connection Log</h3>
+            <div id="log" class="log"></div>
+            <button onclick="clearLog()">🗑️ Clear Log</button>
+            <button onclick="runAllTests()">🧪 Run All Tests</button>
+        </div>
+
+        <div class="test-section">
+            <h3>Quick Fixes</h3>
+            <button onclick="location.reload()">🔄 Hard Refresh Page</button>
+            <button onclick="clearCache()">🧹 Clear Cache & Reload</button>
+            <button onclick="window.location.href='http://127.0.0.1:3002/dashboard'">📊 Go to Dashboard</button>
+        </div>
+    </div>
+
+    <script>
+        function log(message, type = 'info') {
+            const logDiv = document.getElementById('log');
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            const timestamp = new Date().toLocaleTimeString();
+            entry.textContent = `[${timestamp}] ${message}`;
+            logDiv.insertBefore(entry, logDiv.firstChild);
+        }
+
+        function clearLog() {
+            document.getElementById('log').innerHTML = '';
+            log('Log cleared', 'info');
+        }
+
+        function testHMRWebSocket() {
+            const statusEl = document.getElementById('hmr-status');
+            statusEl.className = 'status pending';
+            statusEl.textContent = 'Connecting...';
+            log('Attempting HMR WebSocket connection...');
+
+            const ws = new WebSocket('ws://127.0.0.1:3002');
+            
+            ws.onopen = () => {
+                statusEl.className = 'status success';
+                statusEl.textContent = '✅ Connected';
+                log('HMR WebSocket connected successfully!', 'success');
+                ws.close();
+            };
+
+            ws.onerror = (error) => {
+                statusEl.className = 'status error';
+                statusEl.textContent = '❌ Connection Failed';
+                log(`HMR WebSocket error: ${error.type}`, 'error');
+                log('Possible causes: Server not running, firewall blocking, port conflict', 'error');
+            };
+
+            ws.onclose = () => {
+                log('HMR WebSocket connection closed');
+            };
+
+            setTimeout(() => {
+                if (ws.readyState !== WebSocket.OPEN) {
+                    ws.close();
+                    statusEl.className = 'status error';
+                    statusEl.textContent = '❌ Timeout';
+                    log('HMR WebSocket connection timeout', 'error');
+                }
+            }, 5000);
+        }
+
+        function testBackendWebSocket() {
+            const statusEl = document.getElementById('backend-status');
+            statusEl.className = 'status pending';
+            statusEl.textContent = 'Connecting...';
+            log('Attempting backend WebSocket connection...');
+
+            const ws = new WebSocket('ws://127.0.0.1:8080');
+            
+            ws.onopen = () => {
+                statusEl.className = 'status success';
+                statusEl.textContent = '✅ Connected';
+                log('Backend WebSocket connected successfully!', 'success');
+                ws.close();
+            };
+
+            ws.onerror = (error) => {
+                statusEl.className = 'status error';
+                statusEl.textContent = '❌ Connection Failed';
+                log(`Backend WebSocket error: ${error.type}`, 'error');
+                log('Backend server may not have WebSocket support enabled', 'error');
+            };
+
+            ws.onclose = () => {
+                log('Backend WebSocket connection closed');
+            };
+
+            setTimeout(() => {
+                if (ws.readyState !== WebSocket.OPEN) {
+                    ws.close();
+                    statusEl.className = 'status error';
+                    statusEl.textContent = '❌ Timeout';
+                    log('Backend WebSocket connection timeout', 'error');
+                }
+            }, 5000);
+        }
+
+        function displaySystemInfo() {
+            const infoDiv = document.getElementById('system-info');
+            const info = {
+                'User Agent': navigator.userAgent,
+                'Platform': navigator.platform,
+                'Current URL': window.location.href,
+                'Protocol': window.location.protocol,
+                'Host': window.location.host,
+                'WebSocket Support': 'WebSocket' in window ? '✅ Yes' : '❌ No',
+                'Online Status': navigator.onLine ? '✅ Online' : '❌ Offline'
+            };
+
+            let html = '<table style="width:100%; color:white;">';
+            for (const [key, value] of Object.entries(info)) {
+                html += `<tr><td style="padding:5px;"><strong>${key}:</strong></td><td style="padding:5px;">${value}</td></tr>`;
+            }
+            html += '</table>';
+            infoDiv.innerHTML = html;
+        }
+
+        function clearCache() {
+            if ('caches' in window) {
+                caches.keys().then(names => {
+                    names.forEach(name => caches.delete(name));
+                });
+            }
+            log('Cache cleared, reloading...', 'success');
+            setTimeout(() => location.reload(true), 1000);
+        }
+
+        function runAllTests() {
+            clearLog();
+            log('Running all diagnostic tests...', 'success');
+            setTimeout(testHMRWebSocket, 500);
+            setTimeout(testBackendWebSocket, 2000);
+        }
+
+        // Auto-run tests on page load
+        window.onload = () => {
+            displaySystemInfo();
+            log('WebSocket Diagnostic Tool initialized', 'success');
+            runAllTests();
+        };
+    </script>
+</body>
+</html>

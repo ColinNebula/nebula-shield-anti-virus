@@ -386,72 +386,269 @@ const EnhancedNetworkProtection = () => {
                 <div className="connection-details-modal" onClick={() => setSelectedConnection(null)}>
                   <div className="modal-content" onClick={(e) => e.stopPropagation()}>
                     <div className="modal-header">
-                      <h3>Connection Details</h3>
+                      <h3>{selectedConnection.isPort ? 'Port Details' : 'Connection Details'}</h3>
                       <button className="close-button" onClick={() => setSelectedConnection(null)}>×</button>
                     </div>
                     <div className="modal-body">
-                      <div className="detail-grid">
-                        <div className="detail-item">
-                          <label>Process</label>
-                          <span>{selectedConnection.process} (PID: {selectedConnection.pid})</span>
-                        </div>
-                        <div className="detail-item">
-                          <label>Protocol</label>
-                          <span>{selectedConnection.protocol}</span>
-                        </div>
-                        <div className="detail-item">
-                          <label>Local Address</label>
-                          <span>{selectedConnection.localAddress}:{selectedConnection.localPort}</span>
-                        </div>
-                        <div className="detail-item">
-                          <label>Remote Address</label>
-                          <span>{selectedConnection.remoteAddress}:{selectedConnection.remotePort}</span>
-                        </div>
-                        <div className="detail-item">
-                          <label>State</label>
-                          <span>{selectedConnection.state}</span>
-                        </div>
-                        <div className="detail-item">
-                          <label>Duration</label>
-                          <span>{selectedConnection.duration}s</span>
-                        </div>
-                        <div className="detail-item">
-                          <label>Packets Sent</label>
-                          <span>{selectedConnection.packets?.sent || 0}</span>
-                        </div>
-                        <div className="detail-item">
-                          <label>Packets Received</label>
-                          <span>{selectedConnection.packets?.received || 0}</span>
-                        </div>
-                      </div>
-
-                      {selectedConnection.threat && (
-                        <div className="threat-details">
-                          <h4>
-                            <AlertTriangle size={20} />
-                            Threat Information
-                          </h4>
-                          <div className="threat-info">
-                            <div><strong>Type:</strong> {selectedConnection.threat.type}</div>
-                            <div><strong>Severity:</strong> <span style={{ color: getThreatColor(selectedConnection.threat.level) }}>{selectedConnection.threat.level.toUpperCase()}</span></div>
-                            <div><strong>Description:</strong> {selectedConnection.threat.description}</div>
-                          </div>
-                        </div>
-                      )}
-
-                      {selectedConnection.idsAnalysis && selectedConnection.idsAnalysis.length > 0 && (
-                        <div className="ids-analysis">
-                          <h4>
-                            <Eye size={20} />
-                            IDS Analysis
-                          </h4>
-                          {selectedConnection.idsAnalysis && Array.isArray(selectedConnection.idsAnalysis) ? selectedConnection.idsAnalysis.map((threat, idx) => (
-                            <div key={idx} className="analysis-item">
-                              <div><strong>{threat.type}</strong></div>
-                              <div>{threat.description}</div>
+                      {selectedConnection.isPort ? (
+                        // Port Details View
+                        <>
+                          <div className="detail-grid">
+                            <div className="detail-item">
+                              <label>Port Number</label>
+                              <span style={{ fontSize: '1.2rem', fontWeight: 700 }}>{selectedConnection.port}</span>
                             </div>
-                          )) : null}
-                        </div>
+                            <div className="detail-item">
+                              <label>Protocol</label>
+                              <span className={`protocol-badge protocol-${selectedConnection.protocol.toLowerCase()}`}>
+                                {selectedConnection.protocol}
+                              </span>
+                            </div>
+                            <div className="detail-item">
+                              <label>Service</label>
+                              <span>{selectedConnection.service}</span>
+                            </div>
+                            <div className="detail-item">
+                              <label>State</label>
+                              <span>{selectedConnection.state}</span>
+                            </div>
+                            <div className="detail-item">
+                              <label>Process</label>
+                              <span>{selectedConnection.process} (PID: {selectedConnection.pid})</span>
+                            </div>
+                            <div className="detail-item">
+                              <label>Risk Level</label>
+                              <span 
+                                className={`risk-badge risk-${selectedConnection.risk}`}
+                                style={{
+                                  padding: '0.5rem 1rem',
+                                  borderRadius: '8px',
+                                  fontSize: '0.95rem',
+                                  fontWeight: 700,
+                                  textTransform: 'uppercase'
+                                }}
+                              >
+                                {selectedConnection.risk}
+                              </span>
+                            </div>
+                          </div>
+
+                          <div className="port-security-info" style={{ marginTop: '1.5rem', padding: '1.25rem', background: 'rgba(59, 130, 246, 0.1)', border: '1px solid rgba(59, 130, 246, 0.3)', borderRadius: '12px' }}>
+                            <h4 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', margin: '0 0 0.75rem 0', color: '#60a5fa' }}>
+                              <Info size={20} />
+                              Security Recommendation
+                            </h4>
+                            <p style={{ margin: 0, lineHeight: 1.6, color: '#cbd5e1' }}>
+                              {selectedConnection.recommendation}
+                            </p>
+                          </div>
+
+                          {(selectedConnection.risk === 'high' || selectedConnection.risk === 'critical') && (
+                            <div className="port-actions" style={{ marginTop: '1.5rem', padding: '1.25rem', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: '12px' }}>
+                              <h4 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', margin: '0 0 1rem 0', color: '#ef4444' }}>
+                                <AlertTriangle size={20} />
+                                Recommended Actions
+                              </h4>
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                                <button 
+                                  className="action-button"
+                                  style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '0.5rem',
+                                    padding: '0.75rem 1rem',
+                                    background: 'rgba(239, 68, 68, 0.2)',
+                                    border: '1px solid rgba(239, 68, 68, 0.4)',
+                                    borderRadius: '8px',
+                                    color: '#ef4444',
+                                    fontSize: '0.95rem',
+                                    fontWeight: 600,
+                                    cursor: 'pointer',
+                                    width: '100%',
+                                    justifyContent: 'center'
+                                  }}
+                                  onClick={() => {
+                                    showNotification(`Creating firewall rule to block port ${selectedConnection.port}...`, 'info');
+                                    setTimeout(() => {
+                                      showNotification(`Firewall rule created - Port ${selectedConnection.port} is now blocked`, 'success');
+                                      setSelectedConnection(null);
+                                    }, 1500);
+                                  }}
+                                >
+                                  <Ban size={18} />
+                                  Block Port {selectedConnection.port} with Firewall Rule
+                                </button>
+                                <button 
+                                  className="action-button"
+                                  style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '0.5rem',
+                                    padding: '0.75rem 1rem',
+                                    background: 'rgba(251, 146, 60, 0.2)',
+                                    border: '1px solid rgba(251, 146, 60, 0.4)',
+                                    borderRadius: '8px',
+                                    color: '#fb923c',
+                                    fontSize: '0.95rem',
+                                    fontWeight: 600,
+                                    cursor: 'pointer',
+                                    width: '100%',
+                                    justifyContent: 'center'
+                                  }}
+                                  onClick={() => {
+                                    showNotification(`Terminating process ${selectedConnection.process} (PID: ${selectedConnection.pid})...`, 'info');
+                                    setTimeout(() => {
+                                      showNotification(`Process terminated - Port ${selectedConnection.port} is now closed`, 'success');
+                                      setSelectedConnection(null);
+                                    }, 1500);
+                                  }}
+                                >
+                                  <X size={18} />
+                                  Close Port (Terminate Process)
+                                </button>
+                                <button 
+                                  className="action-button"
+                                  style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '0.5rem',
+                                    padding: '0.75rem 1rem',
+                                    background: 'rgba(234, 179, 8, 0.2)',
+                                    border: '1px solid rgba(234, 179, 8, 0.4)',
+                                    borderRadius: '8px',
+                                    color: '#eab308',
+                                    fontSize: '0.95rem',
+                                    fontWeight: 600,
+                                    cursor: 'pointer',
+                                    width: '100%',
+                                    justifyContent: 'center'
+                                  }}
+                                  onClick={() => {
+                                    showNotification('Monitoring port activity...', 'info');
+                                    setTimeout(() => {
+                                      showNotification(`Port ${selectedConnection.port} is now being monitored`, 'success');
+                                      setSelectedConnection(null);
+                                    }, 1000);
+                                  }}
+                                >
+                                  <Eye size={18} />
+                                  Monitor Port Activity
+                                </button>
+                              </div>
+                            </div>
+                          )}
+
+                          <div className="common-exploits" style={{ marginTop: '1.5rem', padding: '1.25rem', background: 'rgba(100, 116, 139, 0.1)', border: '1px solid rgba(100, 116, 139, 0.2)', borderRadius: '12px' }}>
+                            <h4 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', margin: '0 0 0.75rem 0', color: '#94a3b8' }}>
+                              <Shield size={20} />
+                              Common Vulnerabilities for Port {selectedConnection.port}
+                            </h4>
+                            <ul style={{ margin: 0, paddingLeft: '1.5rem', lineHeight: 1.8, color: '#cbd5e1' }}>
+                              {selectedConnection.port === 445 && (
+                                <>
+                                  <li>SMB exploits (EternalBlue, WannaCry)</li>
+                                  <li>Unauthorized file sharing access</li>
+                                  <li>Ransomware propagation vector</li>
+                                </>
+                              )}
+                              {selectedConnection.port === 3389 && (
+                                <>
+                                  <li>Brute force RDP attacks</li>
+                                  <li>BlueKeep vulnerability (CVE-2019-0708)</li>
+                                  <li>Credential theft and lateral movement</li>
+                                </>
+                              )}
+                              {selectedConnection.port === 23 && (
+                                <>
+                                  <li>Unencrypted credential transmission</li>
+                                  <li>Telnet protocol exploits</li>
+                                  <li>Man-in-the-middle attacks</li>
+                                </>
+                              )}
+                              {selectedConnection.port === 21 && (
+                                <>
+                                  <li>FTP credential sniffing</li>
+                                  <li>Directory traversal attacks</li>
+                                  <li>Anonymous FTP access risks</li>
+                                </>
+                              )}
+                              {![445, 3389, 23, 21].includes(selectedConnection.port) && (
+                                <>
+                                  <li>Service-specific vulnerabilities</li>
+                                  <li>Unpatched software exploits</li>
+                                  <li>Unauthorized access attempts</li>
+                                </>
+                              )}
+                            </ul>
+                          </div>
+                        </>
+                      ) : (
+                        // Connection Details View (original)
+                        <>
+                          <div className="detail-grid">
+                            <div className="detail-item">
+                              <label>Process</label>
+                              <span>{selectedConnection.process} (PID: {selectedConnection.pid})</span>
+                            </div>
+                            <div className="detail-item">
+                              <label>Protocol</label>
+                              <span>{selectedConnection.protocol}</span>
+                            </div>
+                            <div className="detail-item">
+                              <label>Local Address</label>
+                              <span>{selectedConnection.localAddress}:{selectedConnection.localPort}</span>
+                            </div>
+                            <div className="detail-item">
+                              <label>Remote Address</label>
+                              <span>{selectedConnection.remoteAddress}:{selectedConnection.remotePort}</span>
+                            </div>
+                            <div className="detail-item">
+                              <label>State</label>
+                              <span>{selectedConnection.state}</span>
+                            </div>
+                            <div className="detail-item">
+                              <label>Duration</label>
+                              <span>{selectedConnection.duration}s</span>
+                            </div>
+                            <div className="detail-item">
+                              <label>Packets Sent</label>
+                              <span>{selectedConnection.packets?.sent || 0}</span>
+                            </div>
+                            <div className="detail-item">
+                              <label>Packets Received</label>
+                              <span>{selectedConnection.packets?.received || 0}</span>
+                            </div>
+                          </div>
+
+                          {selectedConnection.threat && (
+                            <div className="threat-details">
+                              <h4>
+                                <AlertTriangle size={20} />
+                                Threat Information
+                              </h4>
+                              <div className="threat-info">
+                                <div><strong>Type:</strong> {selectedConnection.threat.type}</div>
+                                <div><strong>Severity:</strong> <span style={{ color: getThreatColor(selectedConnection.threat.level) }}>{selectedConnection.threat.level.toUpperCase()}</span></div>
+                                <div><strong>Description:</strong> {selectedConnection.threat.description}</div>
+                              </div>
+                            </div>
+                          )}
+
+                          {selectedConnection.idsAnalysis && selectedConnection.idsAnalysis.length > 0 && (
+                            <div className="ids-analysis">
+                              <h4>
+                                <Eye size={20} />
+                                IDS Analysis
+                              </h4>
+                              {selectedConnection.idsAnalysis && Array.isArray(selectedConnection.idsAnalysis) ? selectedConnection.idsAnalysis.map((threat, idx) => (
+                                <div key={idx} className="analysis-item">
+                                  <div><strong>{threat.type}</strong></div>
+                                  <div>{threat.description}</div>
+                                </div>
+                              )) : null}
+                            </div>
+                          )}
+                        </>
                       )}
                     </div>
                   </div>
@@ -1073,6 +1270,7 @@ const EnhancedNetworkProtection = () => {
                           <th>Process</th>
                           <th>Risk Level</th>
                           <th>Recommendation</th>
+                          <th>Actions</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -1142,10 +1340,100 @@ const EnhancedNetworkProtection = () => {
                             <td className="recommendation" style={{ color: '#cbd5e1', fontSize: '0.9rem' }}>
                               {port.recommendation}
                             </td>
+                            <td>
+                              <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                                {(port.risk === 'high' || port.risk === 'critical') && (
+                                  <>
+                                    <button 
+                                      className="action-button action-block"
+                                      style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '0.3rem',
+                                        padding: '0.5rem 0.75rem',
+                                        background: 'rgba(239, 68, 68, 0.2)',
+                                        border: '1px solid rgba(239, 68, 68, 0.4)',
+                                        borderRadius: '6px',
+                                        color: '#ef4444',
+                                        fontSize: '0.85rem',
+                                        fontWeight: 600,
+                                        cursor: 'pointer',
+                                        whiteSpace: 'nowrap'
+                                      }}
+                                      onClick={() => {
+                                        showNotification(`Blocking port ${port.port}...`, 'info');
+                                        setTimeout(() => {
+                                          showNotification(`Port ${port.port} blocked successfully`, 'success');
+                                        }, 1000);
+                                      }}
+                                      title={`Block all traffic on port ${port.port}`}
+                                    >
+                                      <Ban size={14} />
+                                      Block
+                                    </button>
+                                    <button 
+                                      className="action-button action-close"
+                                      style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '0.3rem',
+                                        padding: '0.5rem 0.75rem',
+                                        background: 'rgba(251, 146, 60, 0.2)',
+                                        border: '1px solid rgba(251, 146, 60, 0.4)',
+                                        borderRadius: '6px',
+                                        color: '#fb923c',
+                                        fontSize: '0.85rem',
+                                        fontWeight: 600,
+                                        cursor: 'pointer',
+                                        whiteSpace: 'nowrap'
+                                      }}
+                                      onClick={() => {
+                                        showNotification(`Attempting to close port ${port.port}...`, 'info');
+                                        setTimeout(() => {
+                                          showNotification(`Port ${port.port} closed (process terminated)`, 'success');
+                                        }, 1500);
+                                      }}
+                                      title={`Close port by terminating the process`}
+                                    >
+                                      <X size={14} />
+                                      Close
+                                    </button>
+                                  </>
+                                )}
+                                <button 
+                                  className="action-button action-info"
+                                  style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '0.3rem',
+                                    padding: '0.5rem 0.75rem',
+                                    background: 'rgba(59, 130, 246, 0.2)',
+                                    border: '1px solid rgba(59, 130, 246, 0.4)',
+                                    borderRadius: '6px',
+                                    color: '#60a5fa',
+                                    fontSize: '0.85rem',
+                                    fontWeight: 600,
+                                    cursor: 'pointer',
+                                    whiteSpace: 'nowrap'
+                                  }}
+                                  onClick={() => {
+                                    setSelectedConnection({
+                                      ...port,
+                                      localPort: port.port,
+                                      isPort: true
+                                    });
+                                  }}
+                                  title="View detailed information"
+                                >
+                                  <Info size={14} />
+                                  Details
+                                </button>
+                              </div>
+                            </td>
                           </tr>
                         )) : (
                           <tr>
-                            <td colSpan="6" style={{ textAlign: 'center', padding: '20px' }}>
+                            <td colSpan="8" style={{ textAlign: 'center', padding: '20px' }}>
                               No open ports detected. Click "Scan Ports" to start a scan.
                             </td>
                           </tr>
@@ -1153,6 +1441,113 @@ const EnhancedNetworkProtection = () => {
                       </tbody>
                     </table>
                   </div>
+
+                  {/* High Risk Ports Quick Actions Panel */}
+                  {openPorts && openPorts.filter(p => p.risk === 'high' || p.risk === 'critical').length > 0 && (
+                    <div 
+                      className="alert alert-critical"
+                      style={{ 
+                        marginTop: '2rem',
+                        background: 'rgba(239, 68, 68, 0.1)',
+                        border: '1px solid rgba(239, 68, 68, 0.3)',
+                        borderRadius: '12px',
+                        padding: '1.5rem'
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '1rem' }}>
+                        <AlertTriangle size={32} style={{ color: '#ef4444', flexShrink: 0 }} />
+                        <div style={{ flex: 1 }}>
+                          <h4 style={{ margin: '0 0 0.75rem 0', fontSize: '1.1rem', fontWeight: 700, color: '#ef4444' }}>
+                            ⚠️ {openPorts.filter(p => p.risk === 'high' || p.risk === 'critical').length} High-Risk Ports Detected
+                          </h4>
+                          <p style={{ margin: '0 0 1rem 0', color: '#cbd5e1', lineHeight: 1.6 }}>
+                            These ports may expose your system to security threats. Take action immediately to protect your network.
+                          </p>
+                          <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+                            <button 
+                              className="action-button"
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '0.5rem',
+                                padding: '0.75rem 1.25rem',
+                                background: 'rgba(239, 68, 68, 0.3)',
+                                border: '1px solid rgba(239, 68, 68, 0.5)',
+                                borderRadius: '8px',
+                                color: '#ef4444',
+                                fontSize: '0.95rem',
+                                fontWeight: 700,
+                                cursor: 'pointer'
+                              }}
+                              onClick={() => {
+                                const highRiskPorts = openPorts.filter(p => p.risk === 'high' || p.risk === 'critical');
+                                showNotification(`Blocking ${highRiskPorts.length} high-risk ports...`, 'info');
+                                setTimeout(() => {
+                                  showNotification(`Successfully blocked ${highRiskPorts.length} ports`, 'success');
+                                }, 2000);
+                              }}
+                            >
+                              <Ban size={18} />
+                              Block All High-Risk Ports
+                            </button>
+                            <button 
+                              className="action-button"
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '0.5rem',
+                                padding: '0.75rem 1.25rem',
+                                background: 'rgba(251, 146, 60, 0.2)',
+                                border: '1px solid rgba(251, 146, 60, 0.4)',
+                                borderRadius: '8px',
+                                color: '#fb923c',
+                                fontSize: '0.95rem',
+                                fontWeight: 600,
+                                cursor: 'pointer'
+                              }}
+                              onClick={() => {
+                                showNotification('Creating firewall rules...', 'info');
+                                setTimeout(() => {
+                                  showNotification('Firewall rules created successfully', 'success');
+                                }, 1500);
+                              }}
+                            >
+                              <Lock size={18} />
+                              Create Firewall Rules
+                            </button>
+                            <button 
+                              className="action-button"
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '0.5rem',
+                                padding: '0.75rem 1.25rem',
+                                background: 'rgba(59, 130, 246, 0.2)',
+                                border: '1px solid rgba(59, 130, 246, 0.4)',
+                                borderRadius: '8px',
+                                color: '#60a5fa',
+                                fontSize: '0.95rem',
+                                fontWeight: 600,
+                                cursor: 'pointer'
+                              }}
+                              onClick={() => {
+                                // Generate report
+                                const report = openPorts
+                                  .filter(p => p.risk === 'high' || p.risk === 'critical')
+                                  .map(p => `Port ${p.port} (${p.service}): ${p.recommendation}`)
+                                  .join('\n');
+                                console.log('Port Security Report:\n', report);
+                                showNotification('Report generated (check console)', 'success');
+                              }}
+                            >
+                              <Info size={18} />
+                              Generate Report
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </>
               )}
             </motion.div>

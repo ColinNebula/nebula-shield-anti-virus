@@ -14,6 +14,9 @@
 
 class StartupManager {
   constructor() {
+    // Store startup items state to persist changes during session
+    this.startupItemsCache = null;
+    
     this.startupLocations = {
       // Windows Registry Run keys
       registry: [
@@ -108,6 +111,38 @@ class StartupManager {
    */
   async scanStartupPrograms() {
     try {
+      // Return cached items if they exist (to persist toggle changes)
+      if (this.startupItemsCache) {
+        return {
+          success: true,
+          items: this.startupItemsCache,
+          summary: this.analyzeSummary(this.startupItemsCache)
+        };
+      }
+      
+      // Try to load from localStorage first
+      const savedCache = localStorage.getItem('startupItemsCache');
+      if (savedCache) {
+        try {
+          this.startupItemsCache = JSON.parse(savedCache);
+          // Convert date strings back to Date objects
+          this.startupItemsCache.forEach(item => {
+            if (item.lastRun) {
+              item.lastRun = new Date(item.lastRun);
+            }
+          });
+          console.log('Loaded startup items from cache');
+          return {
+            success: true,
+            items: this.startupItemsCache,
+            summary: this.analyzeSummary(this.startupItemsCache)
+          };
+        } catch (e) {
+          console.error('Failed to parse cached startup items:', e);
+          // Continue to fetch fresh data
+        }
+      }
+      
       const startupItems = [];
       
       // Mock data for demonstration (in production, would query actual system)
@@ -294,6 +329,11 @@ class StartupManager {
         }
       ];
 
+      // Cache the initial data
+      this.startupItemsCache = mockStartupData;
+      // Save to localStorage
+      localStorage.setItem('startupItemsCache', JSON.stringify(mockStartupData));
+
       return {
         success: true,
         items: mockStartupData,
@@ -411,8 +451,19 @@ class StartupManager {
       // In production, would modify registry or move file
       console.log(`Disabling startup item: ${itemId}`);
       
+      // Update cached items
+      if (this.startupItemsCache) {
+        const itemIndex = this.startupItemsCache.findIndex(item => item.id === itemId);
+        if (itemIndex !== -1) {
+          // Save to localStorage
+          localStorage.setItem('startupItemsCache', JSON.stringify(this.startupItemsCache));
+          this.startupItemsCache[itemIndex].status = 'Disabled';
+          console.log(`Updated cache: ${this.startupItemsCache[itemIndex].name} is now Disabled`);
+        }
+      }
+      
       // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 500));
+      await new Promise(resolve => setTimeout(resolve, 300));
       
       return {
         success: true,
@@ -435,7 +486,18 @@ class StartupManager {
       // In production, would restore registry entry or file
       console.log(`Enabling startup item: ${itemId}`);
       
-      await new Promise(resolve => setTimeout(resolve, 500));
+      // Update cached items
+      if (this.startupItemsCache) {
+          // Save to localStorage
+          localStorage.setItem('startupItemsCache', JSON.stringify(this.startupItemsCache));
+        const itemIndex = this.startupItemsCache.findIndex(item => item.id === itemId);
+        if (itemIndex !== -1) {
+          this.startupItemsCache[itemIndex].status = 'Enabled';
+          console.log(`Updated cache: ${this.startupItemsCache[itemIndex].name} is now Enabled`);
+        }
+      }
+      
+      await new Promise(resolve => setTimeout(resolve, 300));
       
       return {
         success: true,
@@ -487,6 +549,15 @@ class StartupManager {
         error: error.message
       };
     }
+  }
+
+  /**
+   * Force rescan (clears cache and rescans)
+   */
+  async rescanStartupPrograms() {
+    this.startupItemsCache = null;
+    localStorage.removeItem('startupItemsCache');
+    return this.scanStartupPrograms();
   }
 
   /**

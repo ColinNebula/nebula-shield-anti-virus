@@ -25,7 +25,7 @@ const usePerformanceMonitor = (componentName, dependencies = {}) => {
     const avgRenderTime = renderTimes.current.reduce((a, b) => a + b, 0) / renderTimes.current.length;
 
     // Log performance data in development
-    if (process.env.NODE_ENV === 'development') {
+    if (import.meta.env.DEV) {
       console.log(`[Performance] ${componentName}:`, {
         renderCount: renderCount.current,
         timeSinceLastRender: `${timeSinceLastRender.toFixed(2)}ms`,
@@ -58,7 +58,7 @@ const usePerformanceMonitor = (componentName, dependencies = {}) => {
  */
 export const useWebVitals = () => {
   useEffect(() => {
-    if ('web-vitals' in window || process.env.NODE_ENV === 'development') {
+    if ('web-vitals' in window || import.meta.env.DEV) {
       import('web-vitals').then(({ getCLS, getFID, getFCP, getLCP, getTTFB }) => {
         getCLS(console.log);
         getFID(console.log);

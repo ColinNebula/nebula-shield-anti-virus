@@ -30,6 +30,7 @@ import {
 } from '@mui/icons-material';
 import webProtection from '../services/webProtection';
 import { toast } from 'react-hot-toast';
+import './WebProtection.css';
 
 function WebProtection() {
   const [url, setUrl] = useState('');
@@ -115,7 +116,7 @@ function WebProtection() {
   };
 
   return (
-    <Box>
+    <Box className="web-protection-page">
       {/* Header */}
       <Box mb={3} display="flex" justifyContent="space-between" alignItems="center">
         <Box>

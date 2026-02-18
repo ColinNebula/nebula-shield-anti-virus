@@ -1,8 +1,8 @@
 import React, {useEffect, useState} from 'react';
 import {View, Text, StyleSheet, FlatList} from 'react-native';
 import {Card, Chip, Button} from 'react-native-paper';
-import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import {SocketService} from '../services/SocketService';
+import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
+// import {SocketService} from '../services/SocketService'; // Disabled - using HTTP API
 
 interface Threat {
   id: string;
@@ -18,22 +18,22 @@ const ThreatsScreen = (): JSX.Element => {
   const [threats, setThreats] = useState<Threat[]>([]);
 
   useEffect(() => {
-    // Listen for threat alerts
-    SocketService.on('threat:alert', (data) => {
-      const newThreat: Threat = {
-        id: Date.now().toString(),
-        threatName: data.threatName,
-        filePath: data.filePath,
-        severity: data.severity,
-        action: data.action,
-        timestamp: new Date().toISOString(),
-        deviceId: data.sourceDevice,
-      };
-      setThreats(prev => [newThreat, ...prev]);
-    });
+    // WebSocket disabled - using HTTP API
+    // SocketService.on('threat:alert', (data) => {
+    //   const newThreat: Threat = {
+    //     id: Date.now().toString(),
+    //     threatName: data.threatName,
+    //     filePath: data.filePath,
+    //     severity: data.severity,
+    //     action: data.action,
+    //     timestamp: new Date().toISOString(),
+    //     deviceId: data.sourceDevice,
+    //   };
+    //   setThreats(prev => [newThreat, ...prev]);
+    // });
 
     return () => {
-      SocketService.off('threat:alert');
+      // SocketService.off('threat:alert');
     };
   }, []);
 

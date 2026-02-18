@@ -1,0 +1,62 @@
+{
+  "wdag": {
+    "enabled": false,
+    "available": false,
+    "isolationLevel": "high",
+    "clipboardAccess": false,
+    "printAccess": false,
+    "fileAccess": "disabled"
+  },
+  "hyperv": {
+    "enabled": false,
+    "available": false,
+    "vmName": "NebulaShield-Sandbox",
+    "memory": 2048,
+    "processors": 2,
+    "diskSize": 20
+  },
+  "docker": {
+    "enabled": false,
+    "available": false,
+    "image": "nebulashield/sandbox:latest",
+    "networkIsolation": true,
+    "readOnly": true,
+    "memoryLimit": "1g",
+    "cpuLimit": 1
+  },
+  "cloudSandbox": {
+    "enabled": false,
+    "providers": {
+      "virustotal": {
+        "enabled": false,
+        "apiKey": "",
+        "endpoint": "https://www.virustotal.com/api/v3"
+      },
+      "hybrid": {
+        "enabled": false,
+        "apiKey": "",
+        "endpoint": "https://www.hybrid-analysis.com/api/v2"
+      },
+      "joesandbox": {
+        "enabled": false,
+        "apiKey": "",
+        "endpoint": "https://jbxcloud.joesecurity.org/api"
+      },
+      "anyrun": {
+        "enabled": false,
+        "apiKey": "",
+        "endpoint": "https://api.any.run/v1"
+      }
+    },
+    "timeout": 300000,
+    "autoSubmit": false
+  },
+  "general": {
+    "defaultMode": "auto",
+    "executionTimeout": 120000,
+    "networkMonitoring": true,
+    "fileSystemMonitoring": true,
+    "registryMonitoring": true,
+    "processMonitoring": true
+  }
+}

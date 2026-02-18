@@ -536,10 +536,13 @@ namespace nebula_shield {
         return signatures_removed;
     }
 
-    bool ThreatDetector::cleanFile(const std::string& file_path) {
+    CleaningResult ThreatDetector::cleanFile(const std::string& file_path) {
+        CleaningResult result;
+        
         if (!std::filesystem::exists(file_path)) {
-            LOG_ERROR("File does not exist: " + file_path);
-            return false;
+            result.message = "File does not exist: " + file_path;
+            LOG_ERROR(result.message);
+            return result;
         }
 
         try {
@@ -548,27 +551,34 @@ namespace nebula_shield {
             
             // Check if file type is safe to clean
             if (type == FileType::PE_EXECUTABLE) {
-                LOG_ERROR("Cannot clean executables - use quarantine instead: " + file_path);
-                return false;
+                result.message = "Cannot clean executables - use quarantine instead";
+                LOG_ERROR(result.message + ": " + file_path);
+                return result;
             }
             
             if (type == FileType::ARCHIVE) {
-                LOG_ERROR("Cannot clean archives - use quarantine instead: " + file_path);
-                return false;
+                result.message = "Cannot clean archives - use quarantine instead";
+                LOG_ERROR(result.message + ": " + file_path);
+                return result;
             }
 
             // Create backup of original file
             std::string backup_path = createBackup(file_path);
             if (backup_path.empty()) {
-                LOG_ERROR("Failed to create backup, aborting clean operation");
-                return false;
+                result.message = "Failed to create backup, aborting clean operation";
+                LOG_ERROR(result.message);
+                return result;
             }
+            
+            result.backupCreated = true;
+            result.backupPath = backup_path;
 
             // Read file contents
             std::ifstream file(file_path, std::ios::binary);
             if (!file.is_open()) {
-                LOG_ERROR("Failed to open file for cleaning: " + file_path);
-                return false;
+                result.message = "Failed to open file for cleaning";
+                LOG_ERROR(result.message + ": " + file_path);
+                return result;
             }
 
             file.seekg(0, std::ios::end);
@@ -581,15 +591,17 @@ namespace nebula_shield {
 
             // Remove virus signatures using smart replacement
             int signatures_removed = removeVirusSignatures(file_data, type);
+            result.signaturesRemoved = signatures_removed;
 
             if (signatures_removed > 0) {
                 // Write cleaned data back to file
                 std::ofstream out_file(file_path, std::ios::binary | std::ios::trunc);
                 if (!out_file.is_open()) {
-                    LOG_ERROR("Failed to write cleaned file: " + file_path);
+                    result.message = "Failed to write cleaned file";
+                    LOG_ERROR(result.message + ": " + file_path);
                     restoreBackup(backup_path, file_path);
                     std::filesystem::remove(backup_path);
-                    return false;
+                    return result;
                 }
 
                 out_file.write(reinterpret_cast<const char*>(file_data.data()), file_data.size());
@@ -597,30 +609,33 @@ namespace nebula_shield {
 
                 // Verify file integrity after cleaning
                 bool integrity_ok = verifyFileIntegrity(file_path, type);
+                result.fileIntegrityVerified = integrity_ok;
                 
                 if (!integrity_ok) {
-                    LOG_ERROR("File integrity check failed after cleaning - restoring backup");
+                    result.message = "File integrity check failed after cleaning - backup restored";
+                    LOG_ERROR(result.message);
                     restoreBackup(backup_path, file_path);
                     std::filesystem::remove(backup_path);
-                    return false;
+                    return result;
                 }
 
-                LOG_INFO("Successfully cleaned file: " + file_path + " (removed " + 
-                        std::to_string(signatures_removed) + " signatures, integrity verified)");
-                
-                // Keep backup for safety
+                result.success = true;
+                result.message = "Successfully cleaned file (removed " + 
+                               std::to_string(signatures_removed) + " signatures, integrity verified)";
+                LOG_INFO(result.message + ": " + file_path);
                 LOG_INFO("Backup saved at: " + backup_path);
-                return true;
             } else {
-                LOG_INFO("No virus signatures found to clean in: " + file_path);
+                result.message = "No virus signatures found to clean";
+                LOG_INFO(result.message + " in: " + file_path);
                 std::filesystem::remove(backup_path);
-                return false;
             }
 
         } catch (const std::exception& e) {
-            LOG_ERROR("Failed to clean file " + file_path + ": " + std::string(e.what()));
-            return false;
+            result.message = "Failed to clean file: " + std::string(e.what());
+            LOG_ERROR(result.message + " - " + file_path);
         }
+        
+        return result;
     }
 
     // Basic file integrity verification

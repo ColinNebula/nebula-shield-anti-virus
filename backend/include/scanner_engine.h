@@ -28,9 +28,13 @@ namespace nebula_shield {
         size_t file_size;
         std::string scan_time;
         bool quarantined;
+        double confidence_score;  // Additional field for bindings
+        long scan_duration_ms;    // Scan duration in milliseconds
+        std::string file_hash;    // Alternative hash field
 
         ScanResult() : threat_type(ThreatType::CLEAN), confidence(0.0), 
-                      file_size(0), quarantined(false) {}
+                      file_size(0), quarantined(false), confidence_score(0.0),
+                      scan_duration_ms(0) {}
     };
 
     struct ThreatSignature {

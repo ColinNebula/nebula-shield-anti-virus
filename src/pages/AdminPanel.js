@@ -73,7 +73,7 @@ const AdminPanel = () => {
       setUsers([
         {
           id: 1,
-          email: 'colinnebula@gmail.com',
+          email: 'admin@example.com',
           name: 'Colin Nebula',
           tier: 'premium',
           role: 'admin',
@@ -137,7 +137,7 @@ const AdminPanel = () => {
       setAuditLogs([
         {
           id: 1,
-          user_email: 'colinnebula@gmail.com',
+          user_email: 'admin@example.com',
           action: 'LOGIN',
           details: 'Successful login from 192.168.1.100',
           timestamp: '2025-10-12 14:30:25',
@@ -161,7 +161,7 @@ const AdminPanel = () => {
         },
         {
           id: 4,
-          user_email: 'colinnebula@gmail.com',
+          user_email: 'admin@example.com',
           action: 'USER_CREATED',
           details: 'New user registered: test@example.com',
           timestamp: '2025-10-12 12:20:15',

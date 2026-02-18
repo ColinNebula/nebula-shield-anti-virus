@@ -20,6 +20,7 @@ import {
 import AntivirusAPI from '../services/antivirusApi';
 import { useAuth } from '../contexts/AuthContext';
 import notificationService from '../services/notificationService';
+import virusTotalService from '../services/virusTotalService';
 import toast from 'react-hot-toast';
 import './Scanner.css';
 
@@ -219,14 +220,12 @@ const Scanner = memo(() => {
     toast('Scan stopped', { icon: 'ℹ️' });
   }, []);
 
-  // OPTIMIZATION: Memoize VirusTotal check with lazy loading
+  // OPTIMIZATION: Memoize VirusTotal check
   const handleCheckVirusTotal = useCallback(async (filePath) => {
     setLoadingVT(prev => new Set(prev).add(filePath));
     const loadingToast = toast.loading('🔍 Checking VirusTotal...');
     
     try {
-      // Lazy load VirusTotal service
-      const { default: virusTotalService } = await import('../services/virusTotalService');
       const report = await virusTotalService.checkFile(filePath);
       
       toast.dismiss(loadingToast);

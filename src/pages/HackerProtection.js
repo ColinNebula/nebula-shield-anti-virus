@@ -56,7 +56,13 @@ import {
   checkRateLimit,
   detectBruteForce,
   detectDDoS,
-  checkGeoBlock
+  checkGeoBlock,
+  analyzeUserBehavior,
+  getMachineLearningInsights,
+  checkThreatIntelligence,
+  getIPReputation,
+  detectBotnet,
+  predictAttack
 } from '../services/hackerProtection';
 
 function TabPanel({ children, value, index }) {
@@ -235,6 +241,51 @@ export default function HackerProtection() {
             </CardContent>
           </Card>
         </Grid>
+
+        <Grid item xs={12} sm={6} md={3}>
+          <Card sx={{ background: 'linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)', color: '#333' }}>
+            <CardContent>
+              <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                <VpnLock sx={{ mr: 1 }} />
+                <Typography variant="h6">High Risk Users</Typography>
+              </Box>
+              <Typography variant="h3">{dashboard.realTimeStatus.highRiskUsers || 0}</Typography>
+              <Typography variant="body2" sx={{ opacity: 0.9 }}>
+                AI-detected anomalies
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+
+        <Grid item xs={12} sm={6} md={3}>
+          <Card sx={{ background: 'linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%)', color: '#333' }}>
+            <CardContent>
+              <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                <BugReport sx={{ mr: 1 }} />
+                <Typography variant="h6">Botnets</Typography>
+              </Box>
+              <Typography variant="h3">{dashboard.realTimeStatus.detectedBotnets || 0}</Typography>
+              <Typography variant="body2" sx={{ opacity: 0.9 }}>
+                Detected botnets
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+
+        <Grid item xs={12} sm={6} md={3}>
+          <Card sx={{ background: 'linear-gradient(135deg, #fbc2eb 0%, #a6c1ee 100%)', color: '#333' }}>
+            <CardContent>
+              <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                <Shield sx={{ mr: 1 }} />
+                <Typography variant="h6">Threat Intel</Typography>
+              </Box>
+              <Typography variant="h3">{dashboard.realTimeStatus.threatIntelMatches || 0}</Typography>
+              <Typography variant="body2" sx={{ opacity: 0.9 }}>
+                Malicious IPs detected
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
       </Grid>
 
       {/* Protection Status */}
@@ -246,7 +297,7 @@ export default function HackerProtection() {
           </Typography>
           <Grid container spacing={2} sx={{ mt: 1 }}>
             {Object.entries(dashboard.protectionStatus).map(([module, status]) => (
-              <Grid item xs={12} sm={6} md={4} key={module}>
+              <Grid item xs={12} sm={6} md={4} lg={3} key={module}>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                   <Chip
                     label={status}
@@ -264,13 +315,91 @@ export default function HackerProtection() {
         </CardContent>
       </Card>
 
+      {/* AI/ML Insights Card */}
+      {dashboard.mlInsights && (
+        <Card sx={{ mb: 3, background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(168, 85, 247, 0.1) 100%)' }}>
+          <CardContent>
+            <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <VpnLock color="primary" />
+              🤖 AI/ML Behavioral Analysis
+            </Typography>
+            <Grid container spacing={3} sx={{ mt: 1 }}>
+              <Grid item xs={12} md={4}>
+                <Box>
+                  <Typography variant="body2" color="text.secondary">User Profiles</Typography>
+                  <Typography variant="h4">{dashboard.mlInsights.totalProfiles}</Typography>
+                  <Typography variant="caption">Active behavioral profiles</Typography>
+                </Box>
+              </Grid>
+              <Grid item xs={12} md={4}>
+                <Box>
+                  <Typography variant="body2" color="text.secondary">High Risk Users</Typography>
+                  <Typography variant="h4" color="error">{dashboard.mlInsights.highRiskUsers.length}</Typography>
+                  <Typography variant="caption">Anomaly score &gt; 75</Typography>
+                </Box>
+              </Grid>
+              <Grid item xs={12} md={4}>
+                <Box>
+                  <Typography variant="body2" color="text.secondary">Average Login Time</Typography>
+                  <Typography variant="h4">{dashboard.mlInsights.behaviorPatterns.avgLoginTime}:00</Typography>
+                  <Typography variant="caption">Typical user activity hour</Typography>
+                </Box>
+              </Grid>
+            </Grid>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Threat Intelligence Card */}
+      {dashboard.threatIntelligence && (
+        <Card sx={{ mb: 3, background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.1) 0%, rgba(251, 146, 60, 0.1) 100%)' }}>
+          <CardContent>
+            <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Security color="error" />
+              🌐 Advanced Threat Intelligence
+            </Typography>
+            <Grid container spacing={3} sx={{ mt: 1 }}>
+              <Grid item xs={12} md={3}>
+                <Box>
+                  <Typography variant="body2" color="text.secondary">Known Threats</Typography>
+                  <Typography variant="h4">{dashboard.threatIntelligence.knownThreats}</Typography>
+                  <Typography variant="caption">Threat database entries</Typography>
+                </Box>
+              </Grid>
+              <Grid item xs={12} md={3}>
+                <Box>
+                  <Typography variant="body2" color="text.secondary">Active Botnets</Typography>
+                  <Typography variant="h4" color="error">{dashboard.threatIntelligence.botnets.length}</Typography>
+                  <Typography variant="caption">Detected botnet IPs</Typography>
+                </Box>
+              </Grid>
+              <Grid item xs={12} md={3}>
+                <Box>
+                  <Typography variant="body2" color="text.secondary">C2 Servers</Typography>
+                  <Typography variant="h4" color="warning.main">{dashboard.threatIntelligence.c2Servers.length}</Typography>
+                  <Typography variant="caption">Command & Control IPs</Typography>
+                </Box>
+              </Grid>
+              <Grid item xs={12} md={3}>
+                <Box>
+                  <Typography variant="body2" color="text.secondary">Low Reputation IPs</Typography>
+                  <Typography variant="h4">{dashboard.threatIntelligence.reputationCache.length}</Typography>
+                  <Typography variant="caption">Score &lt; 70</Typography>
+                </Box>
+              </Grid>
+            </Grid>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Tabs */}
       <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
         <Tabs value={activeTab} onChange={(e, val) => setActiveTab(val)}>
           <Tab label="Attack Log" icon={<Warning />} iconPosition="start" />
           <Tab label="Blocked IPs" icon={<Block />} iconPosition="start" />
           <Tab label="Honeypots" icon={<BugReport />} iconPosition="start" />
-          <Tab label="Statistics" icon={<Security />} iconPosition="start" />
+          <Tab label="AI/ML Insights" icon={<VpnLock />} iconPosition="start" />
+          <Tab label="Threat Intel" icon={<Security />} iconPosition="start" />
         </Tabs>
       </Box>
 
